@@ -63,6 +63,9 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            REVISION=${{ github.sha }}
           tags: ${{ steps.registries.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

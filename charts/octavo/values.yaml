@@ -30,13 +30,18 @@ resources:
     cpu: 100m
     memory: 256Mi
   limits:
+    cpu: "1"
     memory: 1Gi
 
 podSecurityContext:
-  fsGroup: 1000
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
 securityContext:
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 10001
+  runAsGroup: 10001
+  readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   capabilities:
     drop: ["ALL"]

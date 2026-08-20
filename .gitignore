@@ -42,3 +42,6 @@ next-env.d.ts
 
 # octavo local data (sqlite db + uploads)
 /data
+
+# Security scan reports stay local — never in the public repo
+/docs/security/
