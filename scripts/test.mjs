@@ -3,6 +3,7 @@
 import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import * as nodeCrypto from "node:crypto";
 
 // Node can strip types but not resolve extensionless TS imports, so stage
 // the pure libs with rewritten import specifiers.
@@ -208,6 +209,47 @@ test("mentions do not fire on a longer word", () => {
 test("mentions are case-insensitive and deduplicated", () => {
   const users = [{ id: "1", name: "Dev" }];
   eq(mentions.mentionedUserIds("@dev and @DEV again", users).length, 1);
+});
+
+test("audit chain verifies, and detects tampering", () => {
+  // The hash logic is pure: rebuild it here rather than standing up a db.
+  const { createHash } = nodeCrypto;
+  const canonical = (e) =>
+    [e.id, String(e.at), e.actor_id ?? "", e.actor_name, e.action,
+     e.object_type, e.object_id, e.object_label, e.space_id ?? "",
+     e.detail, e.prev_hash].map((v) => JSON.stringify(v)).join("");
+  const digest = (e) => createHash("sha256").update(canonical(e)).digest("hex");
+  const mk = (i, prev, label) => {
+    const row = { id: "e" + i, at: 1000 + i, actor_id: "u", actor_name: "dev",
+      action: "space.deleted", object_type: "space", object_id: "s" + i,
+      object_label: label, space_id: "s" + i, detail: "", prev_hash: prev };
+    return { ...row, hash: digest(row) };
+  };
+  const GEN = "0".repeat(64);
+  const chain = [];
+  let prev = GEN;
+  for (let i = 0; i < 4; i++) { const r = mk(i, prev, "space " + i); chain.push(r); prev = r.hash; }
+
+  const walk = (rows) => {
+    let p = GEN;
+    for (const r of rows) {
+      if (r.prev_hash !== p) return { ok: false, at: r.id };
+      const { hash, ...rest } = r;
+      if (digest(rest) !== hash) return { ok: false, at: r.id };
+      p = hash;
+    }
+    return { ok: true };
+  };
+
+  ok(walk(chain).ok, "an untouched chain verifies");
+
+  const edited = chain.map((r) => ({ ...r }));
+  edited[2].object_label = "something else";
+  eq(walk(edited).ok, false);
+  eq(walk(edited).at, "e2");
+
+  const removed = chain.filter((_, i) => i !== 1);
+  eq(walk(removed).ok, false);
 });
 
 test("newId shape", () => {

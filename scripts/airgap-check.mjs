@@ -52,6 +52,7 @@ const ROUTES = [
   [`/${anyPage.space}/${anyPage.page}/edit`, "editor bundle (BlockNote)"],
   ["/login", "sign in"],
   ["/admin", "admin"],
+  ["/admin/audit", "audit log"],
 ];
 
 rmSync(PROFILE, { recursive: true, force: true });

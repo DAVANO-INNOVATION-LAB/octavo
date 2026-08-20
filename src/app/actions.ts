@@ -16,6 +16,7 @@ import {
   userCount,
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
+import { recordAudit } from "@/lib/audit";
 import { deleteUser, findUserByEmail, setUserRole } from "@/lib/auth";
 import type { User } from "@/lib/auth";
 import { setSetting } from "@/lib/settings";
@@ -73,7 +74,17 @@ export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const user = authenticate(email, password);
-  if (!user) redirect("/login?error=1");
+  if (!user) {
+    // The address is recorded; the string typed into the password field is
+    // never written down, since it is frequently a password typed one box up.
+    recordAudit({
+      actor: null,
+      action: "auth.signin_failed",
+      objectType: "session",
+      objectLabel: email.slice(0, 120),
+    });
+    redirect("/login?error=1");
+  }
   if (getTotpSecret(user.id)) {
     const jar = await cookies();
     jar.set("octavo_pending_2fa", issuePendingToken(user.id), {
@@ -86,6 +97,12 @@ export async function loginAction(formData: FormData) {
     redirect("/login/verify");
   }
   await createSession(user.id);
+  recordAudit({
+    actor: user,
+    action: "auth.signin",
+    objectType: "session",
+    objectLabel: user.name,
+  });
   redirect("/");
 }
 
@@ -122,6 +139,14 @@ export async function disableTotpAction(formData: FormData) {
 }
 
 export async function logoutAction() {
+  const user = await currentUser();
+  if (user)
+    recordAudit({
+      actor: user,
+      action: "auth.signout",
+      objectType: "session",
+      objectLabel: user.name,
+    });
   await destroySession();
   redirect("/");
 }
@@ -176,10 +201,21 @@ export async function updateSpaceAction(formData: FormData) {
 }
 
 export async function deleteSpaceAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const slug = String(formData.get("slug") ?? "");
   const space = getSpaceBySlug(slug);
-  if (space) deleteSpace(space.id);
+  if (space) {
+    recordAudit({
+      actor: user,
+      action: "space.deleted",
+      objectType: "space",
+      objectId: space.id,
+      objectLabel: space.name,
+      spaceId: space.id,
+      detail: { visibility: space.visibility, kind: space.kind },
+    });
+    deleteSpace(space.id);
+  }
   revalidatePath("/");
   redirect("/");
 }
@@ -198,9 +234,20 @@ export async function createPageAction(formData: FormData) {
 }
 
 export async function deletePageAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const id = String(formData.get("id") ?? "");
   const spaceSlug = String(formData.get("space") ?? "");
+  const doomed = getPage(id);
+  if (doomed)
+    recordAudit({
+      actor: user,
+      action: "page.deleted",
+      objectType: "page",
+      objectId: id,
+      objectLabel: doomed.title,
+      spaceId: doomed.space_id,
+      detail: { published: doomed.published === 1 },
+    });
   deletePage(id);
   revalidatePath(`/${spaceSlug}`);
   redirect(`/${spaceSlug}`);
@@ -308,6 +355,14 @@ export async function setRoleAction(formData: FormData) {
   if (id === admin.id) redirect("/admin/users?error=self");
   if (role !== "admin" && role !== "member") redirect("/admin/users");
   setUserRole(id, role);
+  recordAudit({
+    actor: admin,
+    action: "user.role_changed",
+    objectType: "user",
+    objectId: id,
+    objectLabel: id,
+    detail: { to: role },
+  });
   redirect("/admin/users");
 }
 
@@ -315,14 +370,28 @@ export async function deleteUserAction(formData: FormData) {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (id === admin.id) redirect("/admin/users?error=self");
+  recordAudit({
+    actor: admin,
+    action: "user.deleted",
+    objectType: "user",
+    objectId: id,
+    objectLabel: id,
+  });
   deleteUser(id);
   redirect("/admin/users");
 }
 
 export async function resetTotpAction(formData: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   setTotpSecret(id, null);
+  recordAudit({
+    actor: admin,
+    action: "auth.totp_reset",
+    objectType: "user",
+    objectId: id,
+    objectLabel: id,
+  });
   redirect("/admin/users");
 }
 

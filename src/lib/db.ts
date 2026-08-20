@@ -88,6 +88,24 @@ CREATE TABLE IF NOT EXISTS connectors (
 );
 CREATE INDEX IF NOT EXISTS connectors_space ON connectors(space_id);
 
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  at INTEGER NOT NULL,
+  actor_id TEXT,
+  actor_name TEXT NOT NULL,
+  action TEXT NOT NULL,
+  object_type TEXT NOT NULL,
+  object_id TEXT NOT NULL DEFAULT '',
+  object_label TEXT NOT NULL DEFAULT '',
+  space_id TEXT,
+  detail TEXT NOT NULL DEFAULT '',
+  prev_hash TEXT NOT NULL,
+  hash TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS audit_at ON audit_log(at DESC);
+CREATE INDEX IF NOT EXISTS audit_actor ON audit_log(actor_id, at DESC);
+CREATE INDEX IF NOT EXISTS audit_space ON audit_log(space_id, at DESC);
+
 CREATE TABLE IF NOT EXISTS runs (
   id TEXT PRIMARY KEY,
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
