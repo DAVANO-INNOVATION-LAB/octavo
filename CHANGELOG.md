@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.6.3 — 2026-08-20
+
+### Added
+
+- **Raw Markdown for any page** at `/space/page/raw`, plus **llms-full.txt**
+  inlining every published page of every public space.
+- **SEO plumbing** — a generated `sitemap.xml` and `robots.txt`, canonical
+  and OpenGraph metadata on reader pages, private spaces marked noindex.
+- **Broken-link detection** — an admin report of internal links that no
+  longer resolve: missing spaces, missing pages, and links pointing at
+  unpublished drafts. External URLs are left alone.
+- **Whole-space PDF export** — a print route that renders the space as one
+  book: title page, contents with dotted leaders, then every page with a
+  break between chapters.
+- **Page analytics, search insights, and reader feedback** — a local,
+  cookie-free view counter, the terms readers searched, and a quiet "was
+  this helpful?" vote. The insights page answers: what is read most, what is
+  read often but stale, what was marked unhelpful, what is never read, and
+  what people searched for and *found nothing* — the pages the library is
+  missing.
+- **Code block polish** — a filename in the header, a highlight spec
+  (`2-4,8`) that bands the lines that matter, an automatic line-number
+  gutter on longer blocks, and per-reader toggles for numbers and wrapping.
+- **Margin notes** — inline annotations that open into the margin on a wide
+  screen; Markdown footnotes import as them and export back out.
+- **Theme-aware images** — a second source shown only in dark mode.
+
+### Still ahead
+
+Git round-trip sync, content variants, anchored comment threads, change
+requests, notifications, reusable synced blocks, variables and conditionals,
+multi-site publishing, visitor tokens, graph refinements, page covers, and
+real-time presence are each substantial work and remain on the roadmap —
+listed there rather than half-built here.
+
+
 ## v0.6.2 — 2026-08-20
 
 ### Added
