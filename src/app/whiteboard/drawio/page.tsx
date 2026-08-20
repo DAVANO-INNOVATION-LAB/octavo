@@ -9,7 +9,9 @@ export default function DrawioPage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
       <WhiteboardTabs />
-      <DrawioShell />
+      <main className="flex-1">
+        <DrawioShell />
+      </main>
     </div>
   );
 }

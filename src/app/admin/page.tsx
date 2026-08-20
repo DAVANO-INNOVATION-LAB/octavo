@@ -60,14 +60,14 @@ export default async function AdminOverview() {
         ))}
       </div>
 
-      <div className="mt-8 grid gap-6 sm:grid-cols-2">
+      <div className="mt-8 grid gap-6 sm:grid-cols-2 [&>section]:min-w-0">
         <section>
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">
             Largest spaces
           </p>
           <ul className="space-y-1.5">
             {s.topSpaces.map((t) => (
-              <li key={t.slug} className="flex items-baseline gap-2 text-sm">
+              <li key={t.slug} className="flex min-w-0 items-baseline gap-2 text-sm">
                 <Link href={`/${t.slug}`} className="min-w-0 truncate text-ink hover:text-accent">
                   {t.name}
                 </Link>
@@ -84,7 +84,7 @@ export default async function AdminOverview() {
           </p>
           <ul className="space-y-1.5">
             {s.recentPages.map((p) => (
-              <li key={`${p.space_slug}/${p.slug}`} className="text-sm">
+              <li key={`${p.space_slug}/${p.slug}`} className="min-w-0 text-sm">
                 <Link
                   href={`/${p.space_slug}/${p.slug}`}
                   className="block truncate text-ink hover:text-accent"

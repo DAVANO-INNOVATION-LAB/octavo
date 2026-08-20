@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import type { Space, TreeNode } from "@/lib/data";
 import { SiteHeader } from "./SiteHeader";
 import { SpaceNav } from "./SpaceNav";
-import { SiteFooter } from "./SiteFooter";
 
 export function SpaceShell({
   space,
@@ -42,7 +41,6 @@ export function SpaceShell({
           </aside>
         )}
       </div>
-      <SiteFooter />
     </div>
   );
 }

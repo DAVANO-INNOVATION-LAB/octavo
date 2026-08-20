@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogIn, PenTool, Settings2, Share2 } from "lucide-react";
+import { LogIn, LogOut, PenTool, Settings2, Share2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions";
 import { SearchButton } from "./SearchDialog";
@@ -12,13 +12,13 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
       <SeasonalDecor />
       <div className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
-        <Link href="/" className="wordmark text-[1.35rem] leading-none">
+        <Link href="/" className="wordmark shrink-0 text-[1.35rem] leading-none">
           octavo<span className="text-accent">.</span>
         </Link>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-0.5 sm:gap-2">
           <Link
             href="/whiteboard"
-            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+            className="flex h-8 items-center gap-1.5 rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:px-2.5"
           >
             <PenTool size={14} />
             <span className="hidden sm:inline">Whiteboard</span>
@@ -26,7 +26,7 @@ export async function SiteHeader() {
           <Link
             href="/graph"
             title="Knowledge graph"
-            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+            className="flex h-8 items-center gap-1.5 rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:px-2.5"
           >
             <Share2 size={14} />
             <span className="hidden lg:inline">Graph</span>
@@ -54,8 +54,12 @@ export async function SiteHeader() {
                 </span>
               </Link>
               <form action={logoutAction}>
-                <button className="flex h-8 items-center rounded-md px-2 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink">
-                  Sign out
+                <button
+                  title="Sign out"
+                  className="flex h-8 items-center rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:px-2"
+                >
+                  <LogOut size={15} className="sm:hidden" />
+                  <span className="hidden sm:inline">Sign out</span>
                 </button>
               </form>
             </span>

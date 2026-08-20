@@ -131,14 +131,14 @@ export default async function ReaderPage({
               {space.name}
             </p>
           )}
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <h1
-              className="wordmark text-[2.4rem] leading-[1.15] text-ink"
+              className="wordmark min-w-0 text-[2rem] leading-[1.15] text-ink sm:text-[2.4rem]"
               style={{ fontVariationSettings: '"opsz" 60' }}
             >
               {page.title}
             </h1>
-            <span className="mt-2 flex shrink-0 items-center gap-1.5 print:hidden">
+            <span className="order-first flex shrink-0 items-center gap-1.5 print:hidden sm:order-none sm:mt-2">
               <PrintButton />
               <a
                 href={`/api/pages/${page.id}/export`}

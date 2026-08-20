@@ -23,7 +23,7 @@ export default function Board() {
   }, [theme]);
 
   return (
-    <div className="h-[calc(100vh-6.1rem)] w-full">
+    <div className="h-[calc(100vh-9.6rem)] w-full">
       <Excalidraw
         theme={theme}
         initialData={initialData}

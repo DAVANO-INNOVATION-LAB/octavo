@@ -13,7 +13,7 @@ const DrawioBoard = dynamic(() => import("./DrawioBoard"), {
 
 export function DrawioShell() {
   return (
-    <div className="h-[calc(100vh-6.1rem)] w-full">
+    <div className="h-[calc(100vh-9.6rem)] w-full">
       <DrawioBoard />
     </div>
   );

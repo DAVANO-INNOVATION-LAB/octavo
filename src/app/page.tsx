@@ -5,7 +5,6 @@ import { currentUser, userCount } from "@/lib/auth";
 import { listSpaces, listPages } from "@/lib/data";
 import { SiteHeader } from "@/components/SiteHeader";
 import { LibraryGrid, type ShelfSpace } from "@/components/LibraryGrid";
-import { SiteFooter } from "@/components/SiteFooter";
 
 export const dynamic = "force-dynamic";
 
@@ -107,7 +106,6 @@ export default async function Home() {
           <LibraryGrid spaces={shelf} editing={Boolean(user)} />
         )}
       </main>
-      <SiteFooter />
     </div>
   );
 }
