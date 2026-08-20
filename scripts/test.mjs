@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -23,6 +23,7 @@ const tpl = await import(pathToFileURL(path.join(STAGE, "templates.ts")));
 const util = await import(pathToFileURL(path.join(STAGE, "util.ts")));
 const totp = await import(pathToFileURL(path.join(STAGE, "totp.ts")));
 const mentions = await import(pathToFileURL(path.join(STAGE, "mentions.ts")));
+const diff = await import(pathToFileURL(path.join(STAGE, "diff.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -209,6 +210,45 @@ test("mentions do not fire on a longer word", () => {
 test("mentions are case-insensitive and deduplicated", () => {
   const users = [{ id: "1", name: "Dev" }];
   eq(mentions.mentionedUserIds("@dev and @DEV again", users).length, 1);
+});
+
+test("diff finds an inserted line", () => {
+  const rows = diff.diffLines("a\nb\nc", "a\nb\nX\nc");
+  const st = diff.diffStat(rows);
+  eq(st.added, 1);
+  eq(st.removed, 0);
+  eq(rows.find((r) => r.kind === "add").b, "X");
+});
+
+test("diff finds a replaced line as remove plus add", () => {
+  const st = diff.diffStat(diff.diffLines("a\nb\nc", "a\nZ\nc"));
+  eq(st.added, 1);
+  eq(st.removed, 1);
+});
+
+test("diff of identical text has no changes", () => {
+  const rows = diff.diffLines("same\ntext", "same\ntext");
+  eq(diff.diffStat(rows).added, 0);
+  eq(diff.diffStat(rows).removed, 0);
+  ok(rows.every((r) => r.kind === "same"));
+});
+
+test("diff line numbers survive a shared prefix and suffix", () => {
+  const rows = diff.diffLines("h1\nh2\nmid\nt1\nt2", "h1\nh2\nCHANGED\nt1\nt2");
+  const add = rows.find((r) => r.kind === "add");
+  const del = rows.find((r) => r.kind === "del");
+  eq(add.bNo, 3);
+  eq(del.aNo, 3);
+  eq(rows[rows.length - 1].aNo, 5);
+});
+
+test("collapseUnchanged keeps context and drops the rest", () => {
+  const a = Array.from({ length: 40 }, (_, i) => "line " + i).join("\n");
+  const b = a.replace("line 20", "line twenty");
+  const groups = diff.collapseUnchanged(diff.diffLines(a, b), 2);
+  eq(groups.length, 1);
+  ok(groups[0].length < 12, "context window, not the whole document");
+  ok(groups[0].some((r) => r.kind === "add"));
 });
 
 test("audit chain verifies, and detects tampering", () => {

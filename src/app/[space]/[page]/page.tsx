@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { openCrCount } from "@/lib/change-requests";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight, Download, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, GitPullRequest, PenLine } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import {
   COMMENTABLE_KINDS,
@@ -80,6 +81,7 @@ export default async function ReaderPage({
 
   const blocks = parseBlocks(page.content);
   const commentable = COMMENTABLE_KINDS.has(space.kind);
+  const openChanges = openCrCount(page.id);
   // Ids still present on the page, so a thread whose passage was deleted can
   // say so rather than linking into nothing.
   const liveBlockIds = new Set<string>(
@@ -167,7 +169,7 @@ export default async function ReaderPage({
             >
               {page.title}
             </h1>
-            <span className="order-first flex shrink-0 items-center gap-1.5 print:hidden sm:order-none sm:mt-2">
+            <span className="order-first flex flex-wrap items-center gap-1.5 print:hidden sm:order-none sm:mt-2 sm:flex-nowrap sm:shrink-0">
               <PrintButton />
               <a
                 href={`/api/pages/${page.id}/export`}
@@ -178,13 +180,35 @@ export default async function ReaderPage({
                 .md
               </a>
               {editing && (
-                <Link
-                  href={`/${space.slug}/${page.slug}/edit`}
-                  className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-muted transition-colors hover:border-line-strong hover:text-ink"
-                >
-                  <PenLine size={13} />
-                  Edit
-                </Link>
+                <>
+                  <Link
+                    href={`/${space.slug}/${page.slug}/changes`}
+                    className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-muted transition-colors hover:border-line-strong hover:text-ink"
+                    title="Proposed edits awaiting review"
+                  >
+                    <GitPullRequest size={13} />
+                    Changes
+                    {openChanges > 0 && (
+                      <span className="rounded-full bg-accent-soft px-1.5 font-mono text-[10px] text-accent">
+                        {openChanges}
+                      </span>
+                    )}
+                  </Link>
+                  <Link
+                    href={`/${space.slug}/${page.slug}/propose`}
+                    className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-muted transition-colors hover:border-line-strong hover:text-ink"
+                  >
+                    <PenLine size={13} />
+                    Propose
+                  </Link>
+                  <Link
+                    href={`/${space.slug}/${page.slug}/edit`}
+                    className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-muted transition-colors hover:border-line-strong hover:text-ink"
+                  >
+                    <PenLine size={13} />
+                    Edit
+                  </Link>
+                </>
               )}
             </span>
           </div>

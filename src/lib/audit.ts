@@ -55,6 +55,11 @@ export type AuditAction =
   | "admin.settings_changed"
   | "admin.backup_created"
   | "admin.snapshot_restored"
+  // change requests
+  | "cr.created"
+  | "cr.merged"
+  | "cr.closed"
+  | "cr.reopened"
   // moderation
   | "comment.deleted_by_moderator"
   | "comment.thread_resolved"

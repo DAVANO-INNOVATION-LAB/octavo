@@ -45,6 +45,8 @@ const ROUTES = [
   { path: `/${cookbookPage.space}/${cookbookPage.page}`, name: "cookbook recipe" },
   { path: "/field-guide/print", name: "whole-book print view" },
   { path: "/whiteboard", name: "excalidraw whiteboard" },
+  { path: "/field-guide/welcome/changes", name: "change requests" },
+  { path: "/field-guide/welcome/changes/cr_demo1", name: "change request diff" },
   { path: "/login", name: "sign in" },
   { path: "/new", name: "new space" },
   { path: "/import", name: "import" },
