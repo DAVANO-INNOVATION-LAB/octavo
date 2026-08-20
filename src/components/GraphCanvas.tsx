@@ -41,17 +41,26 @@ export function GraphCanvas({ graph }: { graph: GraphData }) {
     const W = () => canvas.getBoundingClientRect().width;
     const H = () => canvas.getBoundingClientRect().height;
 
-    // Seed positions on a circle so the layout unfolds predictably.
-    nodesRef.current = graph.nodes.map((n, i) => {
-      const a = (i / graph.nodes.length) * Math.PI * 2;
-      return {
-        ...n,
-        x: W() / 2 + Math.cos(a) * Math.min(W(), H()) * 0.32,
-        y: H() / 2 + Math.sin(a) * Math.min(W(), H()) * 0.32,
-        vx: 0,
-        vy: 0,
-      };
-    });
+    // Seed positions with a deterministic scatter — a circle seed makes a
+    // symmetric graph freeze into a ring instead of finding its clusters.
+    let seed = 42;
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    nodesRef.current = graph.nodes.map((n) => ({
+      ...n,
+      x: W() * (0.2 + rand() * 0.6),
+      y: H() * (0.2 + rand() * 0.6),
+      vx: 0,
+      vy: 0,
+    }));
+
+    // Ideal edge length for this many nodes in this much space.
+    const k = Math.max(
+      42,
+      Math.sqrt((W() * H()) / Math.max(1, graph.nodes.length)) * 0.62
+    );
     const index = new Map(nodesRef.current.map((n) => [n.id, n]));
     const edges = graph.edges
       .map((e) => ({ a: index.get(e.from)!, b: index.get(e.to)! }))
@@ -74,7 +83,7 @@ export function GraphCanvas({ graph }: { graph: GraphData }) {
           let dy = b.y - a.y;
           let d2 = dx * dx + dy * dy;
           if (d2 < 1) { d2 = 1; dx = Math.random(); dy = Math.random(); }
-          const f = (14000 * alpha) / d2;
+          const f = (k * k * alpha) / d2;
           const d = Math.sqrt(d2);
           a.vx -= (dx / d) * f;
           a.vy -= (dy / d) * f;
@@ -87,7 +96,7 @@ export function GraphCanvas({ graph }: { graph: GraphData }) {
         const dx = e.b.x - e.a.x;
         const dy = e.b.y - e.a.y;
         const d = Math.max(1, Math.hypot(dx, dy));
-        const f = (d - 150) * 0.012 * alpha;
+        const f = ((d - k) / k) * 6 * alpha;
         e.a.vx += (dx / d) * f;
         e.a.vy += (dy / d) * f;
         e.b.vx -= (dx / d) * f;
@@ -96,10 +105,16 @@ export function GraphCanvas({ graph }: { graph: GraphData }) {
       // centering + integrate
       for (const n of nodes) {
         if (dragRef.current === n) continue;
-        n.vx += (W() / 2 - n.x) * 0.006 * alpha;
-        n.vy += (H() / 2 - n.y) * 0.006 * alpha;
-        n.vx *= 0.86;
-        n.vy *= 0.86;
+        n.vx += (W() / 2 - n.x) * 0.004 * alpha;
+        n.vy += (H() / 2 - n.y) * 0.004 * alpha;
+        n.vx *= 0.85;
+        n.vy *= 0.85;
+        const speed = Math.hypot(n.vx, n.vy);
+        const max = 18;
+        if (speed > max) {
+          n.vx = (n.vx / speed) * max;
+          n.vy = (n.vy / speed) * max;
+        }
         n.x = Math.max(24, Math.min(W() - 24, n.x + n.vx));
         n.y = Math.max(24, Math.min(H() - 24, n.y + n.vy));
       }
