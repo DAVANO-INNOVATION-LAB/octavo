@@ -606,3 +606,31 @@ mark {
   to { opacity: 1; transform: translateY(0); }
 }
 .rise { animation: rise 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* ————— Per-space typography options (the default is forever) ————— */
+
+[data-typeface="atelier"] .reader {
+  font-family: var(--font-newsreader), Georgia, serif;
+  font-size: 1.125rem;
+  line-height: 1.72;
+}
+[data-typeface="atelier"] .reader code:not(pre code) { font-size: 0.8em; }
+
+[data-typeface="technical"] .reader h1,
+[data-typeface="technical"] .reader h2,
+[data-typeface="technical"] .reader h3,
+[data-typeface="technical"] main .wordmark {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-variation-settings: normal;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+[data-typeface="technical"] .reader { font-size: 1rem; line-height: 1.7; }
+[data-typeface="technical"] .reader-dropcap > p:first-child::first-letter {
+  font-family: var(--font-geist-sans), sans-serif;
+  font-weight: 700;
+}
+
+[data-corners="square"] :is(div, aside, figure, details, li, a, button, input, select, textarea, span, img, ol, video) {
+  border-radius: 0 !important;
+}

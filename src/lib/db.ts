@@ -52,6 +52,11 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 CREATE INDEX IF NOT EXISTS pages_space ON pages(space_id, parent_id, position);
 
+CREATE TABLE IF NOT EXISTS kv (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS page_versions (
   id TEXT PRIMARY KEY,
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
@@ -107,9 +112,16 @@ function migrate(db: Database.Database) {
   if (!cols.includes("shelf")) {
     db.exec("ALTER TABLE spaces ADD COLUMN shelf TEXT NOT NULL DEFAULT ''");
   }
+  if (!cols.includes("typeface")) {
+    db.exec("ALTER TABLE spaces ADD COLUMN typeface TEXT NOT NULL DEFAULT 'classic'");
+    db.exec("ALTER TABLE spaces ADD COLUMN corners TEXT NOT NULL DEFAULT 'rounded'");
+  }
   const userCols = (
     db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
   ).map((c) => c.name);
+  if (!userCols.includes("totp_secret")) {
+    db.exec("ALTER TABLE users ADD COLUMN totp_secret TEXT");
+  }
   if (!userCols.includes("oidc_issuer")) {
     db.exec("ALTER TABLE users ADD COLUMN oidc_issuer TEXT");
     db.exec("ALTER TABLE users ADD COLUMN oidc_sub TEXT");

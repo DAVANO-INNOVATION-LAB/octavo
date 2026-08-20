@@ -12,6 +12,8 @@ export type Space = {
   kind: string;
   visibility: string;
   shelf: string;
+  typeface: string;
+  corners: string;
   accent: string;
   position: number;
   created_at: number;
@@ -69,6 +71,7 @@ export function createSpace(input: {
     "_next",
     "whiteboard",
     "import",
+    "account",
   ]);
   if (RESERVED.has(slug)) slug = `${slug}-space`;
   // De-dupe slug if needed.
@@ -97,7 +100,12 @@ export function createSpace(input: {
 
 export function updateSpace(
   id: string,
-  fields: Partial<Pick<Space, "name" | "description" | "kind" | "visibility" | "shelf">>
+  fields: Partial<
+    Pick<
+      Space,
+      "name" | "description" | "kind" | "visibility" | "shelf" | "typeface" | "corners"
+    >
+  >
 ) {
   const db = getDb();
   const space = db.prepare("SELECT * FROM spaces WHERE id = ?").get(id) as
@@ -105,7 +113,7 @@ export function updateSpace(
     | undefined;
   if (!space) return;
   db.prepare(
-    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, shelf = ?, updated_at = ? WHERE id = ?"
+    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, shelf = ?, typeface = ?, corners = ?, updated_at = ? WHERE id = ?"
   ).run(
     fields.name?.trim() ?? space.name,
     fields.description?.trim() ?? space.description,
@@ -114,6 +122,12 @@ export function updateSpace(
       ? fields.visibility
       : space.visibility,
     fields.shelf !== undefined ? fields.shelf.trim().slice(0, 40) : space.shelf,
+    ["classic", "atelier", "technical"].includes(fields.typeface ?? "")
+      ? (fields.typeface as string)
+      : space.typeface,
+    ["rounded", "square"].includes(fields.corners ?? "")
+      ? (fields.corners as string)
+      : space.corners,
     now(),
     id
   );

@@ -2,14 +2,20 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import {
   authenticate,
+  consumePendingToken,
   createSession,
   createUser,
   currentUser,
   destroySession,
+  getTotpSecret,
+  issuePendingToken,
+  setTotpSecret,
   userCount,
 } from "@/lib/auth";
+import { verifyTotp } from "@/lib/totp";
 import {
   addComment,
   createPage,
@@ -52,8 +58,51 @@ export async function loginAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const user = authenticate(email, password);
   if (!user) redirect("/login?error=1");
+  if (getTotpSecret(user.id)) {
+    const jar = await cookies();
+    jar.set("octavo_pending_2fa", issuePendingToken(user.id), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 300,
+    });
+    redirect("/login/verify");
+  }
   await createSession(user.id);
   redirect("/");
+}
+
+export async function verifyTotpAction(formData: FormData) {
+  const jar = await cookies();
+  const token = jar.get("octavo_pending_2fa")?.value ?? "";
+  const userId = consumePendingToken(token);
+  if (!userId) redirect("/login?error=1");
+  const secret = getTotpSecret(userId);
+  const code = String(formData.get("code") ?? "");
+  if (!secret || !verifyTotp(secret, code)) redirect("/login/verify?error=1");
+  jar.delete("octavo_pending_2fa");
+  await createSession(userId);
+  redirect("/");
+}
+
+export async function enableTotpAction(formData: FormData) {
+  const user = await requireUser();
+  const secret = String(formData.get("secret") ?? "");
+  const code = String(formData.get("code") ?? "");
+  if (!/^[A-Z2-7]{16,64}$/.test(secret)) redirect("/account?error=totp");
+  if (!verifyTotp(secret, code)) redirect("/account?error=totp");
+  setTotpSecret(user.id, secret);
+  redirect("/account?enabled=1");
+}
+
+export async function disableTotpAction(formData: FormData) {
+  const user = await requireUser();
+  const secret = getTotpSecret(user.id);
+  const code = String(formData.get("code") ?? "");
+  if (secret && !verifyTotp(secret, code)) redirect("/account?error=totp");
+  setTotpSecret(user.id, null);
+  redirect("/account?disabled=1");
 }
 
 export async function logoutAction() {
@@ -102,6 +151,8 @@ export async function updateSpaceAction(formData: FormData) {
     kind: String(formData.get("kind") ?? space.kind),
     visibility: String(formData.get("visibility") ?? space.visibility),
     shelf: String(formData.get("shelf") ?? space.shelf),
+    typeface: String(formData.get("typeface") ?? space.typeface),
+    corners: String(formData.get("corners") ?? space.corners),
   });
   revalidatePath("/");
   revalidatePath(`/${space.slug}`);

@@ -77,6 +77,35 @@ export default async function SpaceSettings({
               className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none placeholder:text-faint focus:border-accent"
             />
           </label>
+          <div className="flex gap-3">
+            <label className="block flex-1">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+                Typeface
+              </span>
+              <select
+                name="typeface"
+                defaultValue={space.typeface}
+                className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+              >
+                <option value="classic">Classic — Fraunces & Geist</option>
+                <option value="atelier">Atelier — serif reading text</option>
+                <option value="technical">Technical — all sans</option>
+              </select>
+            </label>
+            <label className="block flex-1">
+              <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+                Corners
+              </span>
+              <select
+                name="corners"
+                defaultValue={space.corners}
+                className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+              >
+                <option value="rounded">Rounded</option>
+                <option value="square">Square</option>
+              </select>
+            </label>
+          </div>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
               Visibility

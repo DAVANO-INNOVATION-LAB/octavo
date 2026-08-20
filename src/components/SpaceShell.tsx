@@ -20,7 +20,11 @@ export function SpaceShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className="flex min-h-screen flex-col"
+      data-typeface={space.typeface}
+      data-corners={space.corners}
+    >
       <SiteHeader />
       <div className="mx-auto flex w-full max-w-7xl flex-1 items-start gap-8 px-4 sm:px-6">
         <aside className="sticky top-14 hidden max-h-[calc(100vh-3.5rem)] w-64 shrink-0 overflow-y-auto py-8 pr-2 md:block">
