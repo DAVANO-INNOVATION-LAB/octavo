@@ -81,16 +81,25 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
 
 - **OIDC/SSO in core, never paywalled** — local accounts stay the zero-config
   default; plug in Keycloak/Authentik/Dex/anything when you're ready
-- **Tenant namespaces** — siloed teams with their own name, logo, and theme;
-  private means private: membership-scoped queries everywhere, nothing
-  private ever touches public search or public trees (already true today at
-  the space level), encryption at rest for the data volume
+- **Tenant namespaces** — siloed teams with their own name, logo, and theme,
+  carried by OIDC groups once SSO lands; private means private: every query
+  is membership-scoped (already true today at the space level — private
+  spaces never touch public search, trees, or exports), tenants cannot see
+  each other's spaces, connectors, or uploads, and the data volume supports
+  encryption at rest
 - Draw.io and Excalidraw as first-class page blocks — save a whiteboard
   sketch or diagram directly into a page (both editors already live at
   `/whiteboard`)
 - **Runnable cookbooks** — configure a connector (Airflow, Kubernetes, CI),
   press play on a recipe's code block, watch it execute remotely with the
-  output captured back into the page
+  output captured back into the page. Isolation is a design law, not a
+  feature: connectors belong to the user or team that configured them and
+  are scoped to explicit spaces and roles; a run dispatches only the saved,
+  published block content (never client-supplied text) and only to the
+  connector its owner bound it to; every run is immutably logged with who,
+  what, when, and which page version. Octavo never executes anything
+  itself — it dispatches to systems that already enforce their own
+  credentials and RBAC, and renders what comes back
 - Markdown/Git round-trip: export every page as Markdown, sync a space with a
   repo (content never held hostage)
 - Multi-tenant organizations: team name, logo, and theme per tenant
