@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser, userCount } from "@/lib/auth";
 import { loginAction } from "@/app/actions";
+import { oidcSettings } from "@/lib/oidc";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export default async function LoginPage({
   if (userCount() === 0) redirect("/setup");
   if (await currentUser()) redirect("/");
   const { error } = await searchParams;
+  const sso = oidcSettings();
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
@@ -26,8 +28,28 @@ export default async function LoginPage({
           <h1 className="wordmark text-xl text-ink">Sign in</h1>
           {error && (
             <p className="mt-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
-              That email and password don’t match.
+              {error === "sso"
+                ? "Single sign-on failed — check the identity provider, or use a local account."
+                : "That email and password don’t match."}
             </p>
+          )}
+          {sso && (
+            <>
+              {/* OAuth needs a full-page navigation to the route handler,
+                  not a client-side <Link> transition. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+              <a
+                href="/api/auth/oidc/login"
+                className="mt-6 flex h-10 w-full items-center justify-center rounded-lg border border-line bg-bg text-sm font-medium text-ink transition-colors hover:border-accent"
+              >
+                Continue with {sso.name}
+              </a>
+              <p className="my-4 flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-faint">
+                <span className="h-px flex-1 bg-line" />
+                or with a local account
+                <span className="h-px flex-1 bg-line" />
+              </p>
+            </>
           )}
           <form action={loginAction} className="mt-6 space-y-4">
             <label className="block">

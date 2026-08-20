@@ -52,6 +52,16 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 CREATE INDEX IF NOT EXISTS pages_space ON pages(space_id, parent_id, position);
 
+CREATE TABLE IF NOT EXISTS page_versions (
+  id TEXT PRIMARY KEY,
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  content_text TEXT NOT NULL,
+  saved_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS page_versions_page ON page_versions(page_id, saved_at DESC);
+
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
@@ -96,6 +106,16 @@ function migrate(db: Database.Database) {
   }
   if (!cols.includes("shelf")) {
     db.exec("ALTER TABLE spaces ADD COLUMN shelf TEXT NOT NULL DEFAULT ''");
+  }
+  const userCols = (
+    db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
+  ).map((c) => c.name);
+  if (!userCols.includes("oidc_issuer")) {
+    db.exec("ALTER TABLE users ADD COLUMN oidc_issuer TEXT");
+    db.exec("ALTER TABLE users ADD COLUMN oidc_sub TEXT");
+    db.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS users_oidc ON users(oidc_issuer, oidc_sub) WHERE oidc_issuer IS NOT NULL"
+    );
   }
 }
 

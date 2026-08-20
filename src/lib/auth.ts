@@ -98,3 +98,45 @@ export function authenticate(email: string, password: string): User | null {
   if (!verifyPassword(password, row.password_hash)) return null;
   return { id: row.id, email: row.email, name: row.name, role: row.role };
 }
+
+/**
+ * Find or create the local account for an OIDC identity.
+ * Matching order: (issuer, sub) → email (links an existing local account) →
+ * create. First user ever becomes admin; later SSO arrivals are members.
+ */
+export function upsertOidcUser(input: {
+  issuer: string;
+  sub: string;
+  email: string;
+  name: string;
+}): User {
+  const db = getDb();
+  const email = input.email.toLowerCase().trim();
+
+  const bySub = db
+    .prepare(
+      "SELECT id, email, name, role FROM users WHERE oidc_issuer = ? AND oidc_sub = ?"
+    )
+    .get(input.issuer, input.sub) as User | undefined;
+  if (bySub) return bySub;
+
+  const byEmail = db
+    .prepare("SELECT id, email, name, role FROM users WHERE email = ?")
+    .get(email) as User | undefined;
+  if (byEmail) {
+    db.prepare("UPDATE users SET oidc_issuer = ?, oidc_sub = ? WHERE id = ?").run(
+      input.issuer,
+      input.sub,
+      byEmail.id
+    );
+    return byEmail;
+  }
+
+  const id = newId();
+  const role = userCount() === 0 ? "admin" : "member";
+  db.prepare(
+    `INSERT INTO users (id, email, name, password_hash, role, created_at, oidc_issuer, oidc_sub)
+     VALUES (?, ?, ?, 'oidc', ?, ?, ?, ?)`
+  ).run(id, email, input.name.trim() || email, role, now(), input.issuer, input.sub);
+  return { id, email, name: input.name.trim() || email, role };
+}
