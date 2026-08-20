@@ -233,6 +233,60 @@ export function createPage(input: {
   return getPage(id)!;
 }
 
+const VERSION_INTERVAL_MS = 10 * 60 * 1000;
+const VERSIONS_KEPT = 50;
+
+/** Snapshot the page's current state before it changes — at most one
+ *  version per interval, so autosave doesn't flood history. */
+function maybeSnapshot(page: Page, force = false) {
+  const db = getDb();
+  const latest = db
+    .prepare(
+      "SELECT saved_at FROM page_versions WHERE page_id = ? ORDER BY saved_at DESC LIMIT 1"
+    )
+    .get(page.id) as { saved_at: number } | undefined;
+  if (!force && latest && now() - latest.saved_at < VERSION_INTERVAL_MS) return;
+  db.prepare(
+    `INSERT INTO page_versions (id, page_id, title, content, content_text, saved_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(newId(), page.id, page.title, page.content, page.content_text, now());
+  db.prepare(
+    `DELETE FROM page_versions WHERE page_id = ? AND id NOT IN (
+       SELECT id FROM page_versions WHERE page_id = ? ORDER BY saved_at DESC LIMIT ?
+     )`
+  ).run(page.id, page.id, VERSIONS_KEPT);
+}
+
+export type PageVersion = {
+  id: string;
+  page_id: string;
+  title: string;
+  content: string;
+  content_text: string;
+  saved_at: number;
+};
+
+export function listVersions(pageId: string): Omit<PageVersion, "content">[] {
+  return getDb()
+    .prepare(
+      `SELECT id, page_id, title, content_text, saved_at
+       FROM page_versions WHERE page_id = ? ORDER BY saved_at DESC`
+    )
+    .all(pageId) as Omit<PageVersion, "content">[];
+}
+
+/** Unconditional snapshot — used before destructive operations like restore. */
+export function snapshotNow(pageId: string) {
+  const page = getPage(pageId);
+  if (page) maybeSnapshot(page, true);
+}
+
+export function getVersion(id: string): PageVersion | null {
+  return (getDb()
+    .prepare("SELECT * FROM page_versions WHERE id = ?")
+    .get(id) ?? null) as PageVersion | null;
+}
+
 export function savePage(
   id: string,
   fields: { title?: string; content?: string; published?: boolean }
@@ -242,6 +296,7 @@ export function savePage(
   if (!page) return null;
   const title = fields.title?.trim() || page.title;
   const content = fields.content ?? page.content;
+  if (title !== page.title || content !== page.content) maybeSnapshot(page);
   const contentText =
     fields.content !== undefined ? extractText(content) : page.content_text;
   const published =

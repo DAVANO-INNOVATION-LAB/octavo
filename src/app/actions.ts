@@ -19,7 +19,9 @@ import {
   deleteSpace,
   getPage,
   getSpaceBySlug,
+  getVersion,
   savePage,
+  snapshotNow,
   updateSpace,
 } from "@/lib/data";
 import { getTemplate, type TemplatePage } from "@/lib/templates";
@@ -171,4 +173,22 @@ export async function deleteCommentAction(formData: FormData) {
   deleteComment(id);
   revalidatePath(`/${spaceSlug}/${pageSlug}`);
   redirect(`/${spaceSlug}/${pageSlug}#discussion`);
+}
+
+// ---- version history ----
+
+export async function restoreVersionAction(formData: FormData) {
+  await requireUser();
+  const versionId = String(formData.get("versionId") ?? "");
+  const spaceSlug = String(formData.get("space") ?? "");
+  const version = getVersion(versionId);
+  if (!version) redirect("/");
+  // The state being replaced is always kept, throttle or not.
+  snapshotNow(version.page_id);
+  const saved = savePage(version.page_id, {
+    title: version.title,
+    content: version.content,
+  });
+  revalidatePath(`/${spaceSlug}`);
+  redirect(`/${spaceSlug}/${saved?.slug ?? ""}`);
 }

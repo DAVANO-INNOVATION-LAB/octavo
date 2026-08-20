@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { BookOpen, Trash2 } from "lucide-react";
+import { BookOpen, History, Trash2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { getPageBySlug, getSpaceBySlug, pageTree } from "@/lib/data";
 import { deletePageAction, publishPageAction } from "@/app/actions";
@@ -66,6 +66,13 @@ export default async function EditPage({
                 View
               </Link>
             )}
+            <Link
+              href={`/${space.slug}/${page.slug}/history`}
+              className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-3 text-xs font-medium text-muted transition-colors hover:text-ink"
+            >
+              <History size={13} />
+              History
+            </Link>
             <form action={deletePageAction}>
               <input type="hidden" name="id" value={page.id} />
               <input type="hidden" name="space" value={space.slug} />
