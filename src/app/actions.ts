@@ -19,6 +19,7 @@ import { verifyTotp } from "@/lib/totp";
 import { deleteUser, setUserRole } from "@/lib/auth";
 import { setSetting } from "@/lib/settings";
 import { discover, oidcSettings } from "@/lib/oidc";
+import { createConnector, deleteConnector } from "@/lib/connectors";
 import {
   addComment,
   createPage,
@@ -311,4 +312,27 @@ export async function testOidcAction() {
     if (e && typeof e === "object" && "digest" in e) throw e; // redirect()
     redirect(`/admin/sso?test=${encodeURIComponent(e instanceof Error ? e.message.slice(0, 80) : "failed")}`);
   }
+}
+
+// ---- connectors (runnable cookbooks) ----
+
+export async function createConnectorAction(formData: FormData) {
+  const user = await requireAdmin();
+  const spaceSlug = String(formData.get("space") ?? "");
+  const space = spaceSlug ? getSpaceBySlug(spaceSlug) : null;
+  createConnector({
+    name: String(formData.get("name") ?? ""),
+    type: String(formData.get("type") ?? "webhook"),
+    baseUrl: String(formData.get("base_url") ?? ""),
+    credential: String(formData.get("credential") ?? ""),
+    spaceId: space?.id ?? null,
+    createdBy: user.id,
+  });
+  redirect("/admin/connectors?saved=1");
+}
+
+export async function deleteConnectorAction(formData: FormData) {
+  await requireAdmin();
+  deleteConnector(String(formData.get("id") ?? ""));
+  redirect("/admin/connectors");
 }

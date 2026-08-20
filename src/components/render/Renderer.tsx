@@ -14,6 +14,7 @@ import {
   OctagonAlert,
 } from "lucide-react";
 import { CodeBlock } from "./CodeBlock";
+import { RunButton } from "./RunButton";
 import { Mermaid } from "./Mermaid";
 import { TableCsv } from "./TableCsv";
 
@@ -60,7 +61,19 @@ function safeHref(href: string): string {
 
 /* ————— block content ————— */
 
-type Ctx = { headingSeen: Map<string, number> };
+export type RunContext = {
+  pageId: string;
+  connectors: { id: string; name: string; type: string }[];
+  lastRuns: Record<string, {
+    status: string;
+    user_name: string;
+    started: number;
+    output: string;
+    external_url: string;
+  }>;
+};
+
+type Ctx = { headingSeen: Map<string, number>; run?: RunContext };
 
 function headingId(ctx: Ctx, text: string): string {
   let slug =
@@ -231,7 +244,20 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
       const code = inlineText(b.content);
       const language = String(b.props?.language ?? "");
       if (language === "mermaid") return <Mermaid source={code} />;
-      return <CodeBlock code={code} language={language} />;
+      const runnable = ctx.run && ctx.run.connectors.length > 0;
+      return (
+        <div>
+          <CodeBlock code={code} language={language} />
+          {runnable && (
+            <RunButton
+              pageId={ctx.run!.pageId}
+              blockId={b.id}
+              connectors={ctx.run!.connectors}
+              lastRun={ctx.run!.lastRuns[b.id] ?? null}
+            />
+          )}
+        </div>
+      );
     }
     case "table": {
       const content = b.content as TableContent | undefined;
@@ -388,11 +414,13 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
 export function Renderer({
   blocks,
   dropCap = false,
+  run,
 }: {
   blocks: Block[];
   dropCap?: boolean;
+  run?: RunContext;
 }) {
-  const ctx: Ctx = { headingSeen: new Map() };
+  const ctx: Ctx = { headingSeen: new Map(), run };
   return (
     <div className={`reader${dropCap ? " reader-dropcap" : ""}`}>
       <Blocks blocks={blocks} ctx={ctx} />

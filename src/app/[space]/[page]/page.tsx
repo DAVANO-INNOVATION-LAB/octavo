@@ -12,6 +12,7 @@ import {
 } from "@/lib/data";
 import Link2 from "next/link";
 import { extractHeadings, parseBlocks } from "@/lib/blocks";
+import { connectorsForSpace, runsForPage } from "@/lib/connectors";
 import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
 import { Toc } from "@/components/Toc";
@@ -60,6 +61,25 @@ export default async function ReaderPage({
   const blocks = parseBlocks(page.content);
   const headings = extractHeadings(blocks);
   const refs = backlinks(page.id, editing);
+
+  // Runnable cookbooks: the play button appears only for signed-in members
+  // on pages in a space that has connectors configured.
+  const connectors = user ? connectorsForSpace(space.id) : [];
+  const lastRuns: Record<string, {
+    status: string; user_name: string; started: number; output: string; external_url: string;
+  }> = {};
+  if (connectors.length > 0) {
+    for (const r of runsForPage(page.id, 50)) {
+      if (!lastRuns[r.block_id])
+        lastRuns[r.block_id] = {
+          status: r.status,
+          user_name: r.user_name,
+          started: r.started,
+          output: r.output,
+          external_url: r.external_url,
+        };
+    }
+  }
 
   return (
     <SpaceShell
@@ -149,7 +169,23 @@ export default async function ReaderPage({
           </p>
         </header>
 
-        <Renderer blocks={blocks} dropCap />
+        <Renderer
+          blocks={blocks}
+          dropCap
+          run={
+            connectors.length > 0
+              ? {
+                  pageId: page.id,
+                  connectors: connectors.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    type: c.type,
+                  })),
+                  lastRuns,
+                }
+              : undefined
+          }
+        />
 
         <p
           aria-hidden

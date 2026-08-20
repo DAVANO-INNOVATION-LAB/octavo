@@ -67,6 +67,35 @@ CREATE TABLE IF NOT EXISTS page_versions (
 );
 CREATE INDEX IF NOT EXISTS page_versions_page ON page_versions(page_id, saved_at DESC);
 
+CREATE TABLE IF NOT EXISTS connectors (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  base_url TEXT NOT NULL,
+  credential TEXT NOT NULL DEFAULT '',
+  space_id TEXT REFERENCES spaces(id) ON DELETE CASCADE,
+  created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS connectors_space ON connectors(space_id);
+
+CREATE TABLE IF NOT EXISTS runs (
+  id TEXT PRIMARY KEY,
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  block_id TEXT NOT NULL,
+  connector_id TEXT NOT NULL,
+  connector_name TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  page_version INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  output TEXT NOT NULL DEFAULT '',
+  external_url TEXT NOT NULL DEFAULT '',
+  started INTEGER NOT NULL,
+  finished INTEGER
+);
+CREATE INDEX IF NOT EXISTS runs_page ON runs(page_id, started DESC);
+
 CREATE TABLE IF NOT EXISTS page_links (
   from_page TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
   to_page TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
