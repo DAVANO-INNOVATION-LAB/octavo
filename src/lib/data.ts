@@ -599,3 +599,84 @@ export function linkGraph(includePrivate: boolean): GraphData {
     edges,
   };
 }
+
+// ---- broken links ----
+
+export type BrokenLink = {
+  page_id: string;
+  page_title: string;
+  page_slug: string;
+  space_slug: string;
+  space_name: string;
+  href: string;
+  reason: string;
+};
+
+/**
+ * Internal links that no longer resolve. Checks only in-library hrefs —
+ * external URLs are not ours to judge and would need network calls.
+ */
+export function brokenLinks(): BrokenLink[] {
+  const db = getDb();
+  const pages = db
+    .prepare(
+      `SELECT p.id, p.title, p.slug, p.content, s.slug AS space_slug, s.name AS space_name
+       FROM pages p JOIN spaces s ON s.id = p.space_id WHERE p.published = 1`
+    )
+    .all() as {
+    id: string; title: string; slug: string; content: string;
+    space_slug: string; space_name: string;
+  }[];
+
+  const resolve = db.prepare(
+    `SELECT p.published FROM pages p JOIN spaces s ON s.id = p.space_id
+     WHERE s.slug = ? AND p.slug = ?`
+  );
+  const spaceExists = db.prepare("SELECT 1 FROM spaces WHERE slug = ?");
+  const out: BrokenLink[] = [];
+
+  for (const page of pages) {
+    const hrefs = new Set<string>();
+    const walk = (blocks: { content?: unknown; children?: unknown[] }[]) => {
+      for (const b of blocks) {
+        const inline = (c: unknown) => {
+          if (!Array.isArray(c)) return;
+          for (const n of c as { type: string; href?: string; content?: unknown }[]) {
+            if (n.type === "link" && typeof n.href === "string") hrefs.add(n.href);
+            if (n.content) inline(n.content);
+          }
+        };
+        inline(b.content);
+        if (Array.isArray(b.children)) walk(b.children as typeof blocks);
+      }
+    };
+    try {
+      walk(JSON.parse(page.content));
+    } catch {
+      continue;
+    }
+
+    for (const href of hrefs) {
+      if (!href.startsWith("/")) continue;             // external — not ours
+      if (href.startsWith("/api/")) continue;          // uploads and exports
+      const clean = href.split(/[?#]/)[0].replace(/\/$/, "");
+      if (!clean || clean === "") continue;
+      const parts = clean.slice(1).split("/");
+      let reason = "";
+      if (parts.length === 1) {
+        if (!spaceExists.get(parts[0])) reason = "no such space";
+      } else if (parts.length === 2) {
+        const hit = resolve.get(parts[0], parts[1]) as { published: number } | undefined;
+        if (!hit) reason = "no such page";
+        else if (hit.published === 0) reason = "target is an unpublished draft";
+      }
+      if (reason)
+        out.push({
+          page_id: page.id, page_title: page.title, page_slug: page.slug,
+          space_slug: page.space_slug, space_name: page.space_name,
+          href, reason,
+        });
+    }
+  }
+  return out;
+}
