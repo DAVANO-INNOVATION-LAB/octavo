@@ -42,11 +42,17 @@ export async function GET(req: NextRequest) {
     )
       return fail(`email domain not allowed: ${email}`);
 
+    const domain = email.split("@")[1]?.toLowerCase() ?? "";
+    const role =
+      settings.adminDomain && domain === settings.adminDomain.toLowerCase()
+        ? "admin"
+        : settings.defaultRole;
     const user = upsertOidcUser({
       issuer: settings.issuer,
       sub: claims.sub,
       email,
       name: typeof claims.name === "string" ? claims.name : "",
+      role,
     });
     await createSession(user.id);
 

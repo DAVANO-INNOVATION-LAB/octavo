@@ -109,9 +109,28 @@ export default async function AdminSso({
             value={fromEnv ? (active?.name ?? "") : (getSetting("oidc_name") ?? "")}
             placeholder="SSO" />
         </div>
-        <Field label="Allowed email domain (optional)" name="oidc_allowed_domain" disabled={fromEnv}
-          value={fromEnv ? (active?.allowedDomain ?? "") : (getSetting("oidc_allowed_domain") ?? "")}
-          placeholder="example.com" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Allowed email domain (optional)" name="oidc_allowed_domain" disabled={fromEnv}
+            value={fromEnv ? (active?.allowedDomain ?? "") : (getSetting("oidc_allowed_domain") ?? "")}
+            placeholder="example.com" />
+          <Field label="Admin email domain (optional)" name="oidc_admin_domain" disabled={fromEnv}
+            value={fromEnv ? (active?.adminDomain ?? "") : (getSetting("oidc_admin_domain") ?? "")}
+            placeholder="staff.example.com" />
+        </div>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+            Default role for new SSO accounts
+          </span>
+          <select
+            name="oidc_default_role"
+            defaultValue={active?.defaultRole ?? "member"}
+            disabled={fromEnv}
+            className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent disabled:opacity-60"
+          >
+            <option value="member">Member — can write</option>
+            <option value="admin">Admin — full instance access</option>
+          </select>
+        </label>
         {!fromEnv && (
           <button className="h-10 w-full rounded-lg bg-accent text-sm font-medium text-accent-ink shadow-card transition-transform hover:-translate-y-px">
             Save single sign-on settings

@@ -22,6 +22,10 @@ export type OidcSettings = {
   baseUrl: string;
   name: string;
   allowedDomain: string | null;
+  /** Domain whose members become admins on first SSO sign-in. */
+  adminDomain: string | null;
+  /** Role everyone else receives. */
+  defaultRole: "member" | "admin";
 };
 
 export function oidcSettings(): OidcSettings | null {
@@ -44,6 +48,15 @@ export function oidcSettings(): OidcSettings | null {
       process.env.OCTAVO_OIDC_ALLOWED_DOMAIN ||
       getSetting("oidc_allowed_domain") ||
       null,
+    adminDomain:
+      process.env.OCTAVO_OIDC_ADMIN_DOMAIN ||
+      getSetting("oidc_admin_domain") ||
+      null,
+    defaultRole:
+      (process.env.OCTAVO_OIDC_DEFAULT_ROLE ||
+        getSetting("oidc_default_role")) === "admin"
+        ? "admin"
+        : "member",
   };
 }
 

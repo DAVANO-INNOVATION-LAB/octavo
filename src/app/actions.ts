@@ -290,6 +290,8 @@ export async function saveOidcAction(formData: FormData) {
     "oidc_client_secret",
     "oidc_name",
     "oidc_allowed_domain",
+    "oidc_admin_domain",
+    "oidc_default_role",
     "base_url",
   ];
   for (const f of fields) {

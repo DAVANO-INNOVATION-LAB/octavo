@@ -109,6 +109,8 @@ export function upsertOidcUser(input: {
   sub: string;
   email: string;
   name: string;
+  /** Role for a brand-new SSO account (first user is always admin). */
+  role?: "member" | "admin";
 }): User {
   const db = getDb();
   const email = input.email.toLowerCase().trim();
@@ -133,7 +135,7 @@ export function upsertOidcUser(input: {
   }
 
   const id = newId();
-  const role = userCount() === 0 ? "admin" : "member";
+  const role = userCount() === 0 ? "admin" : (input.role ?? "member");
   db.prepare(
     `INSERT INTO users (id, email, name, password_hash, role, created_at, oidc_issuer, oidc_sub)
      VALUES (?, ?, ?, 'oidc', ?, ?, ?, ?)`
