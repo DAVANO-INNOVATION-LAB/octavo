@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.6.2 — 2026-08-20
+
+### Added
+
+- **3D models in the page.** A model block renders a rotatable, dependency-free
+  3D scene on plain canvas — the same projection engine as the knowledge
+  graph. Six disciplines ship: service architecture, network topology,
+  delivery pipeline, cell culture over an electrode array, molecular
+  structure, and embedding space. **Every engineering template now opens with
+  the model for its discipline**, so the capability is discoverable the moment
+  a space is created rather than buried in documentation.
+- **Restore a snapshot from the admin UI** — upload a database snapshot taken
+  from the same page. Admin only, a typed confirmation, the file verified as a
+  genuine Octavo database with at least one account before anything is
+  touched, and the outgoing database preserved in `/data` so a restore can be
+  undone.
+- **Screenshot capture over the DevTools protocol** (`scripts/screenshots.mjs`)
+  — the `--screenshot` flag hangs on pages that never go network-idle (canvas,
+  KaTeX, Mermaid), so captures now wait a per-page settle. The README shows the
+  library, a published page, the block library, a runnable recipe, the graph,
+  and diagrams.
+- **Import a Markdown document as a private space** (`scripts/import-doc.mjs`).
+
+### Fixed
+
+- The UI stress crawler no longer reports drafts and private spaces as
+  failures — it runs anonymously, where hiding them is correct behaviour.
+- `@types/node` now matches the Node 26 runtime.
+
+
 ## v0.6.1 — 2026-08-20
 
 The v0.6 line continues as point releases.

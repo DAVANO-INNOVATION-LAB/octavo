@@ -67,6 +67,12 @@ const code = (language: string, src: string): Blk => ({
   content: [t(src)],
   children: [],
 });
+const model = (kind: string, title: string): Blk => ({
+  id: bid(),
+  type: "model3d",
+  props: { kind, title },
+  children: [],
+});
 const table = (rows: string[][]): Blk => ({
   id: bid(),
   type: "table",
@@ -198,6 +204,7 @@ export const TEMPLATES: SpaceTemplate[] = [
           h(2, "Core concepts"),
           p(t("Define the three to five nouns a reader must understand before anything else makes sense.")),
           h(2, "Architecture at a glance"),
+          model("architecture", "How the pieces fit"),
           code("mermaid", "flowchart LR\n  Client --> API\n  API --> DB[(Database)]\n  API --> Worker\n  Worker --> Queue[(Queue)]"),
         ],
       },
@@ -247,6 +254,7 @@ export const TEMPLATES: SpaceTemplate[] = [
         title: "Service overview",
         blocks: [
           p(t("What this service does, its SLOs, and where the dashboards live. This is the page an unfamiliar responder reads at 3 a.m.")),
+          model("architecture", "What this service talks to"),
           h(2, "SLOs"),
           table([
             ["SLI", "Objective", "Window"],
@@ -320,6 +328,8 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "Pipeline overview",
         blocks: [
+          model("pipeline", "The delivery pipeline"),
+          p(t("Drag to orbit — the parallel test lanes sit behind the main line.")),
           code("mermaid", "flowchart LR\n  PR[Pull request] --> CI[CI: lint + test]\n  CI --> Build[Build image]\n  Build --> Stage[Deploy staging]\n  Stage --> Gate{Approval}\n  Gate --> Prod[Deploy production]"),
           h(2, "Stages"),
           p(t("What runs at each stage, how long it takes, and what failure at that stage means.")),
@@ -403,6 +413,8 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "Project charter",
         blocks: [
+          model("embedding", "Embedding space"),
+          p(t("Drag to orbit. Useful for showing what separates — and what does not — before the metrics arrive.")),
           h(2, "Question"),
           p(t("The decision this analysis informs — not the dataset, the decision.")),
           h(2, "Success criteria"),
@@ -459,6 +471,8 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "Topology",
         blocks: [
+          model("network", "The network, in three dimensions"),
+          p(t("Drag to orbit. A flat diagram of the same network follows — keep whichever reads better for your team.")),
           code("mermaid", "flowchart TB\n  WAN((WAN)) --> FW[Firewall]\n  FW --> CORE[Core switch]\n  CORE --> A[Access switch A]\n  CORE --> B[Access switch B]\n  CORE --> SRV[Server VLAN]"),
           h(2, "Addressing plan"),
           table([
@@ -507,6 +521,8 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "System card",
         blocks: [
+          model("architecture", "The system, end to end"),
+          p(t("Drag to orbit. Keep it current — a system card whose diagram has rotted is worse than none.")),
           h(2, "What this system does"),
           p(t("The task, the model(s) behind it, and the boundary of what it is allowed to decide on its own.")),
           h(2, "Models in use"),
@@ -561,6 +577,8 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "Study overview",
         blocks: [
+          model("culture", "Culture over the electrode array"),
+          p(t("Drag to orbit the culture. Swap in your own array geometry, or add a molecular model beside it.")),
           h(2, "Hypothesis"),
           p(t("The claim this study can actually falsify.")),
           h(2, "Endpoints"),
@@ -574,6 +592,7 @@ export const TEMPLATES: SpaceTemplate[] = [
         title: "Protocol",
         blocks: [
           p(t("Version this page like code — a protocol change mid-study is a finding, not a footnote.")),
+          model("molecule", "The construct"),
           h(2, "Materials"),
           table([
             ["Item", "Spec / lot", "Storage"],
@@ -627,6 +646,8 @@ export const TEMPLATES: SpaceTemplate[] = [
         title: "How we decide",
         blocks: [
           p(t("One page per decision. Decisions are immutable — superseding one means writing a new ADR that links back.")),
+          model("architecture", "The system this record governs"),
+          p(t("Drag the model to orbit it. Swap it for your own architecture, or delete the block — it is a normal block.")),
           table([
             ["Status", "Meaning"],
             ["Proposed", "Under discussion"],

@@ -767,3 +767,44 @@ mark {
   padding: 0.75rem;
 }
 .blk-drawio-published img { max-width: 100%; margin: 0 auto; display: block; border: none; border-radius: 0; }
+
+/* ————— 3D model blocks ————— */
+
+.blk-model {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.blk-model-title {
+  padding: 0.6rem 0.9rem 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.blk-model-stage { position: relative; }
+.blk-model-reset {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  display: flex;
+  height: 1.6rem;
+  width: 1.6rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--faint);
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.blk-model:hover .blk-model-reset { opacity: 1; }
+.blk-model-reset:hover { color: var(--ink); }
+.blk-model-hint {
+  padding: 0 0.9rem 0.7rem;
+  font-size: 11px;
+  color: var(--faint);
+}

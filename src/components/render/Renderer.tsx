@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { CodeBlock } from "./CodeBlock";
 import { RunButton } from "./RunButton";
+import { Model3D, type ModelKind } from "./Model3D";
 import { Mermaid } from "./Mermaid";
 import { TableCsv } from "./TableCsv";
 
@@ -380,6 +381,11 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
           </div>
         </details>
       );
+    case "model3d": {
+      const kind = String(b.props?.kind ?? "architecture") as ModelKind;
+      const title = String(b.props?.title ?? "");
+      return <Model3D kind={kind} title={title || undefined} />;
+    }
     case "drawio": {
       const src = String(b.props?.src ?? "");
       if (!src) return null;

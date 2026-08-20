@@ -7,11 +7,17 @@ import path from "node:path";
 const BASE = process.argv[2] ?? "http://localhost:8523";
 const db = new Database(path.join(process.cwd(), "data", "octavo.db"));
 
-const spaces = db.prepare("SELECT slug, visibility FROM spaces ORDER BY position").all();
+// Public spaces only: this crawl is anonymous, so private ones correctly
+// redirect and would otherwise read as failures.
+const spaces = db
+  .prepare("SELECT slug, visibility FROM spaces WHERE visibility = 'public' ORDER BY position")
+  .all();
 const pages = db
   .prepare(
     `SELECT s.slug AS space, p.slug AS page, p.published
-     FROM pages p JOIN spaces s ON s.id = p.space_id ORDER BY p.updated_at DESC LIMIT 25`
+     FROM pages p JOIN spaces s ON s.id = p.space_id
+     WHERE p.published = 1 AND s.visibility = 'public'
+     ORDER BY p.updated_at DESC LIMIT 25`
   )
   .all();
 
