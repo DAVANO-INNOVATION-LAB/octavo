@@ -11,8 +11,10 @@ import {
   userCount,
 } from "@/lib/auth";
 import {
+  addComment,
   createPage,
   createSpace,
+  deleteComment,
   deletePage,
   deleteSpace,
   getPage,
@@ -97,6 +99,7 @@ export async function updateSpaceAction(formData: FormData) {
     description: String(formData.get("description") ?? space.description),
     kind: String(formData.get("kind") ?? space.kind),
     visibility: String(formData.get("visibility") ?? space.visibility),
+    shelf: String(formData.get("shelf") ?? space.shelf),
   });
   revalidatePath("/");
   revalidatePath(`/${space.slug}`);
@@ -144,4 +147,28 @@ export async function publishPageAction(formData: FormData) {
   const spaceSlug = String(formData.get("space") ?? "");
   revalidatePath(`/${spaceSlug}`);
   redirect(`/${spaceSlug}/${saved?.slug ?? page.slug}${publish ? "" : "/edit"}`);
+}
+
+// ---- comments ----
+
+export async function addCommentAction(formData: FormData) {
+  const user = await requireUser();
+  const pageId = String(formData.get("pageId") ?? "");
+  const body = String(formData.get("body") ?? "");
+  const page = getPage(pageId);
+  if (!page) redirect("/");
+  addComment(pageId, user.id, body);
+  const spaceSlug = String(formData.get("space") ?? "");
+  revalidatePath(`/${spaceSlug}/${page.slug}`);
+  redirect(`/${spaceSlug}/${page.slug}#discussion`);
+}
+
+export async function deleteCommentAction(formData: FormData) {
+  await requireUser();
+  const id = String(formData.get("id") ?? "");
+  const spaceSlug = String(formData.get("space") ?? "");
+  const pageSlug = String(formData.get("page") ?? "");
+  deleteComment(id);
+  revalidatePath(`/${spaceSlug}/${pageSlug}`);
+  redirect(`/${spaceSlug}/${pageSlug}#discussion`);
 }

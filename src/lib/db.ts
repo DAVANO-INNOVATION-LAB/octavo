@@ -52,6 +52,15 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 CREATE INDEX IF NOT EXISTS pages_space ON pages(space_id, parent_id, position);
 
+CREATE TABLE IF NOT EXISTS comments (
+  id TEXT PRIMARY KEY,
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS comments_page ON comments(page_id, created_at);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
   page_id UNINDEXED,
   title,
@@ -84,6 +93,9 @@ function migrate(db: Database.Database) {
     db.exec(
       "ALTER TABLE spaces ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public'"
     );
+  }
+  if (!cols.includes("shelf")) {
+    db.exec("ALTER TABLE spaces ADD COLUMN shelf TEXT NOT NULL DEFAULT ''");
   }
 }
 

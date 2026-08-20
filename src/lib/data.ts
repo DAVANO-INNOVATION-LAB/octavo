@@ -11,6 +11,7 @@ export type Space = {
   emoji: string;
   kind: string;
   visibility: string;
+  shelf: string;
   accent: string;
   position: number;
   created_at: number;
@@ -96,7 +97,7 @@ export function createSpace(input: {
 
 export function updateSpace(
   id: string,
-  fields: Partial<Pick<Space, "name" | "description" | "kind" | "visibility">>
+  fields: Partial<Pick<Space, "name" | "description" | "kind" | "visibility" | "shelf">>
 ) {
   const db = getDb();
   const space = db.prepare("SELECT * FROM spaces WHERE id = ?").get(id) as
@@ -104,7 +105,7 @@ export function updateSpace(
     | undefined;
   if (!space) return;
   db.prepare(
-    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, updated_at = ? WHERE id = ?"
+    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, shelf = ?, updated_at = ? WHERE id = ?"
   ).run(
     fields.name?.trim() ?? space.name,
     fields.description?.trim() ?? space.description,
@@ -112,6 +113,7 @@ export function updateSpace(
     fields.visibility === "public" || fields.visibility === "private"
       ? fields.visibility
       : space.visibility,
+    fields.shelf !== undefined ? fields.shelf.trim().slice(0, 40) : space.shelf,
     now(),
     id
   );
@@ -342,4 +344,42 @@ export function searchPages(
   } catch {
     return [];
   }
+}
+
+// ---- comments (technical docs collaborate; cookbooks stay clean) ----
+
+/** Space kinds whose reader pages carry a discussion section. */
+export const COMMENTABLE_KINDS = new Set(["docs", "wiki", "articles"]);
+
+export type Comment = {
+  id: string;
+  page_id: string;
+  user_id: string;
+  body: string;
+  created_at: number;
+  author: string;
+};
+
+export function listComments(pageId: string): Comment[] {
+  return getDb()
+    .prepare(
+      `SELECT c.id, c.page_id, c.user_id, c.body, c.created_at, u.name AS author
+       FROM comments c JOIN users u ON u.id = c.user_id
+       WHERE c.page_id = ? ORDER BY c.created_at`
+    )
+    .all(pageId) as Comment[];
+}
+
+export function addComment(pageId: string, userId: string, body: string) {
+  const text = body.trim().slice(0, 4000);
+  if (!text) return;
+  getDb()
+    .prepare(
+      "INSERT INTO comments (id, page_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)"
+    )
+    .run(newId(), pageId, userId, text, now());
+}
+
+export function deleteComment(id: string) {
+  getDb().prepare("DELETE FROM comments WHERE id = ?").run(id);
 }

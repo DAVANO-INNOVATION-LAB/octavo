@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, Download, PenLine } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import {
+  COMMENTABLE_KINDS,
   flattenTree,
   getPageBySlug,
   getSpaceBySlug,
@@ -13,6 +14,7 @@ import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
 import { Toc } from "@/components/Toc";
 import { PrintButton } from "@/components/PrintButton";
+import { Discussion } from "@/components/Discussion";
 
 export const dynamic = "force-dynamic";
 
@@ -157,6 +159,15 @@ export default async function ReaderPage({
             </Link>
           )}
         </nav>
+
+        {COMMENTABLE_KINDS.has(space.kind) && (
+          <Discussion
+            pageId={page.id}
+            spaceSlug={space.slug}
+            pageSlug={page.slug}
+            user={user}
+          />
+        )}
       </article>
     </SpaceShell>
   );
