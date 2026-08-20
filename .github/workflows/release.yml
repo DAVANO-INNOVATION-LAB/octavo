@@ -3,6 +3,11 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. v0.2.0"
+        required: true
 
 permissions:
   contents: write
@@ -17,9 +22,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - id: version
         # Git tags carry the v; container tags and Helm appVersion do not.
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+      - id: registries
+        # Publish to ghcr always; add Docker Hub when its secrets exist.
+        env:
+          HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE}:${VERSION}"
+            echo "${IMAGE}:latest"
+            if [ -n "$HUB_USER" ]; then
+              echo "docker.io/${HUB_USER}/octavo:${VERSION}"
+              echo "docker.io/${HUB_USER}/octavo:latest"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "hub=$([ -n "$HUB_USER" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -27,22 +53,36 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        if: steps.registries.outputs.hub == 'true'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.version.outputs.version }}
-            ${{ env.IMAGE }}:latest
+          tags: ${{ steps.registries.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Sync Docker Hub description
+        if: steps.registries.outputs.hub == 'true'
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/octavo
+          short-description: "Open-source documentation that reads like a book. One container, one SQLite file."
+          readme-filepath: README.md
 
   chart:
     runs-on: ubuntu-latest
     needs: image
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: azure/setup-helm@v4
       - run: helm package charts/octavo -d dist/
       - uses: actions/upload-artifact@v4
@@ -52,6 +92,8 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
+    # A dispatch re-publishes images only; the GitHub Release already exists.
+    if: github.event_name == 'push'
     needs: [image, chart]
     steps:
       - uses: actions/checkout@v4
