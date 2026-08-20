@@ -203,7 +203,7 @@ function uniquePageSlug(spaceId: string, title: string, selfId?: string) {
   const db = getDb();
   let base = slugify(title);
   // /[space]/settings is an app route — a page slug must never shadow it.
-  if (["settings", "members", "connectors", "raw", "history"].includes(base))
+  if (["settings", "members", "connectors", "raw", "history", "print"].includes(base))
     base = `${base}-page`;
   let slug = base;
   let i = 2;
