@@ -16,6 +16,7 @@ import {
 import { CodeBlock } from "./CodeBlock";
 import { RunButton } from "./RunButton";
 import { Model3D, type ModelKind } from "./Model3D";
+import { MarginNote } from "./MarginNote";
 import { Mermaid } from "./Mermaid";
 import { TableCsv } from "./TableCsv";
 
@@ -45,6 +46,13 @@ function renderInline(content?: InlineContent[] | TableContent): ReactNode {
     }
     let node: ReactNode = c.text;
     const s = c.styles ?? {};
+    if (s.note && typeof s.note === "string") {
+      return (
+        <MarginNote key={i} note={s.note}>
+          {c.text}
+        </MarginNote>
+      );
+    }
     if (s.code) node = <code>{node}</code>;
     if (s.bold) node = <strong>{node}</strong>;
     if (s.italic) node = <em>{node}</em>;
@@ -304,12 +312,27 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
     }
     case "image": {
       const url = String(b.props?.url ?? "");
+      const darkUrl = String(b.props?.darkUrl ?? "");
       const caption = String(b.props?.caption ?? "");
       if (!url) return null;
       return (
         <figure className="my-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={caption || "image"} loading="lazy" />
+          <img
+            src={url}
+            alt={caption || "image"}
+            loading="lazy"
+            className={darkUrl ? "img-light-only" : undefined}
+          />
+          {darkUrl && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={darkUrl}
+              alt={caption || "image"}
+              loading="lazy"
+              className="img-dark-only"
+            />
+          )}
           {caption && (
             <figcaption className="mt-2 text-center text-sm text-muted">
               {caption}

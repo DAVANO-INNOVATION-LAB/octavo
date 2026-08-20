@@ -13,6 +13,9 @@ import { newId } from "./util";
 
 /* ————— blocks → markdown ————— */
 
+/** Footnotes gathered while serialising a document, emitted at the end. */
+let footnotes: string[] = [];
+
 function inlineToMd(content?: InlineContent[] | TableContent): string {
   if (!content || !Array.isArray(content)) return "";
   return content
@@ -22,6 +25,10 @@ function inlineToMd(content?: InlineContent[] | TableContent): string {
       }
       let text = c.text;
       const s = c.styles ?? {};
+      if (typeof s.note === "string" && s.note) {
+        footnotes.push(s.note);
+        return `${text}[^${footnotes.length}]`;
+      }
       if (s.code) return `\`${text}\``;
       if (s.bold) text = `**${text}**`;
       if (s.italic) text = `*${text}*`;
@@ -68,6 +75,8 @@ const ADMONITION_TO_TONE: Record<string, string> = {
 };
 
 export function blocksToMarkdown(blocks: Block[], depth = 0): string {
+  const top = depth === 0;
+  if (top) footnotes = [];
   const items: { text: string; list: boolean }[] = [];
   const out: string[] = [];
   const indent = "  ".repeat(depth);
@@ -149,8 +158,10 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
       }
       case "image": {
         const url = String(b.props?.url ?? "");
+        const darkUrl = String(b.props?.darkUrl ?? "");
         const caption = String(b.props?.caption ?? "");
         if (url) out.push(`![${caption}](${url})`);
+        if (darkUrl) out.push(`![${caption} (dark)](${darkUrl})`);
         break;
       }
       case "video":
@@ -178,22 +189,36 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
     parts.push(it.text);
     prevList = it.list;
   }
-  return parts.join("");
+  let doc = parts.join("");
+  if (top && footnotes.length) {
+    doc += "\n\n" + footnotes.map((n, i) => `[^${i + 1}]: ${n}`).join("\n");
+  }
+  return doc;
 }
 
 /* ————— markdown → blocks ————— */
 
-type Inline = { type: "text"; text: string; styles: Record<string, boolean> };
+type Inline = {
+  type: "text";
+  text: string;
+  styles: Record<string, boolean | string>;
+};
 type InlineNode = Inline | { type: "link"; href: string; content: Inline[] };
 
-function text(t: string, styles: Record<string, boolean> = {}): Inline {
+function text(
+  t: string,
+  styles: Record<string, boolean | string> = {}
+): Inline {
   return { type: "text", text: t, styles };
 }
+
+/** Footnote bodies for the document currently being parsed. */
+let footnoteText = new Map<string, string>();
 
 /** Parse inline markdown: `code`, **bold**, *italic*, ~~strike~~, [links](url). */
 export function parseInline(
   src: string,
-  styles: Record<string, boolean> = {}
+  styles: Record<string, boolean | string> = {}
 ): InlineNode[] {
   const out: InlineNode[] = [];
   let i = 0;
@@ -207,7 +232,18 @@ export function parseInline(
     const rest = src.slice(i);
     let m: RegExpMatchArray | null;
 
-    if ((m = rest.match(/^`([^`]+)`/))) {
+    if ((m = rest.match(/^\[\^([^\]]+)\]/))) {
+      // A footnote reference annotates the word before it.
+      const body = footnoteText.get(m[1]);
+      const prev = out[out.length - 1];
+      if (body && prev && prev.type === "text") {
+        prev.styles = { ...prev.styles, note: body };
+      } else if (body && plain) {
+        out.push(text(plain, { ...styles, note: body }));
+        plain = "";
+      }
+      i += m[0].length;
+    } else if ((m = rest.match(/^`([^`]+)`/))) {
       flush();
       out.push(text(m[1], { ...styles, code: true }));
       i += m[0].length;
@@ -258,6 +294,13 @@ function block(
 }
 
 export function markdownToBlocks(md: string): MdBlock[] {
+  // Pull footnote definitions out first so references can carry their text.
+  const notes = new Map<string, string>();
+  md = md.replace(/^\[\^([^\]]+)\]:\s*(.*)$/gm, (_m, key, body) => {
+    notes.set(String(key), String(body).trim());
+    return "";
+  });
+  if (notes.size) footnoteText = notes;
   const lines = md.replace(/\r\n/g, "\n").split("\n");
   const out: MdBlock[] = [];
   let i = 0;

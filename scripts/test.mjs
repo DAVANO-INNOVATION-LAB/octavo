@@ -98,6 +98,19 @@ test("docs blocks round-trip (callout, expandable, step, math)", () => {
   eq(b2.map((x) => x.type), ["callout", "expandable", "math"], "re-import drifts");
 });
 
+test("footnotes round-trip as margin notes", () => {
+  const src = "A claim worth qualifying[^1].\n\n[^1]: The qualification.";
+  const b = md.markdownToBlocks(src);
+  const noted = b[0].content.find((c) => c.styles && c.styles.note);
+  ok(noted, "no note style attached");
+  eq(noted.styles.note, "The qualification.");
+  const out = md.blocksToMarkdown(b);
+  ok(/\[\^1\]/.test(out), "no footnote reference emitted");
+  ok(/\[\^1\]: The qualification\./.test(out), "no footnote definition emitted");
+  const again = md.markdownToBlocks(out);
+  eq(again[0].content.find((c) => c.styles && c.styles.note)?.styles.note, "The qualification.");
+});
+
 console.log("zip:");
 test("write/read round-trip", () => {
   const entries = [

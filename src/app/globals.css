@@ -829,3 +829,48 @@ mark {
 .codeblock-wrap pre code,
 .codeblock-wrap pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .codeblock-wrap .line::before { vertical-align: top; }
+
+/* ————— Theme-aware images ————— */
+
+.img-dark-only { display: none; }
+:root[data-theme="dark"] .img-light-only { display: none; }
+:root[data-theme="dark"] .img-dark-only { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .img-light-only { display: none; }
+  :root:not([data-theme="light"]) .img-dark-only { display: block; }
+}
+
+/* ————— Margin notes ————— */
+
+.margin-note { position: relative; }
+.margin-note-anchor {
+  border-bottom: 1px dotted var(--accent);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  background: none;
+}
+.margin-note-anchor.is-open { color: var(--accent); }
+.margin-note-body {
+  display: block;
+  margin: 0.5em 0;
+  border-left: 2px solid var(--accent);
+  padding: 0.35em 0 0.35em 0.85em;
+  font-size: 0.88em;
+  line-height: 1.55;
+  color: var(--muted);
+}
+@media (min-width: 1280px) {
+  .margin-note-body {
+    position: absolute;
+    left: calc(100% + 2.5rem);
+    top: -0.35em;
+    width: 13rem;
+    margin: 0;
+    font-size: 0.8em;
+  }
+}
+@media print {
+  .margin-note-body { position: static; display: block; width: auto; }
+}
