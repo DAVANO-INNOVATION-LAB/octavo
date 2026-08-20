@@ -106,87 +106,13 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
 
 ## Roadmap
 
-- ~~OIDC/SSO in core~~ — **shipped in v0.3.0**, never paywalled: four env
-  vars against any compliant provider; local accounts stay the default
-- **Tenant namespaces** — siloed teams with their own name, logo, and theme,
-  carried by OIDC groups once SSO lands; private means private: every query
-  is membership-scoped (already true today at the space level — private
-  spaces never touch public search, trees, or exports), tenants cannot see
-  each other's spaces, connectors, or uploads, and the data volume supports
-  encryption at rest
-- Draw.io and Excalidraw as first-class page blocks — save a whiteboard
-  sketch or diagram directly into a page (both editors already live at
-  `/whiteboard`)
-- **Runnable cookbooks** — configure a connector (Airflow, Kubernetes, CI),
-  press play on a recipe's code block, watch it execute remotely with the
-  output captured back into the page. Isolation is a design law, not a
-  feature: connectors belong to the user or team that configured them and
-  are scoped to explicit spaces and roles; a run dispatches only the saved,
-  published block content (never client-supplied text) and only to the
-  connector its owner bound it to; every run is immutably logged with who,
-  what, when, and which page version. Octavo never executes anything
-  itself — it dispatches to systems that already enforce their own
-  credentials and RBAC, and renders what comes back
-- Markdown/Git round-trip: sync a space with a repo (export already ships)
-- Wikilinks and backlinks — `[[page]]` autocomplete and a "referenced by"
-  panel that renders in the published view too
-- Multi-tenant organizations: team name, logo, and theme per tenant
-- Importers for Wiki.js, BookStack, MkDocs Material (EOL Nov 2026), Word
-  documents (.docx), and import-from-URL for other docs platforms
-- Change requests — draft branches with side-by-side diff views, merge
-  rules, and reviewers (version history shipped in v0.3.0)
-- Real-time co-editing (Yjs)
-- OpenAPI import with interactive API reference pages
-- Ask-with-citations search over your own model or API keys, and an MCP
-  server so agents can query your docs (llms.txt already ships)
-- Page analytics and insights — which pages get read, which go stale, where
-  knowledge gaps are forming
-- GitHub and GitLab integrations — connect spaces to repositories
-- SCIM provisioning — auto-provision and deprovision members from the
-  identity provider (builds on the OIDC core)
-- Audit logs — a tamper-evident record of every admin and member action,
-  exportable for SOC 2 and ISO 27001 reviews
-- Graph view — visually explore how the library's knowledge links together
-  (pairs with wikilinks/backlinks)
-- Smart paste — content from Google Docs keeps its structure, spreadsheets
-  become tables, code from an editor becomes a code block
-- Margin notes — inline annotations that expand on click (Markdown
-  footnotes import as them); the book-margin answer to GitBook's inline
-  annotations
-- Code block polish — line highlighting, line numbers, and a wrap toggle
-  per block
-- Expandable sections with deep links — anchor links that auto-expand the
-  block they point into; cross-space page linking with a picker
-- Reader typography options per space — a small curated set of font
-  pairings and corner styles, never a settings jungle
-- Notifications — email or webhook alerts for page changes, new comments,
-  and space visibility changes
-- Slack integration — post publishes and discussion activity to a channel
-- SSO refinements — default role per email domain, then SCIM (above)
-- Accessibility as a standing commitment — alt text, screen-reader labels,
-  semantic tables, and heading hierarchy audited every release
-- Docs block library — callouts/hints, tabs, steppers, cards, columns,
-  expandables, and math formulas as first-class blocks
-- Reusable synced blocks — write once, reference everywhere, edit once
-- Variables and conditional content — inline expressions plus if-blocks so
-  one page serves different audiences
-- Content variants — versioned docs (v1/v2) and translations as switchable
-  variants of one space, with reader-UI localization
-- Page covers and a non-emoji icon set for pages and spaces
-- Theme-aware images — different image per light/dark mode
-- Anchored comment threads — comments pinned to specific blocks, with
-  resolve/reopen and thread collapsing
-- Reader feedback — a quiet "was this page helpful?" with scores surfaced
-  in analytics beside staleness
-- Broken-link detection across the library, reported before readers find them
-- SEO plumbing — sitemaps, canonical/alternate metadata, social preview
-  images
-- Whole-space PDF export — the space as one typeset book, not page by page
-- llms-full.txt and .md URL suffixes — extend the shipped llms.txt so any
-  page address returns raw Markdown on request
-- Two-factor authentication for local accounts
-- A docs agent, eventually — style-guide-aware writing and review, feedback
-  triage into change requests; only after the human workflows are excellent
+The full themed roadmap lives in [ROADMAP.md](ROADMAP.md). Shipped so far:
+the editor, the book-grade reader, whiteboards, templates, search, shelves,
+export/import, discussions, themes, OIDC SSO, version history, and llms.txt.
+
+Next up — the collaboration edition: the docs block library
+(callouts/tabs/steppers/math), anchored comment threads, change requests
+with diff views and merge rules, and notifications.
 
 ## License
 
