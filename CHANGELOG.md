@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.6.5 — 2026-08-20
+
+### Added
+
+- **Real-time co-editing** — two people can write the same page at once, with
+  remote cursors, a presence strip showing who else is in the document, and
+  reconnection that keeps unsent edits. It runs on the same port as the app,
+  so nothing about deployment changes.
+
+### Changed
+
+- Planning and competitive material is no longer published from the
+  repository.
+
 ## v0.6.4 — 2026-08-20
 
 ### Added
