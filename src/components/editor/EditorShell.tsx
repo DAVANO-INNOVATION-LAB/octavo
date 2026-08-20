@@ -117,6 +117,7 @@ export function EditorShell({
         }}
       />
       <Editor
+        pageId={pageId}
         initialContent={initialContent}
         onChange={(blocks) => queue({ content: blocks })}
       />

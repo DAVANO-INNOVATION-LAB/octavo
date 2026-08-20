@@ -9,7 +9,7 @@ import { pathToFileURL } from "node:url";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -21,6 +21,7 @@ const zip = await import(pathToFileURL(path.join(STAGE, "zip.ts")));
 const tpl = await import(pathToFileURL(path.join(STAGE, "templates.ts")));
 const util = await import(pathToFileURL(path.join(STAGE, "util.ts")));
 const totp = await import(pathToFileURL(path.join(STAGE, "totp.ts")));
+const mentions = await import(pathToFileURL(path.join(STAGE, "mentions.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -180,6 +181,35 @@ test("slugify", () => {
   eq(util.slugify("Héllo,  World!"), "hello-world");
   eq(util.slugify("---"), "untitled");
 });
+test("mentions resolve longest name first", () => {
+  const users = [
+    { id: "1", name: "Ada" },
+    { id: "2", name: "Ada Lovelace" },
+  ];
+  const segs = mentions.parseMentions("ping @Ada Lovelace please", users);
+  const m = segs.find((s) => s.kind === "mention");
+  eq(m.user.id, "2");
+  eq(m.text, "@Ada Lovelace");
+});
+
+test("mentions ignore unknown names and bare @", () => {
+  const users = [{ id: "1", name: "dev" }];
+  eq(mentions.mentionedUserIds("email me at a@b.com", users).length, 0);
+  eq(mentions.mentionedUserIds("@nobody here", users).length, 0);
+  eq(mentions.mentionedUserIds("hi @dev", users).length, 1);
+});
+
+test("mentions do not fire on a longer word", () => {
+  const users = [{ id: "1", name: "dev" }];
+  eq(mentions.mentionedUserIds("@developer shipped it", users).length, 0);
+  eq(mentions.mentionedUserIds("(@dev) shipped it", users).length, 1);
+});
+
+test("mentions are case-insensitive and deduplicated", () => {
+  const users = [{ id: "1", name: "Dev" }];
+  eq(mentions.mentionedUserIds("@dev and @DEV again", users).length, 1);
+});
+
 test("newId shape", () => {
   ok(/^[0-9a-z]{16}$/.test(util.newId()));
 });

@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Download, PenLine } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import {
   COMMENTABLE_KINDS,
+  blockThreadCounts,
   backlinks,
   recordView,
   flattenTree,
@@ -78,6 +79,12 @@ export default async function ReaderPage({
   const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
 
   const blocks = parseBlocks(page.content);
+  const commentable = COMMENTABLE_KINDS.has(space.kind);
+  // Ids still present on the page, so a thread whose passage was deleted can
+  // say so rather than linking into nothing.
+  const liveBlockIds = new Set<string>(
+    blocks.map((b) => (b as { id?: string }).id ?? "").filter(Boolean)
+  );
   const headings = extractHeadings(blocks);
   // Count the read before rendering — published pages only, so drafts and
   // previews never inflate the numbers.
@@ -193,6 +200,7 @@ export default async function ReaderPage({
 
         <Renderer
           blocks={blocks}
+          threads={commentable ? blockThreadCounts(page.id) : undefined}
           dropCap
           run={
             connectors.length > 0
@@ -251,12 +259,13 @@ export default async function ReaderPage({
 
         {page.published === 1 && <Feedback pageId={page.id} />}
 
-        {COMMENTABLE_KINDS.has(space.kind) && (
+        {commentable && (
           <Discussion
             pageId={page.id}
             spaceSlug={space.slug}
             pageSlug={page.slug}
             user={user}
+            liveBlockIds={liveBlockIds}
           />
         )}
       </article>

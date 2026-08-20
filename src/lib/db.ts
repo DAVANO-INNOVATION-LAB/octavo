@@ -146,7 +146,8 @@ CREATE TABLE IF NOT EXISTS comments (
   parent_id TEXT,
   resolved INTEGER NOT NULL DEFAULT 0,
   resolved_by TEXT,
-  resolved_at INTEGER
+  resolved_at INTEGER,
+  anchor_text TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS comments_page ON comments(page_id, created_at);
 CREATE INDEX IF NOT EXISTS comments_thread ON comments(page_id, parent_id, created_at);
@@ -230,6 +231,12 @@ function migrate(db: Database.Database) {
     db.exec("ALTER TABLE comments ADD COLUMN resolved INTEGER NOT NULL DEFAULT 0");
     db.exec("ALTER TABLE comments ADD COLUMN resolved_by TEXT");
     db.exec("ALTER TABLE comments ADD COLUMN resolved_at INTEGER");
+  }
+  // The passage a thread was started on, copied at the time. A block can be
+  // rewritten or deleted after the fact; without this the thread survives as
+  // a reply to something nobody can read any more.
+  if (commentCols.length && !commentCols.includes("anchor_text")) {
+    db.exec("ALTER TABLE comments ADD COLUMN anchor_text TEXT NOT NULL DEFAULT ''");
   }
   if (!userCols.includes("totp_secret")) {
     db.exec("ALTER TABLE users ADD COLUMN totp_secret TEXT");

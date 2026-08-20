@@ -83,7 +83,12 @@ export type RunContext = {
   }>;
 };
 
-type Ctx = { headingSeen: Map<string, number>; run?: RunContext };
+type Ctx = {
+  headingSeen: Map<string, number>;
+  run?: RunContext;
+  /** Blocks carrying comment threads, so the reader can mark them. */
+  threads?: Map<string, { open: number; resolved: number }>;
+};
 
 function headingId(ctx: Ctx, text: string): string {
   let slug =
@@ -203,7 +208,26 @@ function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
       continue;
     }
 
-    out.push(<OneBlock key={b.id} block={b} ctx={ctx} />);
+    const marks = ctx.threads?.get(b.id);
+    if (marks) {
+      out.push(
+        <div key={b.id} id={`blk-${b.id}`} className="blk-anchored">
+          <OneBlock block={b} ctx={ctx} />
+          <a
+            href={`#t-${b.id}`}
+            data-thread-link={b.id}
+            aria-label={`${marks.open + marks.resolved} comment thread${
+              marks.open + marks.resolved === 1 ? "" : "s"
+            } on this passage`}
+            className={`blk-anchor-mark${marks.open === 0 ? " is-settled" : ""}`}
+          >
+            {marks.open + marks.resolved}
+          </a>
+        </div>
+      );
+    } else {
+      out.push(<OneBlock key={b.id} block={b} ctx={ctx} />);
+    }
     i++;
   }
   return <>{out}</>;
@@ -510,12 +534,14 @@ export function Renderer({
   blocks,
   dropCap = false,
   run,
+  threads,
 }: {
   blocks: Block[];
   dropCap?: boolean;
   run?: RunContext;
+  threads?: Map<string, { open: number; resolved: number }>;
 }) {
-  const ctx: Ctx = { headingSeen: new Map(), run };
+  const ctx: Ctx = { headingSeen: new Map(), run, threads };
   return (
     <div className={`reader${dropCap ? " reader-dropcap" : ""}`}>
       <Blocks blocks={blocks} ctx={ctx} />

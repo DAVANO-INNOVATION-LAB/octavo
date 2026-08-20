@@ -434,30 +434,149 @@ export type Comment = {
   body: string;
   created_at: number;
   author: string;
+  /** The block this thread hangs from. Empty means the thread is about the page. */
+  block_id: string;
+  /** Null on a thread root; the root's id on a reply. */
+  parent_id: string | null;
+  resolved: number;
+  resolved_by: string | null;
+  resolved_at: number | null;
+  /** The passage as it read when the thread started. */
+  anchor_text: string;
+  /** Display name of whoever resolved it. */
+  resolver: string | null;
 };
 
+/** A root comment and everything said in reply to it, oldest first. */
+export type Thread = {
+  root: Comment;
+  replies: Comment[];
+};
+
+const COMMENT_COLS = `c.id, c.page_id, c.user_id, c.body, c.created_at,
+   c.block_id, c.parent_id, c.resolved, c.resolved_by, c.resolved_at,
+   c.anchor_text, u.name AS author,
+   (SELECT name FROM users WHERE id = c.resolved_by) AS resolver`;
+
+/** Every comment on a page, flat and in the order it was written. */
 export function listComments(pageId: string): Comment[] {
   return getDb()
     .prepare(
-      `SELECT c.id, c.page_id, c.user_id, c.body, c.created_at, u.name AS author
+      `SELECT ${COMMENT_COLS}
        FROM comments c JOIN users u ON u.id = c.user_id
        WHERE c.page_id = ? ORDER BY c.created_at`
     )
     .all(pageId) as Comment[];
 }
 
-export function addComment(pageId: string, userId: string, body: string) {
-  const text = body.trim().slice(0, 4000);
-  if (!text) return;
-  getDb()
-    .prepare(
-      "INSERT INTO comments (id, page_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)"
-    )
-    .run(newId(), pageId, userId, text, now());
+/**
+ * Comments grouped into threads. A reply whose root has been deleted would
+ * otherwise vanish from the page while still sitting in the table, so orphans
+ * are promoted to roots rather than dropped.
+ */
+export function listThreads(pageId: string): Thread[] {
+  const all = listComments(pageId);
+  const byId = new Map(all.map((c) => [c.id, c]));
+  const threads = new Map<string, Thread>();
+  for (const c of all) {
+    if (!c.parent_id || !byId.has(c.parent_id)) {
+      threads.set(c.id, { root: c, replies: [] });
+    }
+  }
+  for (const c of all) {
+    if (c.parent_id && threads.has(c.parent_id)) {
+      threads.get(c.parent_id)!.replies.push(c);
+    }
+  }
+  return [...threads.values()];
 }
 
+/**
+ * Threads that hang off a block, keyed by block id. The reader uses this to
+ * decide which passages carry a marker, so resolved threads are counted
+ * separately — a settled conversation should not shout.
+ */
+export function blockThreadCounts(
+  pageId: string
+): Map<string, { open: number; resolved: number }> {
+  const out = new Map<string, { open: number; resolved: number }>();
+  for (const t of listThreads(pageId)) {
+    if (!t.root.block_id) continue;
+    const e = out.get(t.root.block_id) ?? { open: 0, resolved: 0 };
+    if (t.root.resolved) e.resolved++;
+    else e.open++;
+    out.set(t.root.block_id, e);
+  }
+  return out;
+}
+
+export function addComment(
+  pageId: string,
+  userId: string,
+  body: string,
+  opts: { blockId?: string; parentId?: string; anchorText?: string } = {}
+): string | null {
+  const text = body.trim().slice(0, 4000);
+  if (!text) return null;
+  const db = getDb();
+
+  // A reply inherits the root's anchor: a thread is about one passage, and
+  // letting replies carry their own would let a conversation drift silently.
+  let blockId = opts.blockId ?? "";
+  let anchorText = (opts.anchorText ?? "").slice(0, 300);
+  let parentId = opts.parentId ?? null;
+  if (parentId) {
+    const root = db
+      .prepare("SELECT id, page_id, block_id, anchor_text, parent_id FROM comments WHERE id = ?")
+      .get(parentId) as
+      | { id: string; page_id: string; block_id: string; anchor_text: string; parent_id: string | null }
+      | undefined;
+    if (!root || root.page_id !== pageId) return null;
+    // Replying to a reply still belongs to the same thread, not a deeper one.
+    parentId = root.parent_id ?? root.id;
+    blockId = root.block_id;
+    anchorText = root.anchor_text;
+  }
+
+  const id = newId();
+  db.prepare(
+    `INSERT INTO comments (id, page_id, user_id, body, created_at, block_id, parent_id, anchor_text)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, pageId, userId, text, now(), blockId, parentId, anchorText);
+  return id;
+}
+
+/** Deleting a thread root takes its replies with it — half a conversation reads worse than none. */
 export function deleteComment(id: string) {
-  getDb().prepare("DELETE FROM comments WHERE id = ?").run(id);
+  const db = getDb();
+  db.prepare("DELETE FROM comments WHERE parent_id = ?").run(id);
+  db.prepare("DELETE FROM comments WHERE id = ?").run(id);
+}
+
+/**
+ * Everyone who can be addressed in a comment. Names only — a mention list is
+ * shown to anyone who can comment, and email addresses are not theirs to see.
+ */
+export function mentionableUsers(): { id: string; name: string }[] {
+  return getDb()
+    .prepare("SELECT id, name FROM users ORDER BY name")
+    .all() as { id: string; name: string }[];
+}
+
+/** Who wrote a comment, for authorization checks. */
+export function commentAuthor(id: string): string | null {
+  const row = getDb()
+    .prepare("SELECT user_id FROM comments WHERE id = ?")
+    .get(id) as { user_id: string } | undefined;
+  return row?.user_id ?? null;
+}
+
+export function setThreadResolved(id: string, userId: string, resolved: boolean) {
+  getDb()
+    .prepare(
+      "UPDATE comments SET resolved = ?, resolved_by = ?, resolved_at = ? WHERE id = ? AND parent_id IS NULL"
+    )
+    .run(resolved ? 1 : 0, resolved ? userId : null, resolved ? now() : null, id);
 }
 
 // ---- wikilinks & backlinks ----

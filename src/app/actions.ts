@@ -17,6 +17,7 @@ import {
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
 import { deleteUser, findUserByEmail, setUserRole } from "@/lib/auth";
+import type { User } from "@/lib/auth";
 import { setSetting } from "@/lib/settings";
 import { discover, oidcSettings } from "@/lib/oidc";
 import {
@@ -31,6 +32,8 @@ import {
 } from "@/lib/roles";
 import {
   addComment,
+  commentAuthor,
+  setThreadResolved,
   createPage,
   createSpace,
   deleteComment,
@@ -217,26 +220,58 @@ export async function publishPageAction(formData: FormData) {
 
 // ---- comments ----
 
+/**
+ * A thread belongs to whoever started it, and to whoever runs the space.
+ * Anyone signed in may join a conversation; not anyone may end one.
+ */
+function mayModerate(user: User, commentId: string, spaceId: string) {
+  return commentAuthor(commentId) === user.id || canAdminSpace(user, spaceId);
+}
+
 export async function addCommentAction(formData: FormData) {
   const user = await requireUser();
   const pageId = String(formData.get("pageId") ?? "");
   const body = String(formData.get("body") ?? "");
   const page = getPage(pageId);
   if (!page) redirect("/");
-  addComment(pageId, user.id, body);
+  const id = addComment(pageId, user.id, body, {
+    blockId: String(formData.get("blockId") ?? ""),
+    parentId: String(formData.get("parentId") ?? "") || undefined,
+    anchorText: String(formData.get("anchorText") ?? ""),
+  });
   const spaceSlug = String(formData.get("space") ?? "");
   revalidatePath(`/${spaceSlug}/${page.slug}`);
-  redirect(`/${spaceSlug}/${page.slug}#discussion`);
+  // Land on the thread that was just joined rather than the top of the list.
+  const parent = String(formData.get("parentId") ?? "");
+  const anchor = parent || id || "discussion";
+  redirect(`/${spaceSlug}/${page.slug}#t-${anchor}`);
 }
 
 export async function deleteCommentAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const id = String(formData.get("id") ?? "");
   const spaceSlug = String(formData.get("space") ?? "");
   const pageSlug = String(formData.get("page") ?? "");
-  deleteComment(id);
+  const pageId = String(formData.get("pageId") ?? "");
+  const page = getPage(pageId);
+  if (page && mayModerate(user, id, page.space_id)) deleteComment(id);
   revalidatePath(`/${spaceSlug}/${pageSlug}`);
   redirect(`/${spaceSlug}/${pageSlug}#discussion`);
+}
+
+export async function setThreadResolvedAction(formData: FormData) {
+  const user = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  const resolved = String(formData.get("resolved") ?? "") === "1";
+  const spaceSlug = String(formData.get("space") ?? "");
+  const pageSlug = String(formData.get("page") ?? "");
+  const pageId = String(formData.get("pageId") ?? "");
+  const page = getPage(pageId);
+  if (page && mayModerate(user, id, page.space_id)) {
+    setThreadResolved(id, user.id, resolved);
+  }
+  revalidatePath(`/${spaceSlug}/${pageSlug}`);
+  redirect(`/${spaceSlug}/${pageSlug}#t-${id}`);
 }
 
 // ---- version history ----

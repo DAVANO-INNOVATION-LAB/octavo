@@ -2,12 +2,15 @@
 
 import { useMemo } from "react";
 import {
+  SideMenu,
+  SideMenuController,
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   useCreateBlockNote,
 } from "@blocknote/react";
 import { filterSuggestionItems, type PartialBlock } from "@blocknote/core";
 import { BlockNoteView } from "@blocknote/mantine";
+import { BlockCommentButton } from "./BlockCommentButton";
 import "@blocknote/mantine/style.css";
 import "katex/dist/katex.min.css";
 import { useOctavoTheme } from "@/lib/theme-store";
@@ -125,9 +128,12 @@ async function uploadFile(file: File): Promise<string> {
 export default function Editor({
   initialContent,
   onChange,
+  pageId,
 }: {
   initialContent: string;
   onChange: (blocks: unknown[]) => void;
+  /** Absent on a page that has not been saved yet — nothing to anchor to. */
+  pageId?: string;
 }) {
   const parsed = useMemo(() => {
     try {
@@ -156,6 +162,15 @@ export default function Editor({
         slashMenu={false}
         onChange={() => onChange(editor.document as unknown[])}
       >
+        {pageId && (
+          <SideMenuController
+            sideMenu={(props) => (
+              <SideMenu {...props}>
+                <BlockCommentButton pageId={pageId} />
+              </SideMenu>
+            )}
+          />
+        )}
         <SuggestionMenuController
           triggerCharacter="/"
           getItems={async (query) =>

@@ -922,3 +922,47 @@ mark {
   padding: 0 0.4rem;
 }
 .octavo-editor .blk-model-edit-bar input { flex: 1; min-width: 0; }
+
+/* ————— Anchored comment threads ————— */
+/* Only blocks carrying a thread are wrapped, so the wrapper has to take on
+   the spacing the block would have had as a direct child of .reader. */
+.reader > .blk-anchored { position: relative; }
+.reader > .blk-anchored > :first-child { margin-top: 0; }
+.reader > .blk-anchored:has(> h1) { margin-top: 1.9em; }
+.reader > .blk-anchored:has(> h2) { margin-top: 1.8em; }
+.reader > .blk-anchored:has(> h3) { margin-top: 1.5em; }
+.reader > .blk-anchored:first-child { margin-top: 0; }
+
+.blk-anchor-mark {
+  position: absolute;
+  top: 0.15em;
+  right: -2.25rem;
+  display: none;
+  height: 1.35rem;
+  min-width: 1.35rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  line-height: 1;
+  text-decoration: none;
+  transition: transform 0.12s ease;
+}
+.blk-anchor-mark:hover { transform: translateY(-1px); }
+.blk-anchor-mark.is-settled {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--faint);
+}
+/* The margin only exists once there is room beside the column. */
+@media (min-width: 1100px) { .blk-anchor-mark { display: flex; } }
+
+/* A thread jumped to from the text, and the passage jumped to from a thread. */
+.reader > .blk-anchored:target { 
+  background: var(--accent-soft);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 0.5rem var(--accent-soft);
+}
