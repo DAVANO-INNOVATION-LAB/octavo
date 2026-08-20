@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.5.0 — 2026-08-20
+
+### Added
+
+- **Runnable cookbooks** — configure a connector (webhook, Airflow, GitHub
+  Actions) in the admin console and code blocks gain a Run button. Isolation
+  is enforced, not trusted: a connector works only in the space it is scoped
+  to, a run dispatches the *saved* block read from the database (never
+  client-supplied text), anonymous runs are refused, credentials are
+  encrypted at rest, and every run is logged on the page with who ran it,
+  when, and against which page version. Octavo never executes anything
+  itself.
+- **3D knowledge graph** — a dependency-free force-directed view of the link
+  graph with orbit rotation and real depth. It settles then freezes, so
+  nodes hold still and stay clickable; drag to orbit, click to open, Reheat
+  to re-layout. Ships with a 30-page demo seeder.
+- **Smart paste** — spreadsheets land as tables, editor code lands as a code
+  block with its language detected, rich text keeps its structure.
+- **SSO role rules** — an admin email domain and a default role for new SSO
+  accounts, configurable in the admin console.
+
+### Deferred, deliberately
+
+Markdown/Git round-trip sync, content variants, real-time presence, and WAL
+replication are each a release of their own; they are next, not half-shipped
+here.
+
+
 ## v0.4.0 — 2026-08-20
 
 ### Added
