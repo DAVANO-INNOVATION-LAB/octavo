@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# octavo
 
-## Getting Started
+**Open-source documentation that reads like a book.**
 
-First, run the development server:
+Write like Notion. Publish like a press. Host it anywhere for free — one
+container, one SQLite file, zero external services.
+
+## Why
+
+The open-source documentation field splits into two camps that never meet:
+
+- **Collaborative wikis** (Wiki.js, BookStack, Docmost, Outline) are pleasant
+  to write in but publish mediocre reader-facing pages — and most demand
+  Postgres + Redis + a mail server + an OIDC provider before you type a word.
+  Some aren't even open source (Outline is BSL); some paywall SSO and their
+  own API.
+- **Static-site generators** (Docusaurus, MkDocs Material, Starlight) publish
+  beautifully but have no editor, no collaboration, and require a developer
+  and a Git workflow for every edit.
+
+Octavo bridges the two: a real block editor on the way in, deliberate
+book-grade typography on the way out, and a deployment story that fits in a
+tweet.
+
+## Features
+
+- **Notion-class block editor** — slash commands, drag handles, headings,
+  lists, checklists, quotes, tables, images, files. Autosaves as you type.
+  Paste screenshots straight in.
+- **A published view that respects readers** — chapter numbering, drop caps,
+  a numbered table of contents with dotted leaders, an "on this page" rail
+  with scroll-spy, previous/next page turns, and true dark mode (warm paper
+  by day, warm ink by night — not an inverted afterthought).
+- **Code in every language** — server-side Shiki highlighting (the VS Code
+  engine), language label, copy button, always set on a dark ground.
+- **Diagrams built in** — set a code block's language to `mermaid` and the
+  published page renders it, theme-aware. The `/whiteboard` has two drafting
+  tables: freehand **Excalidraw** sketching and the full **draw.io** editor
+  (the same engine Confluence charges for — free here) — throw a drawing
+  away or export it as an image.
+- **Templates for engineers of all stripes** — product docs, SRE runbooks
+  with postmortems, DevOps playbooks, API references, data-science project
+  logs, network engineering change docs, architecture decision records,
+  engineering notebooks. Every template seeds structured draft pages.
+- **Private and public spaces** — spaces are private (members only) by
+  default; flip one public to share a cookbook with the world. Drafts stay
+  invisible until published; published URLs never change.
+- **Search that works** — SQLite FTS5 with BM25 ranking, prefix matching,
+  highlighted snippets, cmd+K everywhere. Private content never leaks into
+  anonymous search.
+- **Local accounts out of the box** — no OIDC yak-shaving. First visit
+  creates the admin.
+- **One-file operations** — everything lives in `/data/octavo.db` (uploads
+  beside it). Backups:
+
+  ```bash
+  sqlite3 /data/octavo.db ".backup /backups/octavo-$(date +%F).db"
+  ```
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d
+# then open http://localhost:3000 — the first visit creates your admin account
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Or for development:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+Next.js (App Router) · React · TypeScript · Tailwind · BlockNote
+(ProseMirror) · better-sqlite3 + FTS5 · Shiki · Mermaid · Excalidraw.
+No ORM, no message queue, no cache server. `data/` is the whole state.
 
-To learn more about Next.js, take a look at the following resources:
+## Roadmap
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **OIDC/SSO in core, never paywalled** — local accounts stay the zero-config
+  default; plug in Keycloak/Authentik/Dex/anything when you're ready
+- **Tenant namespaces** — siloed teams with their own name, logo, and theme;
+  private means private: membership-scoped queries everywhere, nothing
+  private ever touches public search or public trees (already true today at
+  the space level), encryption at rest for the data volume
+- Draw.io and Excalidraw as first-class page blocks — save a whiteboard
+  sketch or diagram directly into a page (both editors already live at
+  `/whiteboard`)
+- **Runnable cookbooks** — configure a connector (Airflow, Kubernetes, CI),
+  press play on a recipe's code block, watch it execute remotely with the
+  output captured back into the page
+- Markdown/Git round-trip: export every page as Markdown, sync a space with a
+  repo (content never held hostage)
+- Multi-tenant organizations: team name, logo, and theme per tenant
+- Importers for Wiki.js, BookStack, and MkDocs Material (EOL Nov 2026)
+- Page version history and review workflows (change requests)
+- Real-time co-editing (Yjs)
+- OpenAPI import with interactive API reference pages
+- Ask-with-citations search over your own model or API keys, and an MCP
+  server so agents can query your docs
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+AGPL-3.0. Free to run, free to host, free forever — improvements to hosted
+copies come back to everyone.
