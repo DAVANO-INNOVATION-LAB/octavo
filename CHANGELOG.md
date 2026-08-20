@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Anchored comment threads** — a thread hangs from the block it is about,
+  with replies, resolve and reopen, and @-mentions. The passage is copied
+  onto the thread when it starts, so a thread whose paragraph was later
+  rewritten or deleted keeps its quotation and says so.
+- **@-mentions** in comments, resolved when the comment is rendered rather
+  than stored as markup, so a renamed person is still addressed correctly.
+- **Change requests** — propose an edit on its own route, review it against a
+  side-by-side Markdown diff, and merge it. Merging is blocked when the page
+  has moved since the proposal was written, or when a reviewer has asked for
+  changes; nobody reviews their own proposal.
+- **Audit log** — a hash-chained record of authentication, account, space,
+  page, connector, administration, and change-request events, with chain
+  verification, filtering, and JSON-lines export. The head hash is shown so
+  it can be anchored outside the instance.
+- **Notifications** — an inbox and unread count for mentions, replies, and
+  change-request activity, with an optional outbound webhook that Slack and
+  Teams accept directly.
+- **Offline operation** — every runtime asset is served from the container,
+  `OCTAVO_OFFLINE=1` declares an instance disconnected, and
+  `OCTAVO_DRAWIO_URL` points the diagram editor at a self-hosted one. See
+  [docs/AIRGAP.md](docs/AIRGAP.md).
+
+### Fixed
+
+- Excalidraw resolved its fonts against a CDN when `EXCALIDRAW_ASSET_PATH`
+  was unset, which failed on a disconnected network and leaked a request on
+  every other one. Its fonts are now vendored and served locally.
+- Deleting a comment required only a signed-in session; it now requires being
+  the comment's author or a space admin.
+- The reader page action row and the site header both outgrew a 375px
+  viewport as controls were added.
+
+
 ## v0.6.3 — 2026-08-20
 
 ### Added
