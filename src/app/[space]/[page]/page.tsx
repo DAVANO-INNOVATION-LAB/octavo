@@ -30,9 +30,26 @@ export async function generateMetadata({
   const space = getSpaceBySlug(spaceSlug);
   const page = space && getPageBySlug(space.id, pageSlug);
   if (!space || !page) return {};
+  const base = process.env.OCTAVO_BASE_URL?.replace(/\/$/, "") ?? "";
+  const url = `${base}/${space.slug}/${page.slug}`;
+  const description = page.content_text.slice(0, 160).replace(/\s+/g, " ").trim();
   return {
     title: `${page.title} · ${space.name}`,
-    description: page.content_text.slice(0, 160),
+    description,
+    alternates: {
+      canonical: url || undefined,
+      types: { "text/markdown": `${url || `/${space.slug}/${page.slug}`}/raw` },
+    },
+    openGraph: {
+      type: "article",
+      title: page.title,
+      description,
+      siteName: space.name,
+      url: url || undefined,
+      modifiedTime: new Date(page.updated_at).toISOString(),
+    },
+    twitter: { card: "summary_large_image", title: page.title, description },
+    robots: space.visibility === "private" ? { index: false, follow: false } : undefined,
   };
 }
 
