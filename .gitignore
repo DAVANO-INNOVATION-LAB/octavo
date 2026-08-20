@@ -48,3 +48,4 @@ next-env.d.ts
 
 # Agent scaffolding files (regenerated locally by tooling)
 CLAUDE.md
+AGENTS.md

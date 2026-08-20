@@ -142,6 +142,11 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
         if (b.content && !Array.isArray(b.content))
           out.push(tableToMd(b.content));
         break;
+      case "drawio": {
+        const src = String(b.props?.src ?? "");
+        if (src) out.push(`![diagram](${src})`);
+        break;
+      }
       case "image": {
         const url = String(b.props?.url ?? "");
         const caption = String(b.props?.caption ?? "");

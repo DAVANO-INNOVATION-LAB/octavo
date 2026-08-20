@@ -380,6 +380,16 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
           </div>
         </details>
       );
+    case "drawio": {
+      const src = String(b.props?.src ?? "");
+      if (!src) return null;
+      return (
+        <figure className="blk-drawio-published">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="Diagram" loading="lazy" />
+        </figure>
+      );
+    }
     case "math": {
       const tex = inlineText(b.content);
       if (!tex.trim()) return null;

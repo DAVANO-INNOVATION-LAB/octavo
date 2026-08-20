@@ -713,3 +713,57 @@ mark {
   white-space: pre-wrap;
 }
 .run-bar + .run-output { border-radius: 0; margin-top: -1px; }
+
+/* ————— draw.io page blocks ————— */
+
+.blk-drawio-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0.75rem;
+  cursor: pointer;
+}
+.blk-drawio-preview img { max-width: 100%; margin: 0 auto; display: block; }
+.blk-drawio-hint {
+  position: absolute;
+  right: 0.6rem;
+  top: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 0.2rem 0.5rem;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.blk-drawio-preview:hover .blk-drawio-hint { opacity: 1; }
+.blk-drawio-empty {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+.blk-drawio-empty:hover { border-color: var(--accent); color: var(--ink); }
+.blk-drawio-published {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0.75rem;
+}
+.blk-drawio-published img { max-width: 100%; margin: 0 auto; display: block; border: none; border-radius: 0; }

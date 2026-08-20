@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.6.1 — 2026-08-20
+
+The v0.6 line continues as point releases.
+
+### Added
+
+- **Draw.io diagrams saved in the page** — a `/`-menu "Draw.io diagram"
+  block, the way Confluence does it: create or edit the diagram in a
+  full-screen editor, and on save the diagram's source is stored in the
+  block while the rendered SVG is saved to the space's file store.
+  Published pages show a plain image — no external calls for readers —
+  and clicking the block in the editor reopens the diagram for editing.
+
+
 ## v0.6.0 — 2026-08-20
 
 ### Added
