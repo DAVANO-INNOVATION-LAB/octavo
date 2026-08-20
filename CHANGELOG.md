@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.3.0 — 2026-08-20
+
+### Added
+
+- **OIDC single sign-on, in core** — four env vars (`OCTAVO_OIDC_ISSUER`,
+  `OCTAVO_OIDC_CLIENT_ID`, `OCTAVO_OIDC_CLIENT_SECRET`, `OCTAVO_BASE_URL`)
+  turn on "Continue with SSO" against any compliant provider (Keycloak,
+  Authentik, Dex, Okta, Entra). Authorization-code flow with PKCE via
+  openid-client v6; identities link to existing local accounts by email;
+  first-ever user becomes admin, later arrivals are members; optional
+  allowed-email-domain gate. Local accounts remain the zero-config default.
+  Verified end-to-end against a mock identity provider.
+- **Page version history** — a snapshot is kept at most every ten minutes
+  of editing (fifty per page), with a history list, read-only version
+  views, and one-click restore. Restore always snapshots the state it
+  replaces, throttle or not.
+- **llms.txt** — an agent-readable index of every public space and
+  published page, each linking to its raw Markdown export. AI agents are
+  half of documentation reads in 2026; the front door is open for them.
+
+
 ## v0.2.0 — 2026-08-20
 
 ### Added

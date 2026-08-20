@@ -106,8 +106,8 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
 
 ## Roadmap
 
-- **OIDC/SSO in core, never paywalled** — local accounts stay the zero-config
-  default; plug in Keycloak/Authentik/Dex/anything when you're ready
+- ~~OIDC/SSO in core~~ — **shipped in v0.3.0**, never paywalled: four env
+  vars against any compliant provider; local accounts stay the default
 - **Tenant namespaces** — siloed teams with their own name, logo, and theme,
   carried by OIDC groups once SSO lands; private means private: every query
   is membership-scoped (already true today at the space level — private
@@ -136,7 +136,16 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
 - Real-time co-editing (Yjs)
 - OpenAPI import with interactive API reference pages
 - Ask-with-citations search over your own model or API keys, and an MCP
-  server so agents can query your docs
+  server so agents can query your docs (llms.txt already ships)
+- Page analytics and insights — which pages get read, which go stale, where
+  knowledge gaps are forming
+- GitHub and GitLab integrations — connect spaces to repositories
+- SCIM provisioning — auto-provision and deprovision members from the
+  identity provider (builds on the OIDC core)
+- Audit logs — a tamper-evident record of every admin and member action,
+  exportable for SOC 2 and ISO 27001 reviews
+- Graph view — visually explore how the library's knowledge links together
+  (pairs with wikilinks/backlinks)
 
 ## License
 
