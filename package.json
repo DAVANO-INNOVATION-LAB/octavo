@@ -6,15 +6,26 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node scripts/test.mjs",
+    "loadtest": "node scripts/loadtest.mjs"
   },
   "dependencies": {
+    "@blocknote/core": "^0.54.0",
+    "@blocknote/mantine": "^0.54.0",
+    "@blocknote/react": "^0.54.0",
+    "@excalidraw/excalidraw": "^0.18.1",
+    "better-sqlite3": "^13.0.3",
+    "lucide-react": "^1.33.0",
+    "mermaid": "^11.17.0",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "shiki": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -22,5 +33,10 @@
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "lodash-es": "^4.17.24",
+    "nanoid@<4": "^3.3.18",
+    "nanoid@>=4 <6": "^5.1.16"
   }
 }
