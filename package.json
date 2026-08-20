@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "node scripts/test.mjs && node scripts/validate-content.mjs",
     "loadtest": "node scripts/loadtest.mjs",
-    "validate": "node scripts/validate-content.mjs"
+    "validate": "node scripts/validate-content.mjs",
+    "test:ui": "node scripts/ui-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",
