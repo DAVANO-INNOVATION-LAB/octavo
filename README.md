@@ -73,6 +73,13 @@ tweet.
   sqlite3 /data/octavo.db ".backup /backups/octavo-$(date +%F).db"
   ```
 
+## Is Octavo right for you?
+
+[COMPARISON.md](COMPARISON.md) is an honest look at where Octavo stands
+against BookStack, Docmost, Outline, Wiki.js, and the hosted tools —
+including the reasons to choose one of them instead, and the gaps we have
+not closed yet.
+
 ## The covenant
 
 Octavo holds these as promises, not features. Breaking one is a bug of the
