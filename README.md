@@ -146,6 +146,23 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
   exportable for SOC 2 and ISO 27001 reviews
 - Graph view — visually explore how the library's knowledge links together
   (pairs with wikilinks/backlinks)
+- Smart paste — content from Google Docs keeps its structure, spreadsheets
+  become tables, code from an editor becomes a code block
+- Margin notes — inline annotations that expand on click (Markdown
+  footnotes import as them); the book-margin answer to GitBook's inline
+  annotations
+- Code block polish — line highlighting, line numbers, and a wrap toggle
+  per block
+- Expandable sections with deep links — anchor links that auto-expand the
+  block they point into; cross-space page linking with a picker
+- Reader typography options per space — a small curated set of font
+  pairings and corner styles, never a settings jungle
+- Notifications — email or webhook alerts for page changes, new comments,
+  and space visibility changes
+- Slack integration — post publishes and discussion activity to a channel
+- SSO refinements — default role per email domain, then SCIM (above)
+- Accessibility as a standing commitment — alt text, screen-reader labels,
+  semantic tables, and heading hierarchy audited every release
 
 ## License
 
