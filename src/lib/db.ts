@@ -92,6 +92,12 @@ CREATE TABLE IF NOT EXISTS connectors (
 );
 CREATE INDEX IF NOT EXISTS connectors_space ON connectors(space_id);
 
+CREATE TABLE IF NOT EXISTS collab_docs (
+  page_id TEXT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
+  state BLOB NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sync_state (
   space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
   path TEXT NOT NULL,

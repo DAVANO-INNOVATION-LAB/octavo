@@ -77,15 +77,8 @@ tweet.
 
 Octavo runs with no route to the internet — every font, highlighter, and
 diagram renderer ships inside the container. [docs/AIRGAP.md](docs/AIRGAP.md)
-covers moving the image across, the two features that need configuring, and a
-check you can run to verify the claim rather than trust it.
-
-## Is Octavo right for you?
-
-[COMPARISON.md](COMPARISON.md) is an honest look at where Octavo stands
-against BookStack, Docmost, Outline, Wiki.js, and the hosted tools —
-including the reasons to choose one of them instead, and the gaps we have
-not closed yet.
+covers moving the image across, configuring it, and a check you can run to
+verify the claim rather than trust it.
 
 ## The covenant
 
@@ -130,16 +123,6 @@ npm run dev
 Next.js (App Router) · React · TypeScript · Tailwind · BlockNote
 (ProseMirror) · better-sqlite3 + FTS5 · Shiki · Mermaid · Excalidraw.
 No ORM, no message queue, no cache server. `data/` is the whole state.
-
-## Roadmap
-
-The full themed roadmap lives in [ROADMAP.md](ROADMAP.md). Shipped so far:
-the editor, the book-grade reader, whiteboards, templates, search, shelves,
-export/import, discussions, themes, OIDC SSO, version history, and llms.txt.
-
-Next up — the collaboration edition: the docs block library
-(callouts/tabs/steppers/math), anchored comment threads, change requests
-with diff views and merge rules, and notifications.
 
 ## License
 

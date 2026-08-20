@@ -55,13 +55,13 @@ Everything the platform is for:
 - PDF and Markdown export, space export and import, backups and restore
 - Local accounts with two-factor authentication
 
-## The two things that need attention
+## Configuring the two networked features
 
 ### draw.io editing
 
-The draw.io *editor* is a web application hosted by diagrams.net. Diagrams you
-have already saved keep rendering offline; creating and editing new ones needs
-an editor the browser can reach.
+The draw.io *editor* is a web application hosted by diagrams.net. Diagrams
+already saved into pages render offline from your own file store. To create
+and edit diagrams on a disconnected network, run the editor yourself.
 
 Run your own next to Octavo — the project publishes an image for exactly this:
 
@@ -80,14 +80,13 @@ changing it is a restart rather than a rebuild. Only the origin is used, and
 it is what every message from the embedded editor is checked against — so give
 it the address browsers actually use, and prefer HTTPS.
 
-With `OCTAVO_DRAWIO_URL` set, draw.io editing works normally offline. Without
-it, the editor explains that it is unavailable and points at this setting.
+With `OCTAVO_DRAWIO_URL` set, draw.io editing works normally offline.
 
 ### Video embeds
 
-A page can embed a YouTube or Vimeo video by URL. On a disconnected network
-those cannot play, so Octavo renders a short note and the URL where the player
-would be, instead of a frame that spins forever.
+A page can embed a YouTube or Vimeo video by URL. Those players live outside
+your network, so Octavo shows the address in place of the frame rather than
+leaving one spinning.
 
 Video files you upload to Octavo itself are served from your own instance and
 play normally.
