@@ -4,11 +4,13 @@ import { ArrowLeft, ArrowRight, Download, PenLine } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import {
   COMMENTABLE_KINDS,
+  backlinks,
   flattenTree,
   getPageBySlug,
   getSpaceBySlug,
   pageTree,
 } from "@/lib/data";
+import Link2 from "next/link";
 import { extractHeadings, parseBlocks } from "@/lib/blocks";
 import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
@@ -57,6 +59,7 @@ export default async function ReaderPage({
 
   const blocks = parseBlocks(page.content);
   const headings = extractHeadings(blocks);
+  const refs = backlinks(page.id, editing);
 
   return (
     <SpaceShell
@@ -64,7 +67,35 @@ export default async function ReaderPage({
       tree={tree}
       activeId={page.id}
       editing={editing}
-      rail={<Toc headings={headings} />}
+      rail={
+        <>
+          <Toc headings={headings} />
+          {refs.length > 0 && (
+            <div className={headings.length ? "mt-8" : ""}>
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">
+                Referenced by
+              </p>
+              <ul className="space-y-1.5 border-l border-line pl-3.5">
+                {refs.map((r) => (
+                  <li key={r.page_id}>
+                    <Link2
+                      href={`/${r.space_slug}/${r.page_slug}`}
+                      className="block text-[13px] leading-snug text-muted transition-colors hover:text-accent"
+                    >
+                      {r.title}
+                      {r.space_slug !== space.slug && (
+                        <span className="block text-[11px] text-faint">
+                          {r.space_name}
+                        </span>
+                      )}
+                    </Link2>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      }
     >
       <article className="rise mx-auto max-w-2xl">
         {page.published === 0 && (

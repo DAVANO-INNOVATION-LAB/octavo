@@ -12,6 +12,39 @@ import "@blocknote/mantine/style.css";
 import "katex/dist/katex.min.css";
 import { useOctavoTheme } from "@/lib/theme-store";
 import { customSlashItems, octavoSchema } from "./customBlocks";
+import { FileText } from "lucide-react";
+
+type PageHit = {
+  title: string;
+  page_slug: string;
+  space_slug: string;
+  space_name: string;
+};
+
+type OctavoEditorInstance = { insertInlineContent: (c: never) => void };
+
+async function pageLinkItems(editor: OctavoEditorInstance, query: string, stripBrackets: boolean) {
+  const res = await fetch(`/api/pages/lookup?q=${encodeURIComponent(query)}`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { pages: PageHit[] };
+  return data.pages.map((p) => ({
+    title: p.title,
+    subtext: p.space_name,
+    icon: <FileText size={18} />,
+    group: "Link a page",
+    onItemClick: () => {
+      editor.insertInlineContent([
+        {
+          type: "link",
+          href: `/${p.space_slug}/${p.page_slug}`,
+          content: [{ type: "text", text: p.title, styles: {} }],
+        },
+        " ",
+      ] as never);
+      void stripBrackets;
+    },
+  }));
+}
 
 async function uploadFile(file: File): Promise<string> {
   const body = new FormData();
@@ -66,6 +99,14 @@ export default function Editor({
               query
             )
           }
+        />
+        <SuggestionMenuController
+          triggerCharacter="[["
+          getItems={async (query) => pageLinkItems(editor, query, true)}
+        />
+        <SuggestionMenuController
+          triggerCharacter="@"
+          getItems={async (query) => pageLinkItems(editor, query, false)}
         />
       </BlockNoteView>
     </div>
