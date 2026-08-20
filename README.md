@@ -131,8 +131,10 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
 - Wikilinks and backlinks — `[[page]]` autocomplete and a "referenced by"
   panel that renders in the published view too
 - Multi-tenant organizations: team name, logo, and theme per tenant
-- Importers for Wiki.js, BookStack, and MkDocs Material (EOL Nov 2026)
-- Page version history and review workflows (change requests)
+- Importers for Wiki.js, BookStack, MkDocs Material (EOL Nov 2026), Word
+  documents (.docx), and import-from-URL for other docs platforms
+- Change requests — draft branches with side-by-side diff views, merge
+  rules, and reviewers (version history shipped in v0.3.0)
 - Real-time co-editing (Yjs)
 - OpenAPI import with interactive API reference pages
 - Ask-with-citations search over your own model or API keys, and an MCP
@@ -163,6 +165,28 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
 - SSO refinements — default role per email domain, then SCIM (above)
 - Accessibility as a standing commitment — alt text, screen-reader labels,
   semantic tables, and heading hierarchy audited every release
+- Docs block library — callouts/hints, tabs, steppers, cards, columns,
+  expandables, and math formulas as first-class blocks
+- Reusable synced blocks — write once, reference everywhere, edit once
+- Variables and conditional content — inline expressions plus if-blocks so
+  one page serves different audiences
+- Content variants — versioned docs (v1/v2) and translations as switchable
+  variants of one space, with reader-UI localization
+- Page covers and a non-emoji icon set for pages and spaces
+- Theme-aware images — different image per light/dark mode
+- Anchored comment threads — comments pinned to specific blocks, with
+  resolve/reopen and thread collapsing
+- Reader feedback — a quiet "was this page helpful?" with scores surfaced
+  in analytics beside staleness
+- Broken-link detection across the library, reported before readers find them
+- SEO plumbing — sitemaps, canonical/alternate metadata, social preview
+  images
+- Whole-space PDF export — the space as one typeset book, not page by page
+- llms-full.txt and .md URL suffixes — extend the shipped llms.txt so any
+  page address returns raw Markdown on request
+- Two-factor authentication for local accounts
+- A docs agent, eventually — style-guide-aware writing and review, feedback
+  triage into change requests; only after the human workflows are excellent
 
 ## License
 
