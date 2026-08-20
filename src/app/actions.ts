@@ -16,10 +16,19 @@ import {
   userCount,
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
-import { deleteUser, setUserRole } from "@/lib/auth";
+import { deleteUser, findUserByEmail, setUserRole } from "@/lib/auth";
 import { setSetting } from "@/lib/settings";
 import { discover, oidcSettings } from "@/lib/oidc";
-import { createConnector, deleteConnector } from "@/lib/connectors";
+import {
+  connectorsForSpace,
+  createConnector,
+  deleteConnector,
+} from "@/lib/connectors";
+import {
+  canAdminSpace,
+  removeSpaceMember,
+  setSpaceMember,
+} from "@/lib/roles";
 import {
   addComment,
   createPage,
@@ -337,4 +346,59 @@ export async function deleteConnectorAction(formData: FormData) {
   await requireAdmin();
   deleteConnector(String(formData.get("id") ?? ""));
   redirect("/admin/connectors");
+}
+
+// ---- space members (space admins run their own space) ----
+
+async function requireSpaceAdmin(spaceSlug: string) {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  const space = getSpaceBySlug(spaceSlug);
+  if (!space) redirect("/");
+  if (!canAdminSpace(user, space.id)) redirect(`/${space.slug}`);
+  return { user, space };
+}
+
+export async function setSpaceMemberAction(formData: FormData) {
+  const slug = String(formData.get("space") ?? "");
+  const { space } = await requireSpaceAdmin(slug);
+  const email = String(formData.get("email") ?? "").toLowerCase().trim();
+  const role = String(formData.get("role") ?? "editor") === "admin" ? "admin" : "editor";
+  const target = findUserByEmail(email);
+  if (!target) redirect(`/${space.slug}/members?error=nouser`);
+  setSpaceMember(space.id, target.id, role);
+  redirect(`/${space.slug}/members`);
+}
+
+export async function removeSpaceMemberAction(formData: FormData) {
+  const slug = String(formData.get("space") ?? "");
+  const { space } = await requireSpaceAdmin(slug);
+  removeSpaceMember(space.id, String(formData.get("userId") ?? ""));
+  redirect(`/${space.slug}/members`);
+}
+
+/** A space admin adds a connector scoped to their own space. */
+export async function createSpaceConnectorAction(formData: FormData) {
+  const slug = String(formData.get("space") ?? "");
+  const { user, space } = await requireSpaceAdmin(slug);
+  createConnector({
+    name: String(formData.get("name") ?? ""),
+    type: String(formData.get("type") ?? "webhook"),
+    baseUrl: String(formData.get("base_url") ?? ""),
+    credential: String(formData.get("credential") ?? ""),
+    spaceId: space.id, // never instance-wide from here
+    createdBy: user.id,
+  });
+  redirect(`/${space.slug}/connectors?saved=1`);
+}
+
+export async function deleteSpaceConnectorAction(formData: FormData) {
+  const slug = String(formData.get("space") ?? "");
+  const { space } = await requireSpaceAdmin(slug);
+  const id = String(formData.get("id") ?? "");
+  const owned = connectorsForSpace(space.id).some(
+    (c) => c.id === id && c.space_id === space.id
+  );
+  if (owned) deleteConnector(id);
+  redirect(`/${space.slug}/connectors`);
 }

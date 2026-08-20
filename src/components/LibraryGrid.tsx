@@ -80,7 +80,7 @@ export function LibraryGrid({
               <span className="h-px flex-1 bg-line" aria-hidden />
             </h2>
           )}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid auto-rows-fr grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {g.items.map((s, i) => (
               <div
                 key={s.slug}
@@ -99,7 +99,7 @@ export function LibraryGrid({
                   e.preventDefault();
                   drop(s.slug);
                 }}
-                className={`transition-all ${
+                className={`h-full transition-all ${
                   dragSlug === s.slug ? "scale-[0.98] opacity-40" : ""
                 } ${
                   overSlug === s.slug && dragSlug !== null && dragSlug !== s.slug
@@ -109,7 +109,7 @@ export function LibraryGrid({
               >
                 <Link
                   href={`/${s.slug}`}
-                  className="rise group relative block overflow-hidden rounded-xl border border-line bg-surface p-6 pl-7 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-pop"
+                  className="rise group relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface p-6 pl-7 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-pop"
                   style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
                   onClick={(e) => {
                     if (dragSlug !== null) e.preventDefault();
@@ -126,18 +126,16 @@ export function LibraryGrid({
                     </span>
                   )}
                   <Monogram name={s.name} />
-                  <h3 className="wordmark mt-3 flex items-center gap-2 text-xl leading-snug text-ink">
-                    {s.name}
+                  <h3 className="wordmark mt-3 flex items-start gap-2 text-xl leading-snug text-ink">
+                    <span className="line-clamp-2 min-w-0">{s.name}</span>
                     {s.visibility === "private" && (
-                      <Lock size={13} className="shrink-0 text-faint" />
+                      <Lock size={13} className="mt-1.5 shrink-0 text-faint" />
                     )}
                   </h3>
-                  {s.description && (
-                    <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">
-                      {s.description}
-                    </p>
-                  )}
-                  <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.1em] text-faint">
+                  <p className="mt-1.5 line-clamp-2 min-h-[2.6em] text-sm leading-relaxed text-muted">
+                    {s.description}
+                  </p>
+                  <p className="mt-auto pt-4 text-[11px] font-medium uppercase tracking-[0.1em] text-faint">
                     {s.kindLabel} · {s.pageCount}{" "}
                     {s.pageCount === 1 ? "page" : "pages"} · {s.updatedLabel}
                   </p>

@@ -67,6 +67,15 @@ CREATE TABLE IF NOT EXISTS page_versions (
 );
 CREATE INDEX IF NOT EXISTS page_versions_page ON page_versions(page_id, saved_at DESC);
 
+CREATE TABLE IF NOT EXISTS space_members (
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'editor',
+  added_at INTEGER NOT NULL,
+  PRIMARY KEY (space_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS space_members_user ON space_members(user_id);
+
 CREATE TABLE IF NOT EXISTS connectors (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

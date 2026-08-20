@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowRight, Download, Lock, Plus, Settings } from "lucide-react";
+import { ArrowRight, Download, Lock, Plus, Settings, Users, Zap } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { flattenTree, getSpaceBySlug, pageTree } from "@/lib/data";
 import { createPageAction } from "@/app/actions";
 import { SpaceShell } from "@/components/SpaceShell";
+import { canAdminSpace } from "@/lib/roles";
 
 const KIND_LABEL: Record<string, string> = {
   docs: "Documentation",
@@ -26,6 +27,7 @@ export default async function SpaceCover({
   const user = await currentUser();
   const editing = Boolean(user);
   if (space.visibility === "private" && !user) redirect("/login");
+  const isSpaceAdmin = canAdminSpace(user, space.id);
   const tree = pageTree(space.id, !editing);
   const flat = flattenTree(tree);
   const first = flat.find((p) => p.published === 1) ?? flat[0];
@@ -86,6 +88,24 @@ export default async function SpaceCover({
                   <Download size={15} />
                   Export
                 </a>
+                {isSpaceAdmin && (
+                  <>
+                    <Link
+                      href={`/${space.slug}/members`}
+                      className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                    >
+                      <Users size={15} />
+                      Members
+                    </Link>
+                    <Link
+                      href={`/${space.slug}/connectors`}
+                      className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                    >
+                      <Zap size={15} />
+                      Connectors
+                    </Link>
+                  </>
+                )}
                 <Link
                   href={`/${space.slug}/settings`}
                   className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"

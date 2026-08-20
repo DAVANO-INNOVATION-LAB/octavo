@@ -217,3 +217,9 @@ export function setUserRole(id: string, role: "admin" | "member") {
 export function deleteUser(id: string) {
   getDb().prepare("DELETE FROM users WHERE id = ?").run(id);
 }
+
+export function findUserByEmail(email: string): User | null {
+  return (getDb()
+    .prepare("SELECT id, email, name, role FROM users WHERE email = ?")
+    .get(email.toLowerCase().trim()) ?? null) as User | null;
+}

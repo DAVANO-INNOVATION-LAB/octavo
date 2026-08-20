@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.6.0 — 2026-08-20
+
+### Added
+
+- **Space admins run their own space** — a second level of authority beside
+  the instance admin: space admins manage their space's members and add
+  **their own connectors**, scoped to that space and usable nowhere else.
+  Instance-wide connectors remain visible but are marked as managed
+  elsewhere. This is the shape tenant administration will take when tenant
+  namespaces land — a tenant is a group of spaces over the same membership
+  table, not a third concept.
+- **UI stress harness** (`scripts/ui-stress.mjs`) — crawls every route for
+  bad status codes, missing chrome, client-side exceptions, slowness, and
+  page weight, so regressions are caught by a command instead of by eye.
+
+### Fixed
+
+- **Branding on every page.** The footer moved into the root layout, so
+  "A Davano Innovation Lab product" appears everywhere by construction —
+  it had been missing from the graph, whiteboards, and sign-in. The footer
+  also now carries a link to the AGPL source.
+- **Six mobile layout defects**, found by the crawler and by measuring
+  every page at 375px: the header action row overflowed (sign-out is an
+  icon on small screens), the admin overview grid and tab row overflowed
+  (grid children need `min-w-0`; the tab row now scrolls), and the reader
+  page header squeezed long titles mid-word (actions now stack above the
+  title). Every page measures clean at mobile width.
+- **Library tiles are uniform.** Cards fill their grid cell and every row
+  shares one height, so a shelf reads as an even set instead of a ragged
+  stack.
+- Whiteboards gained real `<main>` landmarks.
+
+
 ## v0.5.0 — 2026-08-20
 
 ### Added
