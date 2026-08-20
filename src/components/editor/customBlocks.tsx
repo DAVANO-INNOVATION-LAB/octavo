@@ -26,8 +26,11 @@ import {
   PenTool,
   Sigma,
 } from "lucide-react";
+import { clientConfig } from "@/lib/client-config";
 
-const DRAWIO_ORIGIN = "https://embed.diagrams.net";
+// Resolved per render from the config the server injected, so an operator
+// can point this at a self-hosted draw.io without rebuilding the image.
+const drawioOrigin = () => clientConfig().drawioOrigin;
 
 /**
  * A draw.io diagram that lives in the page — Confluence-style. The diagram
@@ -49,7 +52,7 @@ function DrawioEditorModal({
 
   useEffect(() => {
     async function onMessage(e: MessageEvent) {
-      if (e.origin !== DRAWIO_ORIGIN) return;
+      if (e.origin !== drawioOrigin()) return;
       if (e.source !== frameRef.current?.contentWindow) return;
       let msg: { event?: string; xml?: string; data?: string };
       try {
@@ -62,7 +65,7 @@ function DrawioEditorModal({
       if (msg.event === "init") {
         frame.contentWindow.postMessage(
           JSON.stringify({ action: "load", xml: pendingXml.current }),
-          DRAWIO_ORIGIN
+          drawioOrigin()
         );
         setStatus("");
       } else if (msg.event === "save") {
@@ -70,7 +73,7 @@ function DrawioEditorModal({
         setStatus("Rendering…");
         frame.contentWindow.postMessage(
           JSON.stringify({ action: "export", format: "xmlsvg" }),
-          DRAWIO_ORIGIN
+          drawioOrigin()
         );
       } else if (msg.event === "export" && typeof msg.data === "string") {
         try {
@@ -95,6 +98,36 @@ function DrawioEditorModal({
     return () => window.removeEventListener("message", onMessage);
   }, [onSave, onClose]);
 
+  // Offline with no self-hosted editor: an explanation the author can act on,
+  // rather than a modal that never finishes loading. Diagrams already saved
+  // into pages keep rendering — the stored SVG is served from this instance.
+  if (!clientConfig().drawioEnabled) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+        <div className="max-w-md rounded-xl border border-line bg-surface p-6 text-center shadow-pop">
+          <p className="text-sm font-medium text-ink">
+            The diagram editor is not available offline
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            This instance runs disconnected, and the draw.io editor is hosted
+            elsewhere. Run your own alongside Octavo and set{" "}
+            <code className="rounded bg-wash px-1 font-mono text-xs">
+              OCTAVO_DRAWIO_URL
+            </code>{" "}
+            to its address. Diagrams already in your pages are unaffected.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-4 rounded-lg border border-line px-3 py-1.5 text-sm text-ink hover:bg-wash"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/60 p-3 backdrop-blur-sm sm:p-6">
       <div className="relative flex-1 overflow-hidden rounded-xl border border-line bg-surface shadow-pop">
@@ -105,7 +138,7 @@ function DrawioEditorModal({
         )}
         <iframe
           ref={frameRef}
-          src={`${DRAWIO_ORIGIN}/?embed=1&proto=json&spin=1&ui=min&saveAndExit=1&noExitBtn=0`}
+          src={`${drawioOrigin()}/?embed=1&proto=json&spin=1&ui=min&saveAndExit=1&noExitBtn=0`}
           title="Diagram editor"
           className="h-full w-full border-0"
         />

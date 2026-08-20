@@ -10,7 +10,9 @@
     "test": "node scripts/test.mjs && node scripts/validate-content.mjs",
     "loadtest": "node scripts/loadtest.mjs",
     "validate": "node scripts/validate-content.mjs",
-    "test:ui": "node scripts/ui-test.mjs"
+    "test:ui": "node scripts/ui-test.mjs",
+    "prebuild": "node scripts/vendor-assets.mjs",
+    "test:airgap": "node scripts/airgap-check.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

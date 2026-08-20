@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Fraunces, Newsreader } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { SiteFooter } from "@/components/SiteFooter";
+import { bootstrapScript } from "@/lib/runtime-config";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +57,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${newsreader.variable} h-full antialiased`}
     >
       <head>
+        {/* Runtime config and the local Excalidraw asset path must both be set
+            before any client bundle evaluates, or Excalidraw resolves its
+            fonts against its CDN fallback. */}
+        <script dangerouslySetInnerHTML={{ __html: bootstrapScript() }} />
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body className="min-h-full flex flex-col">

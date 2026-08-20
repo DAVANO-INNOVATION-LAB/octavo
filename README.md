@@ -73,6 +73,13 @@ tweet.
   sqlite3 /data/octavo.db ".backup /backups/octavo-$(date +%F).db"
   ```
 
+## Disconnected networks
+
+Octavo runs with no route to the internet — every font, highlighter, and
+diagram renderer ships inside the container. [docs/AIRGAP.md](docs/AIRGAP.md)
+covers moving the image across, the two features that need configuring, and a
+check you can run to verify the claim rather than trust it.
+
 ## Is Octavo right for you?
 
 [COMPARISON.md](COMPARISON.md) is an honest look at where Octavo stands

@@ -50,3 +50,6 @@ next-env.d.ts
 CLAUDE.md
 AGENTS.md
 .shot-profile
+
+# Vendored at build time by scripts/vendor-assets.mjs
+/public/excalidraw-assets/

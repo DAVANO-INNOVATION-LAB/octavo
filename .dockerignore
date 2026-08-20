@@ -4,3 +4,5 @@ data
 .git
 *.md
 scripts
+# ...except the one the build itself runs, which vendors offline assets.
+!scripts/vendor-assets.mjs

@@ -19,6 +19,7 @@ import { Model3D, type ModelKind } from "./Model3D";
 import { MarginNote } from "./MarginNote";
 import { Mermaid } from "./Mermaid";
 import { TableCsv } from "./TableCsv";
+import { isOffline } from "@/lib/runtime-config";
 
 /** Recognize YouTube/Vimeo URLs and return a privacy-friendly embed URL. */
 function videoEmbedUrl(url: string): string | null {
@@ -378,6 +379,19 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
       const url = String(b.props?.url ?? "");
       if (!url) return null;
       const embed = videoEmbedUrl(url);
+      if (embed && isOffline()) {
+        // A third-party player cannot load on a disconnected network. Say so
+        // where the video would be, rather than leaving a frame that spins.
+        return (
+          <div className="rounded-xl border border-dashed border-line px-4 py-6 text-center">
+            <p className="text-sm text-muted">
+              This video is hosted outside this network and cannot be played
+              here.
+            </p>
+            <p className="mt-1 break-all font-mono text-xs text-faint">{url}</p>
+          </div>
+        );
+      }
       if (embed) {
         return (
           <div className="aspect-video overflow-hidden rounded-xl border border-line shadow-card">
