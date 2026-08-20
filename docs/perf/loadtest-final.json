@@ -1,0 +1,75 @@
+{
+  "label": "final",
+  "base": "http://127.0.0.1:8524",
+  "at": "2026-08-20T02:29:38.293Z",
+  "concurrency": 20,
+  "duration_ms": 10000,
+  "results": [
+    {
+      "name": "home (library grid)",
+      "path": "/",
+      "requests": 8400,
+      "rps": 840,
+      "p50_ms": 23.5,
+      "p95_ms": 27.3,
+      "p99_ms": 34,
+      "errors": 0,
+      "mb_per_s": 26.7
+    },
+    {
+      "name": "space cover (30-page TOC)",
+      "path": "/rfc-reading-room",
+      "requests": 6100,
+      "rps": 610,
+      "p50_ms": 32.5,
+      "p95_ms": 36.2,
+      "p99_ms": 39.8,
+      "errors": 0,
+      "mb_per_s": 47.3
+    },
+    {
+      "name": "reader page (RFC, code blocks)",
+      "path": "/rfc-reading-room/rfc-9293-transmission-control-protocol-tcp",
+      "requests": 3060,
+      "rps": 306,
+      "p50_ms": 64.9,
+      "p95_ms": 70.9,
+      "p99_ms": 75.6,
+      "errors": 0,
+      "mb_per_s": 52.8
+    },
+    {
+      "name": "reader page (shiki + mermaid)",
+      "path": "/field-guide/code",
+      "requests": 5120,
+      "rps": 512,
+      "p50_ms": 38.8,
+      "p95_ms": 42.8,
+      "p99_ms": 49.3,
+      "errors": 0,
+      "mb_per_s": 23.6
+    },
+    {
+      "name": "search (FTS5)",
+      "path": "/api/search?q=transmission%20control",
+      "requests": 6630,
+      "rps": 663,
+      "p50_ms": 27,
+      "p95_ms": 55.2,
+      "p99_ms": 58.1,
+      "errors": 0,
+      "mb_per_s": 2.4
+    },
+    {
+      "name": "search (broad)",
+      "path": "/api/search?q=learning",
+      "requests": 18026,
+      "rps": 1802.6,
+      "p50_ms": 9.4,
+      "p95_ms": 19.3,
+      "p99_ms": 21.1,
+      "errors": 0,
+      "mb_per_s": 9.2
+    }
+  ]
+}
