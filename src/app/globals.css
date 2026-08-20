@@ -1,26 +1,454 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ————— Octavo design tokens: paper & ink ————— */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --bg: #f5f2ea;
+  --surface: #fdfcf8;
+  --surface-2: #ede8da;
+  --ink: #211c13;
+  --muted: #6f6553;
+  --faint: #a2967e;
+  --line: #e2dbc9;
+  --line-strong: #cfc6ae;
+  --accent: #b8401b;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(184, 64, 27, 0.09);
+  --mark: rgba(184, 64, 27, 0.16);
+  --code-bg: #14110c;
+  --shadow-card: 0 1px 2px rgba(33, 28, 19, 0.05), 0 8px 24px -12px rgba(33, 28, 19, 0.18);
+  --shadow-pop: 0 2px 6px rgba(33, 28, 19, 0.08), 0 24px 48px -16px rgba(33, 28, 19, 0.28);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #14110c;
+    --surface: #1b1710;
+    --surface-2: #262015;
+    --ink: #ece4d3;
+    --muted: #a3977c;
+    --faint: #6f6550;
+    --line: #2b2519;
+    --line-strong: #3d3524;
+    --accent: #ff7a48;
+    --accent-ink: #1b0d05;
+    --accent-soft: rgba(255, 122, 72, 0.12);
+    --mark: rgba(255, 122, 72, 0.22);
+    --code-bg: #100d09;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 48px -16px rgba(0, 0, 0, 0.7);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:root[data-theme="dark"] {
+  --bg: #14110c;
+  --surface: #1b1710;
+  --surface-2: #262015;
+  --ink: #ece4d3;
+  --muted: #a3977c;
+  --faint: #6f6550;
+  --line: #2b2519;
+  --line-strong: #3d3524;
+  --accent: #ff7a48;
+  --accent-ink: #1b0d05;
+  --accent-soft: rgba(255, 122, 72, 0.12);
+  --mark: rgba(255, 122, 72, 0.22);
+  --code-bg: #100d09;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 48px -16px rgba(0, 0, 0, 0.7);
 }
+
+/* ————— Palette presets —————
+   The default Paper & Ink palette above is permanent and untouched.
+   Presets define six base values per mode; everything else derives. */
+
+:root[data-palette] {
+  --bg: var(--l-bg);
+  --surface: var(--l-surface);
+  --ink: var(--l-ink);
+  --accent: var(--l-accent);
+  --accent-ink: var(--l-accent-ink);
+  --code-bg: var(--l-code);
+  --surface-2: color-mix(in srgb, var(--ink) 7%, var(--bg));
+  --muted: color-mix(in srgb, var(--ink) 62%, var(--bg));
+  --faint: color-mix(in srgb, var(--ink) 42%, var(--bg));
+  --line: color-mix(in srgb, var(--ink) 11%, var(--bg));
+  --line-strong: color-mix(in srgb, var(--ink) 22%, var(--bg));
+  --accent-soft: color-mix(in srgb, var(--accent) 11%, transparent);
+  --mark: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+:root[data-palette][data-theme="dark"] {
+  --bg: var(--d-bg);
+  --surface: var(--d-surface);
+  --ink: var(--d-ink);
+  --accent: var(--d-accent);
+  --accent-ink: var(--d-accent-ink);
+  --code-bg: var(--d-code);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-palette]:not([data-theme="light"]) {
+    --bg: var(--d-bg);
+    --surface: var(--d-surface);
+    --ink: var(--d-ink);
+    --accent: var(--d-accent);
+    --accent-ink: var(--d-accent-ink);
+    --code-bg: var(--d-code);
+  }
+}
+
+/* — user presets — */
+:root[data-palette="slate"] {
+  --l-bg: #f2f5f9; --l-surface: #fbfdff; --l-ink: #14181d; --l-accent: #2b73c9; --l-accent-ink: #ffffff; --l-code: #0d1117;
+  --d-bg: #0d1013; --d-surface: #14181d; --d-ink: #dde5ee; --d-accent: #6db1ff; --d-accent-ink: #06121f; --d-code: #0a0d10;
+}
+:root[data-palette="forest"] {
+  --l-bg: #f2f5ef; --l-surface: #fbfdf8; --l-ink: #171d14; --l-accent: #3c7a3d; --l-accent-ink: #ffffff; --l-code: #0e1410;
+  --d-bg: #0e120c; --d-surface: #151a12; --d-ink: #e0e7d8; --d-accent: #8bc477; --d-accent-ink: #0b1607; --d-code: #0a0e08;
+}
+:root[data-palette="indigo"] {
+  --l-bg: #f4f3fa; --l-surface: #fcfbff; --l-ink: #17152a; --l-accent: #5a4bd1; --l-accent-ink: #ffffff; --l-code: #12101f;
+  --d-bg: #100e1c; --d-surface: #171425; --d-ink: #e2dff0; --d-accent: #a094f5; --d-accent-ink: #0e0a24; --d-code: #0c0a16;
+}
+:root[data-palette="rosewood"] {
+  --l-bg: #f9f2f1; --l-surface: #fefbfa; --l-ink: #241518; --l-accent: #a52e4e; --l-accent-ink: #ffffff; --l-code: #170f12;
+  --d-bg: #150e10; --d-surface: #1d1417; --d-ink: #eee0e3; --d-accent: #e57a97; --d-accent-ink: #23060f; --d-code: #100a0c;
+}
+:root[data-palette="graphite"] {
+  --l-bg: #f4f4f3; --l-surface: #fcfcfb; --l-ink: #191919; --l-accent: #2c2c2c; --l-accent-ink: #ffffff; --l-code: #101010;
+  --d-bg: #101010; --d-surface: #181818; --d-ink: #e8e8e6; --d-accent: #d4d4d2; --d-accent-ink: #141414; --d-code: #0a0a0a;
+}
+
+/* — hidden seasonal palettes: applied automatically for the month, opt-out — */
+:root[data-palette="hallows"] {
+  --l-bg: #f7efe3; --l-surface: #fdf8ee; --l-ink: #221527; --l-accent: #cf5b13; --l-accent-ink: #ffffff; --l-code: #170f1d;
+  --d-bg: #140f1c; --d-surface: #1c1526; --d-ink: #ece1d2; --d-accent: #ff8c2e; --d-accent-ink: #200d02; --d-code: #0f0a16;
+}
+:root[data-palette="harvest"] {
+  --l-bg: #f8f1e2; --l-surface: #fdf9ef; --l-ink: #241a0e; --l-accent: #a35a14; --l-accent-ink: #ffffff; --l-code: #171008;
+  --d-bg: #171107; --d-surface: #1f180c; --d-ink: #ede2ca; --d-accent: #e29b45; --d-accent-ink: #221200; --d-code: #110c05;
+}
+:root[data-palette="yuletide"] {
+  --l-bg: #f2f6f2; --l-surface: #fbfdfb; --l-ink: #14211a; --l-accent: #ab2b34; --l-accent-ink: #ffffff; --l-code: #0e1a14;
+  --d-bg: #0d1712; --d-surface: #142019; --d-ink: #dfe9e0; --d-accent: #e0555e; --d-accent-ink: #23090b; --d-code: #091009;
+}
+:root[data-palette="meridian"] {
+  --l-bg: #f5f6f9; --l-surface: #fdfdfe; --l-ink: #131829; --l-accent: #8a6d1f; --l-accent-ink: #ffffff; --l-code: #10152a;
+  --d-bg: #0c1120; --d-surface: #131a2e; --d-ink: #e3e6ef; --d-accent: #dcbb56; --d-accent-ink: #1d1502; --d-code: #080c19;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss03", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--mark);
+}
+
+mark {
+  background: var(--mark);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ————— Reader typography ————— */
+
+.reader {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--ink);
+}
+
+.reader > * + * {
+  margin-top: 1.1em;
+}
+
+.reader h1,
+.reader h2,
+.reader h3 {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "opsz" 40;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  scroll-margin-top: 5.5rem;
+}
+
+.reader h1 { font-size: 1.85em; margin-top: 1.9em; }
+.reader h2 { font-size: 1.45em; margin-top: 1.8em; }
+.reader h3 { font-size: 1.17em; margin-top: 1.5em; }
+
+.reader h1:first-child,
+.reader h2:first-child,
+.reader h3:first-child { margin-top: 0; }
+
+.reader a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 120ms ease;
+}
+.reader a:hover { text-decoration-color: var(--accent); }
+
+.reader ul, .reader ol { padding-left: 1.5em; }
+.reader ul { list-style: disc; }
+.reader ol { list-style: decimal; }
+.reader li { margin-top: 0.35em; }
+.reader li::marker { color: var(--faint); }
+
+.reader blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 0.1em 0 0.1em 1.25em;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.reader code:not(pre code) {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.86em;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 0.1em 0.35em;
+}
+
+.reader hr {
+  border: none;
+  border-top: 1px solid var(--line-strong);
+  margin: 2.5em auto;
+  width: 100%;
+}
+
+.reader img {
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.reader table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94em;
+  line-height: 1.5;
+}
+.reader thead th,
+.reader tr:first-child th {
+  font-weight: 600;
+  text-align: left;
+  background: var(--surface-2);
+}
+.reader th, .reader td {
+  border: 1px solid var(--line-strong);
+  padding: 0.5em 0.8em;
+  vertical-align: top;
+}
+
+.reader .checkitem {
+  list-style: none;
+  display: flex;
+  gap: 0.6em;
+  align-items: baseline;
+}
+
+/* Shiki dual-theme: flip to the dark palette via CSS variables */
+.codeblock pre {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  background: transparent !important;
+}
+.codeblock code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Book details: drop cap when a chapter opens with prose, old-style figures */
+.reader {
+  font-feature-settings: "onum", "pnum";
+}
+.reader-dropcap > p:first-child::first-letter {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "opsz" 72;
+  font-weight: 620;
+  font-size: 3.3em;
+  line-height: 0.82;
+  float: left;
+  padding-right: 0.09em;
+  padding-top: 0.04em;
+  color: var(--accent);
+}
+
+/* Soft page-turn on full navigations (progressive enhancement) */
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; }
+}
+
+/* ————— BlockNote editor: match Octavo tokens ————— */
+
+.octavo-editor .bn-editor {
+  background: transparent;
+  padding-inline: 0;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.0625rem;
+}
+
+.octavo-editor .bn-editor h1,
+.octavo-editor .bn-editor h2,
+.octavo-editor .bn-editor h3 {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "opsz" 40;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+}
+
+.octavo-editor .bn-container {
+  --bn-colors-editor-background: transparent;
+  --bn-colors-editor-text: var(--ink);
+  --bn-colors-menu-background: var(--surface);
+  --bn-colors-menu-text: var(--ink);
+  --bn-colors-tooltip-background: var(--surface-2);
+  --bn-colors-tooltip-text: var(--muted);
+  --bn-colors-hovered-background: var(--surface-2);
+  --bn-colors-selected-background: var(--accent);
+  --bn-colors-selected-text: var(--accent-ink);
+  --bn-colors-disabled-background: var(--surface-2);
+  --bn-colors-disabled-text: var(--faint);
+  --bn-colors-shadow: var(--line-strong);
+  --bn-colors-border: var(--line);
+  --bn-colors-side-menu: var(--faint);
+  --bn-border-radius: 8px;
+  --bn-font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ————— Small touches ————— */
+
+.wordmark {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-variation-settings: "opsz" 60;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+}
+
+.kbd {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0.1rem 0.35rem;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+/* ————— Print: "export as PDF" uses the browser's print engine ————— */
+
+@media print {
+  :root, :root[data-theme="dark"], :root[data-palette] {
+    --bg: #ffffff !important;
+    --surface: #ffffff !important;
+    --surface-2: #f2f0ea !important;
+    --ink: #1a1712 !important;
+    --muted: #55503f !important;
+    --faint: #8a8070 !important;
+    --line: #ddd8c8 !important;
+    --line-strong: #c5bda6 !important;
+    --accent: #8f3315 !important;
+    --code-bg: #f4f2ec !important;
+  }
+  header, footer, nav, aside { display: none !important; }
+  main { padding: 0 !important; }
+  body { background: #fff !important; }
+  .reader { font-size: 11pt; line-height: 1.6; }
+  .codeblock, .reader table, .reader blockquote { break-inside: avoid; }
+  .codeblock pre { white-space: pre-wrap; }
+  .codeblock .shiki, .codeblock .shiki span { color: #1a1712 !important; }
+  .codeblock { background: var(--code-bg) !important; border-color: var(--line-strong) !important; }
+  .reader a { color: inherit; text-decoration: none; }
+  @page { margin: 2cm 1.8cm; }
+}
+
+/* ————— Seasonal decor ————— */
+
+/* A single 13s pass; the component mounts the rider only while flying,
+   on a randomized 45–90 minute schedule. */
+@keyframes seasonal-flyby {
+  0% { transform: translateX(-140px); }
+  100% { transform: translateX(calc(100vw + 140px)); }
+}
+.seasonal-flyby {
+  will-change: transform;
+  transform: translateX(-140px);
+  animation: seasonal-flyby 13s linear 1 forwards;
+}
+
+@keyframes seasonal-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.seasonal-bob { animation: seasonal-bob 1.6s ease-in-out infinite; }
+
+@keyframes seasonal-twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.seasonal-bulb { animation: seasonal-twinkle 2.6s ease-in-out infinite; }
+
+@keyframes seasonal-flicker {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 1; }
+  30% { transform: scaleY(1.07) scaleX(0.96); opacity: 0.92; }
+  60% { transform: scaleY(0.93) scaleX(1.04); opacity: 1; }
+  80% { transform: scaleY(1.04) scaleX(0.98); opacity: 0.95; }
+}
+.seasonal-flame {
+  transform-origin: 15px 23px;
+  animation: seasonal-flicker 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-flyby, .seasonal-bob, .seasonal-bulb, .seasonal-flame {
+    animation: none;
+  }
+  .seasonal-flyby { display: none; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
