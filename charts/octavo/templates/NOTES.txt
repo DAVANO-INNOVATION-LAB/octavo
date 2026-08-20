@@ -1,0 +1,6 @@
+Octavo is binding.
+
+  kubectl port-forward svc/{{ include "octavo.fullname" . }} 3000:{{ .Values.service.port }}
+
+Then open http://localhost:3000 — the first visit creates the admin account.
+Everything lives on the /data volume: back it up by copying one SQLite file.

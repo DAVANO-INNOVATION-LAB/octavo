@@ -1,0 +1,46 @@
+image:
+  repository: ghcr.io/davano-innovation-lab/octavo
+  tag: ""            # defaults to the chart appVersion
+  pullPolicy: IfNotPresent
+
+# Octavo stores everything in one SQLite file, so it runs as exactly one
+# replica against one ReadWriteOnce volume. Scale reads with a CDN/cache in
+# front, not with replicas.
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 3000
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""   # cluster default
+  existingClaim: ""
+
+ingress:
+  enabled: false
+  className: ""
+  host: docs.example.com
+  tls: []
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+podSecurityContext:
+  fsGroup: 1000
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
