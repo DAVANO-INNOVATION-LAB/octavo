@@ -67,6 +67,13 @@ CREATE TABLE IF NOT EXISTS page_versions (
 );
 CREATE INDEX IF NOT EXISTS page_versions_page ON page_versions(page_id, saved_at DESC);
 
+CREATE TABLE IF NOT EXISTS page_links (
+  from_page TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  to_page TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  PRIMARY KEY (from_page, to_page)
+);
+CREATE INDEX IF NOT EXISTS page_links_to ON page_links(to_page);
+
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,

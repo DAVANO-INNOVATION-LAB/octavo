@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDb } from "./db";
 import { newId, now } from "./util";
 
@@ -139,4 +139,79 @@ export function upsertOidcUser(input: {
      VALUES (?, ?, ?, 'oidc', ?, ?, ?, ?)`
   ).run(id, email, input.name.trim() || email, role, now(), input.issuer, input.sub);
   return { id, email, name: input.name.trim() || email, role };
+}
+
+/** Persistent per-instance secret for signing short-lived tokens. */
+function instanceSecret(): string {
+  const db = getDb();
+  const row = db.prepare("SELECT value FROM kv WHERE key = 'instance_secret'").get() as
+    | { value: string }
+    | undefined;
+  if (row) return row.value;
+  const secret = randomBytes(32).toString("hex");
+  db.prepare("INSERT OR IGNORE INTO kv (key, value) VALUES ('instance_secret', ?)").run(secret);
+  return secret;
+}
+
+function sign(payload: string): string {
+  return createHmac("sha256", instanceSecret()).update(payload).digest("hex");
+}
+
+/** Short-lived token proving the password step passed, pending TOTP. */
+export function issuePendingToken(userId: string): string {
+  const exp = now() + 5 * 60 * 1000;
+  const payload = `${userId}.${exp}`;
+  return `${payload}.${sign(payload)}`;
+}
+
+export function consumePendingToken(token: string): string | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [userId, expStr, mac] = parts;
+  const payload = `${userId}.${expStr}`;
+  const expected = sign(payload);
+  if (mac.length !== expected.length) return null;
+  if (!timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
+  if (Number(expStr) < now()) return null;
+  return userId;
+}
+
+export function getTotpSecret(userId: string): string | null {
+  const row = getDb()
+    .prepare("SELECT totp_secret FROM users WHERE id = ?")
+    .get(userId) as { totp_secret: string | null } | undefined;
+  return row?.totp_secret ?? null;
+}
+
+export function setTotpSecret(userId: string, secret: string | null) {
+  getDb().prepare("UPDATE users SET totp_secret = ? WHERE id = ?").run(secret, userId);
+}
+
+export type AdminUserRow = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  created_at: number;
+  has_totp: number;
+  sso: number;
+};
+
+export function listUsers(): AdminUserRow[] {
+  return getDb()
+    .prepare(
+      `SELECT id, email, name, role, created_at,
+              (totp_secret IS NOT NULL) AS has_totp,
+              (oidc_issuer IS NOT NULL) AS sso
+       FROM users ORDER BY created_at`
+    )
+    .all() as AdminUserRow[];
+}
+
+export function setUserRole(id: string, role: "admin" | "member") {
+  getDb().prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
+}
+
+export function deleteUser(id: string) {
+  getDb().prepare("DELETE FROM users WHERE id = ?").run(id);
 }

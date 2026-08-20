@@ -1,5 +1,6 @@
 import "server-only";
 import * as oidc from "openid-client";
+import { getSetting } from "./settings";
 
 // OIDC single sign-on — in core, never paywalled. Local accounts stay the
 // zero-config default; four env vars turn on SSO against any compliant
@@ -24,19 +25,31 @@ export type OidcSettings = {
 };
 
 export function oidcSettings(): OidcSettings | null {
-  const issuer = process.env.OCTAVO_OIDC_ISSUER;
-  const clientId = process.env.OCTAVO_OIDC_CLIENT_ID;
-  const clientSecret = process.env.OCTAVO_OIDC_CLIENT_SECRET;
-  const baseUrl = process.env.OCTAVO_BASE_URL;
+  // Environment wins; the admin UI (kv-stored) fills in otherwise.
+  const issuer = process.env.OCTAVO_OIDC_ISSUER || getSetting("oidc_issuer");
+  const clientId =
+    process.env.OCTAVO_OIDC_CLIENT_ID || getSetting("oidc_client_id");
+  const clientSecret =
+    process.env.OCTAVO_OIDC_CLIENT_SECRET || getSetting("oidc_client_secret");
+  const baseUrl = process.env.OCTAVO_BASE_URL || getSetting("base_url");
   if (!issuer || !clientId || !clientSecret || !baseUrl) return null;
   return {
     issuer,
     clientId,
     clientSecret,
     baseUrl: baseUrl.replace(/\/$/, ""),
-    name: process.env.OCTAVO_OIDC_NAME || "SSO",
-    allowedDomain: process.env.OCTAVO_OIDC_ALLOWED_DOMAIN || null,
+    name:
+      process.env.OCTAVO_OIDC_NAME || getSetting("oidc_name") || "SSO",
+    allowedDomain:
+      process.env.OCTAVO_OIDC_ALLOWED_DOMAIN ||
+      getSetting("oidc_allowed_domain") ||
+      null,
   };
+}
+
+/** True when OIDC came from env — the UI form should show read-only. */
+export function oidcFromEnv(): boolean {
+  return Boolean(process.env.OCTAVO_OIDC_ISSUER);
 }
 
 export function oidcEnabled(): boolean {
@@ -48,13 +61,19 @@ export function redirectUri(settings: OidcSettings): string {
 }
 
 declare global {
-  // Discovery is one network round-trip; cache it across requests.
-  var __octavoOidcConfig: Promise<oidc.Configuration> | undefined;
+  // Discovery is one network round-trip; cache it across requests,
+  // keyed by issuer so UI reconfiguration takes effect immediately.
+  var __octavoOidcConfig:
+    | { issuer: string; promise: Promise<oidc.Configuration> }
+    | undefined;
 }
 
 export function discover(settings: OidcSettings): Promise<oidc.Configuration> {
+  if (globalThis.__octavoOidcConfig?.issuer !== settings.issuer) {
+    globalThis.__octavoOidcConfig = undefined;
+  }
   if (!globalThis.__octavoOidcConfig) {
-    globalThis.__octavoOidcConfig = oidc
+    const promise = oidc
       .discovery(
         new URL(settings.issuer),
         settings.clientId,
@@ -70,8 +89,9 @@ export function discover(settings: OidcSettings): Promise<oidc.Configuration> {
         globalThis.__octavoOidcConfig = undefined;
         throw e;
       });
+    globalThis.__octavoOidcConfig = { issuer: settings.issuer, promise };
   }
-  return globalThis.__octavoOidcConfig;
+  return globalThis.__octavoOidcConfig.promise;
 }
 
 export { oidc };

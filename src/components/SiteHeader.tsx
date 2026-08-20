@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogIn, PenTool } from "lucide-react";
+import { LogIn, PenTool, Settings2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions";
 import { SearchButton } from "./SearchDialog";
@@ -26,17 +26,31 @@ export async function SiteHeader() {
           <SearchButton />
           <ThemeMenu />
           {user ? (
-            <form action={logoutAction}>
-              <button
-                className="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-                title={user.email}
+            <span className="flex items-center gap-1">
+              {user.role === "admin" && (
+                <Link
+                  href="/admin"
+                  title="Admin"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                >
+                  <Settings2 size={15} />
+                </Link>
+              )}
+              <Link
+                href="/account"
+                title={`${user.email} — account settings`}
+                className="flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-surface-2"
               >
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-accent-ink">
                   {user.name.slice(0, 1).toUpperCase()}
                 </span>
-                Sign out
-              </button>
-            </form>
+              </Link>
+              <form action={logoutAction}>
+                <button className="flex h-8 items-center rounded-md px-2 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink">
+                  Sign out
+                </button>
+              </form>
+            </span>
           ) : (
             <Link
               href="/login"

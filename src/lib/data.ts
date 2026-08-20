@@ -72,6 +72,7 @@ export function createSpace(input: {
     "whiteboard",
     "import",
     "account",
+    "admin",
   ]);
   if (RESERVED.has(slug)) slug = `${slug}-space`;
   // De-dupe slug if needed.
@@ -329,6 +330,7 @@ export function savePage(
     t,
     page.space_id
   );
+  if (fields.content !== undefined) rebuildLinks(id, content);
   // Sync full-text index.
   db.prepare("DELETE FROM pages_fts WHERE page_id = ?").run(id);
   if (published === 1) {
@@ -451,4 +453,91 @@ export function addComment(pageId: string, userId: string, body: string) {
 
 export function deleteComment(id: string) {
   getDb().prepare("DELETE FROM comments WHERE id = ?").run(id);
+}
+
+// ---- wikilinks & backlinks ----
+
+/** Hrefs inside a document that point at library pages: /space/page. */
+function internalLinkTargets(content: string): string[] {
+  const ids: string[] = [];
+  const hrefs = new Set<string>();
+  const walk = (blocks: { content?: unknown; children?: unknown[] }[]) => {
+    for (const b of blocks) {
+      const inline = (c: unknown) => {
+        if (!Array.isArray(c)) return;
+        for (const n of c as { type: string; href?: string; content?: unknown }[]) {
+          if (n.type === "link" && typeof n.href === "string") hrefs.add(n.href);
+          if (n.content) inline(n.content);
+        }
+      };
+      inline(b.content);
+      if (Array.isArray(b.children)) walk(b.children as typeof blocks);
+    }
+  };
+  try {
+    walk(JSON.parse(content));
+  } catch {
+    return ids;
+  }
+  const db = getDb();
+  for (const href of hrefs) {
+    const m = href.match(/^\/([a-z0-9-]+)\/([a-z0-9-]+)$/);
+    if (!m) continue;
+    const row = db
+      .prepare(
+        `SELECT p.id FROM pages p JOIN spaces s ON s.id = p.space_id
+         WHERE s.slug = ? AND p.slug = ?`
+      )
+      .get(m[1], m[2]) as { id: string } | undefined;
+    if (row) ids.push(row.id);
+  }
+  return ids;
+}
+
+export function rebuildLinks(pageId: string, content: string) {
+  const db = getDb();
+  db.prepare("DELETE FROM page_links WHERE from_page = ?").run(pageId);
+  const ins = db.prepare(
+    "INSERT OR IGNORE INTO page_links (from_page, to_page) VALUES (?, ?)"
+  );
+  for (const target of internalLinkTargets(content)) {
+    if (target !== pageId) ins.run(pageId, target);
+  }
+}
+
+export type Backlink = {
+  page_id: string;
+  title: string;
+  page_slug: string;
+  space_slug: string;
+  space_name: string;
+};
+
+/** Pages that link to this one — the "referenced by" panel. */
+export function backlinks(pageId: string, includePrivate: boolean): Backlink[] {
+  return getDb()
+    .prepare(
+      `SELECT p.id AS page_id, p.title, p.slug AS page_slug,
+              s.slug AS space_slug, s.name AS space_name
+       FROM page_links l
+       JOIN pages p ON p.id = l.from_page
+       JOIN spaces s ON s.id = p.space_id
+       WHERE l.to_page = ? AND p.published = 1
+         AND (? = 1 OR s.visibility = 'public')
+       ORDER BY s.name, p.title`
+    )
+    .all(pageId, includePrivate ? 1 : 0) as Backlink[];
+}
+
+/** Title lookup for the editor's page-link menu. */
+export function lookupPages(q: string, limit = 8): Backlink[] {
+  const like = `%${q.trim().replace(/[%_]/g, "")}%`;
+  return getDb()
+    .prepare(
+      `SELECT p.id AS page_id, p.title, p.slug AS page_slug,
+              s.slug AS space_slug, s.name AS space_name
+       FROM pages p JOIN spaces s ON s.id = p.space_id
+       WHERE p.title LIKE ? ORDER BY p.updated_at DESC LIMIT ?`
+    )
+    .all(like, limit) as Backlink[];
 }

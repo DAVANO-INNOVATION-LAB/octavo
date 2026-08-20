@@ -16,6 +16,9 @@ import {
   userCount,
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
+import { deleteUser, setUserRole } from "@/lib/auth";
+import { setSetting } from "@/lib/settings";
+import { discover, oidcSettings } from "@/lib/oidc";
 import {
   addComment,
   createPage,
@@ -242,4 +245,70 @@ export async function restoreVersionAction(formData: FormData) {
   });
   revalidatePath(`/${spaceSlug}`);
   redirect(`/${spaceSlug}/${saved?.slug ?? ""}`);
+}
+
+// ---- admin ----
+
+async function requireAdmin() {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  if (user.role !== "admin") redirect("/");
+  return user;
+}
+
+export async function setRoleAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const role = String(formData.get("role") ?? "");
+  if (id === admin.id) redirect("/admin/users?error=self");
+  if (role !== "admin" && role !== "member") redirect("/admin/users");
+  setUserRole(id, role);
+  redirect("/admin/users");
+}
+
+export async function deleteUserAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (id === admin.id) redirect("/admin/users?error=self");
+  deleteUser(id);
+  redirect("/admin/users");
+}
+
+export async function resetTotpAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  setTotpSecret(id, null);
+  redirect("/admin/users");
+}
+
+export async function saveOidcAction(formData: FormData) {
+  await requireAdmin();
+  const fields = [
+    "oidc_issuer",
+    "oidc_client_id",
+    "oidc_client_secret",
+    "oidc_name",
+    "oidc_allowed_domain",
+    "base_url",
+  ];
+  for (const f of fields) {
+    const v = String(formData.get(f) ?? "").trim();
+    // Leave the stored secret untouched when the field comes back masked.
+    if (f === "oidc_client_secret" && v === "********") continue;
+    setSetting(f, v || null);
+  }
+  redirect("/admin/sso?saved=1");
+}
+
+export async function testOidcAction() {
+  await requireAdmin();
+  const settings = oidcSettings();
+  if (!settings) redirect("/admin/sso?test=unconfigured");
+  try {
+    await discover(settings);
+    redirect("/admin/sso?test=ok");
+  } catch (e) {
+    if (e && typeof e === "object" && "digest" in e) throw e; // redirect()
+    redirect(`/admin/sso?test=${encodeURIComponent(e instanceof Error ? e.message.slice(0, 80) : "failed")}`);
+  }
 }
