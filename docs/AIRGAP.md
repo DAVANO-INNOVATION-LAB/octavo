@@ -110,7 +110,10 @@ Nothing about this needs a network.
 Do not take the above on trust. The repository includes a check that starts a
 browser, fails every request that leaves localhost — exactly what a severed
 network does — and then walks the routes that pull the heaviest third-party
-machinery, reporting anything that tried to escape:
+machinery, reporting anything that tried to escape.
+
+Run it from a clone of the repository, and pass the address of the Octavo
+instance you want checked — not whatever happens to be on port 3000:
 
 ```bash
 npm run test:airgap -- http://localhost:3000
@@ -118,6 +121,10 @@ npm run test:airgap -- http://localhost:3000
 
 A clean run reports every route rendering and `none. Every asset resolved
 locally.`
+
+It needs a signed-in session in the database it reads, so that the editor and
+admin routes are actually reachable rather than redirecting to a login page
+that would pass the check without exercising anything.
 
 To confirm the container needs nothing at all, start it with no network
 interface and ask it from the inside:
