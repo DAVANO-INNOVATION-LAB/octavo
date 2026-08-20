@@ -7,6 +7,17 @@ container, one SQLite file, zero external services.
 
 ![The library](docs/screenshots/library.png)
 
+## What it looks like
+
+| | |
+|---|---|
+| ![A published page](docs/screenshots/reader.png) | ![The docs block library](docs/screenshots/block-library.png) |
+| **Reading** — chapter numbering, drop caps, an on-this-page rail, page turns | **Blocks** — callouts, expandables, steps, math, diagrams |
+| ![A runnable cookbook recipe](docs/screenshots/cookbook.png) | ![The 3D knowledge graph](docs/screenshots/graph.png) |
+| **Cookbooks** — parameters, code, and a Run button wired to real systems | **The graph** — every link between pages, in three dimensions |
+
+![Mermaid diagrams](docs/screenshots/diagrams.png)
+
 ## Why
 
 The open-source documentation field splits into two camps that never meet:
