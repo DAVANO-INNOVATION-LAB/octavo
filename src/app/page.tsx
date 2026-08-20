@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BookOpen, Lock, Plus, Upload } from "lucide-react";
+import { BookOpen, Plus, Upload } from "lucide-react";
 import { currentUser, userCount } from "@/lib/auth";
 import { listSpaces, listPages } from "@/lib/data";
 import { SiteHeader } from "@/components/SiteHeader";
-import { Monogram } from "@/components/Monogram";
+import { LibraryGrid, type ShelfSpace } from "@/components/LibraryGrid";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +32,17 @@ export default async function Home() {
   if (userCount() === 0) redirect("/setup");
   const user = await currentUser();
   const spaces = listSpaces(Boolean(user));
+  const shelf: ShelfSpace[] = spaces.map((s) => ({
+    slug: s.slug,
+    name: s.name,
+    description: s.description,
+    kind: s.kind,
+    visibility: s.visibility,
+    shelf: s.shelf,
+    kindLabel: KIND_LABEL[s.kind] ?? s.kind,
+    pageCount: listPages(s.id).filter((p) => p.published === 1).length,
+    updatedLabel: timeAgo(s.updated_at),
+  }));
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -93,38 +104,7 @@ export default async function Home() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {spaces.map((s, i) => {
-              const pages = listPages(s.id).filter((p) => p.published === 1);
-              return (
-                <Link
-                  key={s.id}
-                  href={`/${s.slug}`}
-                  className="rise group relative overflow-hidden rounded-xl border border-line bg-surface p-6 pl-7 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-pop"
-                  style={{ animationDelay: `${i * 40}ms` }}
-                >
-                  <span className="absolute inset-y-0 left-0 w-1.5 bg-accent/80 transition-all group-hover:w-2" />
-                  <Monogram name={s.name} />
-                  <h2 className="wordmark mt-3 flex items-center gap-2 text-xl leading-snug text-ink">
-                    {s.name}
-                    {s.visibility === "private" && (
-                      <Lock size={13} className="shrink-0 text-faint" />
-                    )}
-                  </h2>
-                  {s.description && (
-                    <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted">
-                      {s.description}
-                    </p>
-                  )}
-                  <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.1em] text-faint">
-                    {KIND_LABEL[s.kind] ?? s.kind} · {pages.length}{" "}
-                    {pages.length === 1 ? "page" : "pages"} ·{" "}
-                    {timeAgo(s.updated_at)}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
+          <LibraryGrid spaces={shelf} editing={Boolean(user)} />
         )}
       </main>
       <SiteFooter />

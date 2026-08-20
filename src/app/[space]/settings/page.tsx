@@ -67,6 +67,18 @@ export default async function SpaceSettings({
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+              Shelf
+            </span>
+            <input
+              name="shelf"
+              defaultValue={space.shelf}
+              maxLength={40}
+              placeholder="Group this space under a named shelf (optional)"
+              className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none placeholder:text-faint focus:border-accent"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
               Visibility
             </span>
             <select
