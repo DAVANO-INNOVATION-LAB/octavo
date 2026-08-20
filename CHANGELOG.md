@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.6.6 — 2026-08-20
+
+### Added
+
+- **draw.io ships inside the application.** The diagram editor is served by
+  this instance rather than loaded from the internet or run as a sidecar, so
+  it works with nothing configured, connected or not. `OCTAVO_DRAWIO_URL`
+  becomes an override for sites running their own build.
+
+### Changed
+
+- The container is meaningfully smaller despite carrying the editor: a
+  recursive ownership change after the copy steps had been duplicating the
+  whole tree into an extra layer, and better-sqlite3 was shipping eight
+  platforms' prebuilt bindings plus the SQLite sources used only to compile
+  them.
+
 ## v0.6.5 — 2026-08-20
 
 ### Added
