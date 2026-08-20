@@ -73,6 +73,7 @@ export function createSpace(input: {
     "import",
     "account",
     "admin",
+    "graph",
   ]);
   if (RESERVED.has(slug)) slug = `${slug}-space`;
   // De-dupe slug if needed.
@@ -540,4 +541,57 @@ export function lookupPages(q: string, limit = 8): Backlink[] {
        WHERE p.title LIKE ? ORDER BY p.updated_at DESC LIMIT ?`
     )
     .all(like, limit) as Backlink[];
+}
+
+// ---- graph ----
+
+export type GraphData = {
+  nodes: { id: string; title: string; space: string; href: string; degree: number }[];
+  edges: { from: string; to: string }[];
+};
+
+/** The library's link graph — respects visibility like everything else. */
+export function linkGraph(includePrivate: boolean): GraphData {
+  const db = getDb();
+  const nodes = db
+    .prepare(
+      `SELECT p.id, p.title, s.name AS space, s.slug AS space_slug, p.slug
+       FROM pages p JOIN spaces s ON s.id = p.space_id
+       WHERE p.published = 1 AND (? = 1 OR s.visibility = 'public')`
+    )
+    .all(includePrivate ? 1 : 0) as {
+    id: string;
+    title: string;
+    space: string;
+    space_slug: string;
+    slug: string;
+  }[];
+  const allowed = new Set(nodes.map((n) => n.id));
+  const edges = (
+    db.prepare("SELECT from_page, to_page FROM page_links").all() as {
+      from_page: string;
+      to_page: string;
+    }[]
+  )
+    .filter((e) => allowed.has(e.from_page) && allowed.has(e.to_page))
+    .map((e) => ({ from: e.from_page, to: e.to_page }));
+
+  const degree = new Map<string, number>();
+  for (const e of edges) {
+    degree.set(e.from, (degree.get(e.from) ?? 0) + 1);
+    degree.set(e.to, (degree.get(e.to) ?? 0) + 1);
+  }
+  // Only linked pages appear — an unconnected library is not a graph.
+  return {
+    nodes: nodes
+      .filter((n) => degree.has(n.id))
+      .map((n) => ({
+        id: n.id,
+        title: n.title,
+        space: n.space,
+        href: `/${n.space_slug}/${n.slug}`,
+        degree: degree.get(n.id) ?? 0,
+      })),
+    edges,
+  };
 }

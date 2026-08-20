@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogIn, PenTool, Settings2 } from "lucide-react";
+import { LogIn, PenTool, Settings2, Share2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions";
 import { SearchButton } from "./SearchDialog";
@@ -22,6 +22,14 @@ export async function SiteHeader() {
           >
             <PenTool size={14} />
             <span className="hidden sm:inline">Whiteboard</span>
+          </Link>
+          <Link
+            href="/graph"
+            title="Knowledge graph"
+            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            <Share2 size={14} />
+            <span className="hidden lg:inline">Graph</span>
           </Link>
           <SearchButton />
           <ThemeMenu />
