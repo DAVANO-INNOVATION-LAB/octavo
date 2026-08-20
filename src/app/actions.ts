@@ -17,6 +17,8 @@ import {
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
 import { recordAudit } from "@/lib/audit";
+import { markAllRead, markRead, notify, notifyAll } from "@/lib/notify";
+import { mentionedUserIds } from "@/lib/mentions";
 import {
   createChangeRequest,
   getChangeRequest,
@@ -36,12 +38,14 @@ import {
 } from "@/lib/connectors";
 import {
   canAdminSpace,
+  reviewersFor,
   removeSpaceMember,
   setSpaceMember,
 } from "@/lib/roles";
 import {
   addComment,
   commentAuthor,
+  mentionableUsers,
   setThreadResolved,
   createPage,
   createSpace,
@@ -295,9 +299,38 @@ export async function addCommentAction(formData: FormData) {
     anchorText: String(formData.get("anchorText") ?? ""),
   });
   const spaceSlug = String(formData.get("space") ?? "");
+  const parent = String(formData.get("parentId") ?? "");
+  const link = `/${spaceSlug}/${page.slug}#t-${parent || id || ""}`;
+
+  // Anyone named in the body, resolved the same way the comment renders.
+  notifyAll(mentionedUserIds(body, mentionableUsers()), {
+    actor: user,
+    kind: "mention",
+    title: `${user.name} mentioned you on ${page.title}`,
+    body,
+    url: link,
+    spaceId: page.space_id,
+  });
+
+  // And whoever started the thread, if this is a reply and they were not
+  // already reached by the mention above.
+  if (parent) {
+    const rootAuthor = commentAuthor(parent);
+    if (rootAuthor && !mentionedUserIds(body, mentionableUsers()).includes(rootAuthor)) {
+      notify({
+        userId: rootAuthor,
+        actor: user,
+        kind: "reply",
+        title: `${user.name} replied on ${page.title}`,
+        body,
+        url: link,
+        spaceId: page.space_id,
+      });
+    }
+  }
+
   revalidatePath(`/${spaceSlug}/${page.slug}`);
   // Land on the thread that was just joined rather than the top of the list.
-  const parent = String(formData.get("parentId") ?? "");
   const anchor = parent || id || "discussion";
   redirect(`/${spaceSlug}/${page.slug}#t-${anchor}`);
 }
@@ -541,6 +574,15 @@ export async function createChangeRequestAction(formData: FormData) {
     spaceId: page.space_id,
     detail: { page: page.title },
   });
+  // Whoever can act on the proposal is who hears about it.
+  notifyAll(reviewersFor(page.space_id), {
+    actor: user,
+    kind: "cr.opened",
+    title: `${user.name} proposed changes to ${page.title}`,
+    body: cr.title,
+    url: `/${spaceSlug}/${page.slug}/changes/${cr.id}`,
+    spaceId: page.space_id,
+  });
   revalidatePath(`/${spaceSlug}/${page.slug}`);
   redirect(`/${spaceSlug}/${page.slug}/changes/${cr.id}`);
 }
@@ -558,9 +600,19 @@ export async function reviewChangeRequestAction(formData: FormData) {
       `/${String(formData.get("space") ?? "")}/${String(formData.get("page") ?? "")}/changes/${id}?error=self`
     );
   }
-  reviewChangeRequest(id, user.id, verdict, String(formData.get("note") ?? ""));
+  const note = String(formData.get("note") ?? "");
+  reviewChangeRequest(id, user.id, verdict, note);
   const spaceSlug = String(formData.get("space") ?? "");
   const pageSlug = String(formData.get("page") ?? "");
+  notify({
+    userId: cr.author_id,
+    actor: user,
+    kind: "cr.reviewed",
+    title: `${user.name} ${verdict === "approve" ? "approved" : "asked for changes on"} ${cr.title}`,
+    body: note,
+    url: `/${spaceSlug}/${pageSlug}/changes/${id}`,
+    spaceId: cr.space_id,
+  });
   revalidatePath(`/${spaceSlug}/${pageSlug}/changes/${id}`);
   redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
 }
@@ -583,6 +635,14 @@ export async function mergeChangeRequestAction(formData: FormData) {
       spaceId: cr.space_id,
       detail: { page: cr.page_title, author: cr.author },
     });
+    notify({
+      userId: cr.author_id,
+      actor: user,
+      kind: "cr.merged",
+      title: `${user.name} merged ${cr.title}`,
+      url: `/${spaceSlug}/${pageSlug}`,
+      spaceId: cr.space_id,
+    });
   }
   revalidatePath(`/${spaceSlug}/${pageSlug}`);
   redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
@@ -600,6 +660,15 @@ export async function setChangeRequestStatusAction(formData: FormData) {
     redirect("/");
   }
   setChangeRequestStatus(id, status);
+  if (status === "closed")
+    notify({
+      userId: cr.author_id,
+      actor: user,
+      kind: "cr.closed",
+      title: `${user.name} closed ${cr.title} without merging`,
+      url: `/${String(formData.get("space") ?? "")}/${String(formData.get("page") ?? "")}/changes/${id}`,
+      spaceId: cr.space_id,
+    });
   recordAudit({
     actor: user,
     action: status === "closed" ? "cr.closed" : "cr.reopened",
@@ -623,4 +692,45 @@ export async function rebaseChangeRequestAction(formData: FormData) {
   const spaceSlug = String(formData.get("space") ?? "");
   const pageSlug = String(formData.get("page") ?? "");
   redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
+}
+
+// ---- notifications ----
+
+export async function markReadAction(formData: FormData) {
+  const user = await requireUser();
+  markRead(user.id, String(formData.get("id") ?? ""));
+  revalidatePath("/inbox");
+  redirect("/inbox");
+}
+
+export async function markAllReadAction() {
+  const user = await requireUser();
+  markAllRead(user.id);
+  revalidatePath("/inbox");
+  redirect("/inbox");
+}
+
+export async function saveWebhookAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const raw = String(formData.get("webhook_url") ?? "").trim();
+  // Store only something that parses as a URL; a malformed value would fail
+  // silently on every notification thereafter.
+  let value: string | null = null;
+  if (raw) {
+    try {
+      const u = new URL(raw);
+      if (u.protocol === "http:" || u.protocol === "https:") value = u.toString();
+    } catch {
+      value = null;
+    }
+  }
+  setSetting("webhook_url", value);
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "webhook_url",
+    objectLabel: value ? "webhook set" : "webhook cleared",
+  });
+  redirect("/admin/notifications?saved=1");
 }

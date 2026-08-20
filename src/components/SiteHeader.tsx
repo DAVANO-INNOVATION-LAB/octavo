@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { LogIn, LogOut, PenTool, Settings2, Share2 } from "lucide-react";
+import { Bell, LogIn, LogOut, PenTool, Settings2, Share2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
+import { unreadCount } from "@/lib/notify";
 import { logoutAction } from "@/app/actions";
 import { SearchButton } from "./SearchDialog";
 import { ThemeMenu } from "./ThemeMenu";
@@ -8,6 +9,7 @@ import { SeasonalDecor } from "./SeasonalDecor";
 
 export async function SiteHeader() {
   const user = await currentUser();
+  const unread = user ? unreadCount(user.id) : 0;
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
       <SeasonalDecor />
@@ -26,7 +28,7 @@ export async function SiteHeader() {
           <Link
             href="/graph"
             title="Knowledge graph"
-            className="flex h-8 items-center gap-1.5 rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:px-2.5"
+            className="hidden h-8 items-center gap-1.5 rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:flex sm:px-2.5"
           >
             <Share2 size={14} />
             <span className="hidden lg:inline">Graph</span>
@@ -35,6 +37,18 @@ export async function SiteHeader() {
           <ThemeMenu />
           {user ? (
             <span className="flex items-center gap-1">
+              <Link
+                href="/inbox"
+                title={unread > 0 ? `${unread} unread` : "Inbox"}
+                className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+              >
+                <Bell size={15} />
+                {unread > 0 && (
+                  <span className="absolute right-1 top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-accent px-1 font-mono text-[9px] leading-none text-accent-ink">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </Link>
               {user.role === "admin" && (
                 <Link
                   href="/admin"

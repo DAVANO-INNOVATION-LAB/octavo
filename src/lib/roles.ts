@@ -91,3 +91,20 @@ export function spacesAdministeredBy(user: User): { id: string; name: string; sl
     )
     .all(user.id) as { id: string; name: string; slug: string }[];
 }
+
+/**
+ * Who should hear that a page needs review. Pages have no author, so the
+ * people who can actually act on a proposal are the ones told about it:
+ * the space's own admins, or the instance's admins when a space has none.
+ */
+export function reviewersFor(spaceId: string): string[] {
+  const admins = listSpaceMembers(spaceId)
+    .filter((m) => m.role === "admin")
+    .map((m) => m.user_id);
+  if (admins.length > 0) return admins;
+  return (
+    getDb()
+      .prepare("SELECT id FROM users WHERE role = 'admin'")
+      .all() as { id: string }[]
+  ).map((u) => u.id);
+}

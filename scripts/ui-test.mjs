@@ -57,6 +57,8 @@ const ROUTES = [
   { path: "/admin/backups", name: "backups" },
   { path: "/admin/links", name: "broken links" },
   { path: "/admin/audit", name: "audit log" },
+  { path: "/admin/notifications", name: "notification settings" },
+  { path: "/inbox", name: "inbox" },
   { path: "/admin/connectors", name: "connectors" },
   { path: "/admin/sso", name: "single sign-on" },
   { path: `/${pubPage.space}/settings`, name: "space settings" },
