@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_DRAWIO_ORIGIN, type PublicConfig } from "./config-shared";
+import { DRAWIO_PATH, type PublicConfig } from "./config-shared";
 
 /**
  * Configuration that reaches the browser, resolved when the server renders
@@ -12,8 +12,9 @@ import { DEFAULT_DRAWIO_ORIGIN, type PublicConfig } from "./config-shared";
  */
 
 /**
- * Origin of the draw.io editor to embed. Air-gapped deployments run their own
- * (`jgraph/drawio`) and set OCTAVO_DRAWIO_URL to it.
+ * Where the draw.io editor is served from. It ships inside the image, so this
+ * normally resolves to a path on this instance and nothing needs configuring.
+ * OCTAVO_DRAWIO_URL exists for sites that run a pinned or customised build.
  *
  * Only the origin is kept: the value is compared against `event.origin` on
  * every postMessage from the embedded editor, and an origin is what that
@@ -21,16 +22,16 @@ import { DEFAULT_DRAWIO_ORIGIN, type PublicConfig } from "./config-shared";
  * rather than disabling the check.
  */
 export function drawioOrigin(): string {
+  // An operator may still point at their own deployment — some sites run a
+  // pinned or customised build — but nothing needs configuring for it to work.
   const raw = process.env.OCTAVO_DRAWIO_URL?.trim();
-  if (!raw) return DEFAULT_DRAWIO_ORIGIN;
+  if (!raw) return DRAWIO_PATH;
   try {
     const url = new URL(raw);
-    if (url.protocol !== "https:" && url.protocol !== "http:") {
-      return DEFAULT_DRAWIO_ORIGIN;
-    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") return DRAWIO_PATH;
     return url.origin;
   } catch {
-    return DEFAULT_DRAWIO_ORIGIN;
+    return DRAWIO_PATH;
   }
 }
 
@@ -48,11 +49,8 @@ export function isOffline(): boolean {
 export function publicConfig(): PublicConfig {
   const offline = isOffline();
   const origin = drawioOrigin();
-  // Offline with no self-hosted editor configured means no editor at all.
-  const drawioEnabled = !offline || origin !== DEFAULT_DRAWIO_ORIGIN;
   return {
     drawioOrigin: origin,
-    drawioEnabled,
     offline,
     collab: process.env.OCTAVO_COLLAB !== "0",
   };

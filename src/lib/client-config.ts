@@ -1,6 +1,6 @@
 "use client";
 
-import { DEFAULT_DRAWIO_ORIGIN, type PublicConfig } from "./config-shared";
+import { DRAWIO_PATH, type PublicConfig } from "./config-shared";
 
 declare global {
   interface Window {
@@ -10,8 +10,7 @@ declare global {
 }
 
 const FALLBACK: PublicConfig = {
-  drawioOrigin: DEFAULT_DRAWIO_ORIGIN,
-  drawioEnabled: true,
+  drawioOrigin: DRAWIO_PATH,
   offline: false,
   collab: true,
 };
@@ -21,6 +20,33 @@ const FALLBACK: PublicConfig = {
  * fallback covers rendering before hydration; the values are read at call
  * time so they reflect whatever the running container was given.
  */
+/**
+ * Where to load the draw.io editor from. Normally a path on this instance;
+ * an operator may override it with their own deployment.
+ */
+export function drawioSrc(query: string): string {
+  const base = clientConfig().drawioOrigin;
+  // Served from our own public directory, the editor has to be named by file:
+  // a bare directory redirects to the path without its trailing slash and
+  // then resolves to nothing. A remote origin serves its own index.
+  return base.startsWith("/")
+    ? `${base}/index.html?${query}`
+    : `${base}/?${query}`;
+}
+
+/**
+ * The origin every message from the embedded editor is checked against.
+ * When draw.io is served from this instance the frame's origin is ours, so
+ * comparing against the configured path would reject every message.
+ */
+export function drawioOriginForMessages(): string {
+  const base = clientConfig().drawioOrigin;
+  if (base.startsWith("/")) {
+    return typeof window === "undefined" ? "" : window.location.origin;
+  }
+  return base;
+}
+
 export function collabEnabled(): boolean {
   return clientConfig().collab !== false;
 }

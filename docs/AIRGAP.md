@@ -2,7 +2,8 @@
 
 Octavo is built to run with no route to the internet. Everything it needs at
 runtime ships inside the container: the database engine, the fonts, the syntax
-highlighter, the diagram renderers, and the whiteboard.
+highlighter, the whiteboard, the collaboration server, and the draw.io
+diagram editor itself. There is nothing to run alongside it.
 
 There is a check that proves it rather than asserting it — see
 [Verifying it yourself](#verifying-it-yourself) at the end.
@@ -50,39 +51,13 @@ Everything the platform is for:
 - Syntax highlighting for every bundled language
 - Mermaid diagrams, KaTeX math, and the 3D model blocks
 - The freehand whiteboard, including all nine of its font families
-- draw.io diagrams **already saved into pages** — the diagram is stored as an
-  SVG in your own file store, so readers never reach outside
+- **draw.io** — the editor itself ships inside the image and is served by
+  this instance, so creating and editing diagrams needs no network and no
+  second container
 - PDF and Markdown export, space export and import, backups and restore
 - Local accounts with two-factor authentication
 
-## Configuring the two networked features
-
-### draw.io editing
-
-The draw.io *editor* is a web application hosted by diagrams.net. Diagrams
-already saved into pages render offline from your own file store. To create
-and edit diagrams on a disconnected network, run the editor yourself.
-
-Run your own next to Octavo — the project publishes an image for exactly this:
-
-```bash
-docker run -d --name drawio -p 8080:8080 jgraph/drawio
-```
-
-Then point Octavo at it:
-
-```bash
-docker run -d --name octavo -p 3000:3000 -e OCTAVO_OFFLINE=1 -e OCTAVO_DRAWIO_URL=https://drawio.internal.example -v octavo-data:/data ghcr.io/davano-innovation-lab/octavo:latest
-```
-
-The value is read when the server renders, not when the image is built, so
-changing it is a restart rather than a rebuild. Only the origin is used, and
-it is what every message from the embedded editor is checked against — so give
-it the address browsers actually use, and prefer HTTPS.
-
-With `OCTAVO_DRAWIO_URL` set, draw.io editing works normally offline.
-
-### Video embeds
+## Video embeds
 
 A page can embed a YouTube or Vimeo video by URL. Those players live outside
 your network, so Octavo shows the address in place of the frame rather than

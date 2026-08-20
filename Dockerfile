@@ -11,6 +11,21 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# Trim what the runtime cannot use. This has to happen here: deleting in a
+# later layer leaves the bytes in an earlier one, and the image is carried
+# across an air gap on physical media.
+RUN rm -rf \
+      node_modules/better-sqlite3/deps \
+      node_modules/better-sqlite3/src \
+      node_modules/better-sqlite3/prebuilds/win32-x64 \
+      node_modules/better-sqlite3/prebuilds/win32-arm64 \
+      node_modules/better-sqlite3/prebuilds/darwin-x64 \
+      node_modules/better-sqlite3/prebuilds/darwin-arm64 \
+      node_modules/better-sqlite3/prebuilds/linuxmusl-x64 \
+      node_modules/better-sqlite3/prebuilds/linuxmusl-arm64 \
+    && find node_modules/yjs node_modules/y-protocols node_modules/lib0 \
+      \( -name '*.map' -o -name '*.ts' \) -delete 2>/dev/null || true
+
 # ---- run ----
 FROM node:22-bookworm-slim AS run
 ARG VERSION=dev
@@ -35,21 +50,21 @@ RUN rm -rf /usr/local/lib/node_modules /opt/yarn* \
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
     /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/public ./public
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+COPY --from=build --chown=node:node /app/public ./public
 # Native module: make sure the compiled binding ships even if tracing missed it.
-COPY --from=build /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
+COPY --from=build --chown=node:node /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
 # The collaboration server is loaded by our own entry rather than imported by
 # the app, so Next's dependency tracing never sees these. Without them the
 # editor still works and co-editing does not, which is the confusing failure.
-COPY --from=build /app/node_modules/ws ./node_modules/ws
-COPY --from=build /app/node_modules/yjs ./node_modules/yjs
-COPY --from=build /app/node_modules/y-protocols ./node_modules/y-protocols
-COPY --from=build /app/node_modules/lib0 ./node_modules/lib0
-COPY --from=build /app/server ./server
+COPY --from=build --chown=node:node /app/node_modules/ws ./node_modules/ws
+COPY --from=build --chown=node:node /app/node_modules/yjs ./node_modules/yjs
+COPY --from=build --chown=node:node /app/node_modules/y-protocols ./node_modules/y-protocols
+COPY --from=build --chown=node:node /app/node_modules/lib0 ./node_modules/lib0
+COPY --from=build --chown=node:node /app/server ./server
 
-RUN mkdir -p /data /app/.next/cache && chown -R node:node /data /app
+RUN mkdir -p /data /app/.next/cache && chown node:node /data /app/.next/cache
 USER node
 VOLUME /data
 EXPOSE 3000
