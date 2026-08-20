@@ -4,6 +4,7 @@ import { SiteHeader } from "./SiteHeader";
 
 const TABS = [
   { href: "/admin", label: "Overview" },
+  { href: "/admin/insights", label: "Insights" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/backups", label: "Backups" },
   { href: "/admin/links", label: "Broken links" },

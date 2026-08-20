@@ -5,6 +5,7 @@ import { currentUser } from "@/lib/auth";
 import {
   COMMENTABLE_KINDS,
   backlinks,
+  recordView,
   flattenTree,
   getPageBySlug,
   getSpaceBySlug,
@@ -18,6 +19,7 @@ import { Renderer } from "@/components/render/Renderer";
 import { Toc } from "@/components/Toc";
 import { PrintButton } from "@/components/PrintButton";
 import { Discussion } from "@/components/Discussion";
+import { Feedback } from "@/components/render/Feedback";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +79,9 @@ export default async function ReaderPage({
 
   const blocks = parseBlocks(page.content);
   const headings = extractHeadings(blocks);
+  // Count the read before rendering — published pages only, so drafts and
+  // previews never inflate the numbers.
+  if (page.published === 1) recordView(page.id);
   const refs = backlinks(page.id, editing);
 
   // Runnable cookbooks: the play button appears only for signed-in members
@@ -243,6 +248,8 @@ export default async function ReaderPage({
             </Link>
           )}
         </nav>
+
+        {page.published === 1 && <Feedback pageId={page.id} />}
 
         {COMMENTABLE_KINDS.has(space.kind) && (
           <Discussion

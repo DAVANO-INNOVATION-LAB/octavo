@@ -680,3 +680,104 @@ export function brokenLinks(): BrokenLink[] {
   }
   return out;
 }
+
+// ---- analytics ----
+//
+// Deliberately minimal and local: a per-page daily counter, the search terms
+// people typed, and a helpful/not-helpful vote. No cookies, no identifiers,
+// no third party — the numbers exist to find stale and missing pages, not to
+// follow readers around.
+
+export function recordView(pageId: string) {
+  const day = new Date().toISOString().slice(0, 10);
+  getDb()
+    .prepare(
+      `INSERT INTO page_views (page_id, day, views) VALUES (?, ?, 1)
+       ON CONFLICT(page_id, day) DO UPDATE SET views = views + 1`
+    )
+    .run(pageId, day);
+}
+
+export function recordSearch(query: string, hits: number) {
+  const q = query.trim().slice(0, 120);
+  if (!q) return;
+  getDb()
+    .prepare("INSERT INTO searches (query, hits, at) VALUES (?, ?, ?)")
+    .run(q, hits, now());
+}
+
+export function recordFeedback(pageId: string, helpful: boolean, note = "") {
+  getDb()
+    .prepare(
+      "INSERT INTO feedback (id, page_id, helpful, note, at) VALUES (?, ?, ?, ?, ?)"
+    )
+    .run(newId(), pageId, helpful ? 1 : 0, note.trim().slice(0, 2000), now());
+}
+
+export type PageInsight = {
+  page_id: string;
+  title: string;
+  page_slug: string;
+  space_slug: string;
+  space_name: string;
+  views: number;
+  updated_at: number;
+  helpful: number;
+  unhelpful: number;
+};
+
+export function pageInsights(days = 30): {
+  mostRead: PageInsight[];
+  stale: PageInsight[];
+  unhelpful: PageInsight[];
+  neverRead: PageInsight[];
+  totalViews: number;
+} {
+  const db = getDb();
+  const since = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+  const base = `
+    SELECT p.id AS page_id, p.title, p.slug AS page_slug,
+           s.slug AS space_slug, s.name AS space_name, p.updated_at,
+           COALESCE((SELECT SUM(views) FROM page_views v WHERE v.page_id = p.id AND v.day >= ?), 0) AS views,
+           COALESCE((SELECT COUNT(*) FROM feedback f WHERE f.page_id = p.id AND f.helpful = 1), 0) AS helpful,
+           COALESCE((SELECT COUNT(*) FROM feedback f WHERE f.page_id = p.id AND f.helpful = 0), 0) AS unhelpful
+    FROM pages p JOIN spaces s ON s.id = p.space_id
+    WHERE p.published = 1`;
+  const all = db.prepare(base).all(since) as PageInsight[];
+  const totalViews = all.reduce((n, p) => n + p.views, 0);
+  const staleCutoff = Date.now() - 180 * 86400_000;
+  return {
+    mostRead: [...all].sort((a, b) => b.views - a.views).filter((p) => p.views > 0).slice(0, 8),
+    // Read often but not touched in months — the pages most worth revisiting.
+    stale: [...all]
+      .filter((p) => p.updated_at < staleCutoff && p.views > 0)
+      .sort((a, b) => b.views - a.views)
+      .slice(0, 8),
+    unhelpful: [...all]
+      .filter((p) => p.unhelpful > 0)
+      .sort((a, b) => b.unhelpful - a.unhelpful)
+      .slice(0, 8),
+    neverRead: [...all].filter((p) => p.views === 0).slice(0, 8),
+    totalViews,
+  };
+}
+
+export type SearchInsight = { query: string; times: number; hits: number };
+
+/** What people looked for — and especially what they did not find. */
+export function searchInsights(days = 30): {
+  top: SearchInsight[];
+  empty: SearchInsight[];
+} {
+  const since = now() - days * 86400_000;
+  const rows = getDb()
+    .prepare(
+      `SELECT query, COUNT(*) AS times, MAX(hits) AS hits
+       FROM searches WHERE at >= ? GROUP BY LOWER(query) ORDER BY times DESC LIMIT 40`
+    )
+    .all(since) as SearchInsight[];
+  return {
+    top: rows.slice(0, 10),
+    empty: rows.filter((r) => r.hits === 0).slice(0, 10),
+  };
+}
