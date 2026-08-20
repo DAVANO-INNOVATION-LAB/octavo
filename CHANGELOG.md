@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.4.0 — 2026-08-20
+
+### Added
+
+- **The docs block library** — callouts in four tones, expandable sections,
+  connected numbered steps, and KaTeX display math; a "Docs blocks" slash
+  menu group; full Markdown round-trip (GitHub admonitions, details, math
+  fences).
+- **Page links and backlinks** — type `[[` or `@` to link any page by
+  title; published pages show a "Referenced by" rail built from the live
+  link graph.
+- **Two-factor authentication** — RFC 6238 TOTP for local accounts,
+  enrolled from the account page, enforced at sign-in.
+- **The binder's office** — an admin console with instance overview and
+  health metrics, user management (roles, 2FA reset), one-click consistent
+  database snapshots plus per-space export backups, and OIDC configurable
+  from the UI (env vars take precedence).
+- **Per-space reader typography** — Classic (the permanent default),
+  Atelier (serif reading text), Technical (all sans), plus rounded or
+  square corners.
+- **Hardened container and chart** — slimmer runtime image, healthcheck,
+  provenance labels, read-only root filesystem, stricter pod security
+  defaults, and a dependency audit gate in CI.
+
+### In progress (begun, landing next)
+
+- Runnable cookbooks (connector-scoped remote execution), Markdown/Git
+  round-trip sync, smart paste, and real-time presence.
+
+
 ## v0.3.0 — 2026-08-20
 
 ### Added
