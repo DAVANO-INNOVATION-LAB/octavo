@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -26,6 +26,7 @@ const mentions = await import(pathToFileURL(path.join(STAGE, "mentions.ts")));
 const diff = await import(pathToFileURL(path.join(STAGE, "diff.ts")));
 const sync = await import(pathToFileURL(path.join(STAGE, "sync.ts")));
 const caps = await import(pathToFileURL(path.join(STAGE, "capabilities.ts")));
+const variants = await import(pathToFileURL(path.join(STAGE, "variants.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -379,6 +380,55 @@ test("capabilities: unknown roles fall back to reader, not to admin", () => {
   eq(caps.asSpaceRole("wizard"), "reader");
   eq(caps.asSpaceRole(undefined), "reader");
   eq(caps.asSpaceRole("ADMIN"), "admin");
+});
+
+const vspace = (id, slug, label, pos, group = "g1", kind = "translation") => ({
+  id, slug, name: slug, variant_group: group, variant_label: label,
+  variant_kind: kind, variant_position: pos,
+});
+
+test("variants: the switcher links the same slug in each sibling", () => {
+  const sibs = [vspace("s1", "handbook", "English", 0), vspace("s2", "handbook-fr", "Français", 1)];
+  const slugs = new Map([["s1", new Set(["deploying"])], ["s2", new Set(["deploying"])]]);
+  const links = variants.resolveVariants(sibs, "s1", "deploying", slugs);
+  eq(links.length, 2);
+  eq(links[0].current, true);
+  eq(links[1].href, "/handbook-fr/deploying");
+  ok(links[1].hasPage);
+});
+
+test("variants: a missing translation still appears, pointing at its home", () => {
+  const sibs = [vspace("s1", "handbook", "English", 0), vspace("s2", "handbook-fr", "Français", 1)];
+  const slugs = new Map([["s1", new Set(["deploying"])], ["s2", new Set()]]);
+  const links = variants.resolveVariants(sibs, "s1", "deploying", slugs);
+  eq(links[1].hasPage, false);
+  eq(links[1].href, "/handbook-fr");
+});
+
+test("variants: order follows position, then label", () => {
+  const sibs = [vspace("s2", "b", "Zulu", 5), vspace("s1", "a", "Alpha", 1)];
+  const links = variants.resolveVariants(sibs, "s1", null, new Map());
+  eq(links.map((l) => l.label).join(","), "Alpha,Zulu");
+});
+
+test("variants: an unlabelled space falls back to its name", () => {
+  const s = { ...vspace("s1", "handbook", "", 0), name: "The Handbook" };
+  eq(variants.labelFor(s), "The Handbook");
+});
+
+test("variants: the shelf shows one space per group", () => {
+  const all = [
+    vspace("s1", "handbook", "English", 0),
+    vspace("s2", "handbook-fr", "Français", 1),
+    { ...vspace("s3", "solo", "", 0), variant_group: "" },
+  ];
+  const shelf = variants.primaryOnly(all);
+  eq(shelf.map((s) => s.slug).sort().join(","), "handbook,solo");
+});
+
+test("variants: kind is normalized, never trusted raw", () => {
+  eq(variants.asVariantKind("translation"), "translation");
+  eq(variants.asVariantKind("nonsense"), "version");
 });
 
 test("audit chain verifies, and detects tampering", () => {

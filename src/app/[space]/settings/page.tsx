@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
+import { variantGroups } from "@/lib/data";
 import { currentUser } from "@/lib/auth";
 import { getSpaceBySlug, pageTree } from "@/lib/data";
-import { deleteSpaceAction, updateSpaceAction } from "@/app/actions";
+import { setSpaceVariantAction, deleteSpaceAction, updateSpaceAction } from "@/app/actions";
 import { SpaceShell } from "@/components/SpaceShell";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ export default async function SpaceSettings({
   const space = getSpaceBySlug(spaceSlug);
   if (!space) notFound();
   const tree = pageTree(space.id, false);
+
+  const groups = variantGroups();
 
   return (
     <SpaceShell space={space} tree={tree} editing>
@@ -123,6 +126,84 @@ export default async function SpaceSettings({
             Save changes
           </button>
         </form>
+
+        <div className="mt-8 rounded-2xl border border-line bg-surface p-8">
+          <h2 className="text-sm font-semibold text-ink">
+            Versions and translations
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Spaces sharing a group key are variants of one another, and readers
+            get a switcher between them. Pages correspond by slug, so the
+            French <code className="text-ink">deploying</code> is the English{" "}
+            <code className="text-ink">deploying</code>. Only the
+            lowest-ordered variant appears on the library shelf; the rest are
+            reached through the switcher.
+          </p>
+
+          <form action={setSpaceVariantAction} className="mt-5 space-y-3">
+            <input type="hidden" name="slug" value={space.slug} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+                  Group key
+                </span>
+                <input
+                  name="group"
+                  defaultValue={space.variant_group ?? ""}
+                  placeholder="handbook"
+                  list="variant-groups"
+                  className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 font-mono text-sm text-ink outline-none placeholder:text-faint focus:border-accent"
+                />
+                <datalist id="variant-groups">
+                  {groups.map((g) => (
+                    <option key={g.group} value={g.group} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="block">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+                  Label
+                </span>
+                <input
+                  name="label"
+                  defaultValue={space.variant_label ?? ""}
+                  placeholder="Français, or v2"
+                  className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink outline-none placeholder:text-faint focus:border-accent"
+                />
+              </label>
+              <label className="block">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+                  Kind
+                </span>
+                <select
+                  name="kind"
+                  defaultValue={space.variant_kind ?? "version"}
+                  className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink"
+                >
+                  <option value="version">Version</option>
+                  <option value="translation">Translation</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+                  Order
+                </span>
+                <input
+                  name="position"
+                  type="number"
+                  step="1"
+                  defaultValue={space.variant_position ?? 0}
+                  className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <button className="h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink shadow-card transition-transform hover:-translate-y-px">
+                Save variant
+              </button>
+            </div>
+          </form>
+        </div>
 
         <div className="mt-8 rounded-2xl border border-accent/30 bg-surface p-8">
           <h2 className="text-sm font-semibold text-ink">Danger zone</h2>

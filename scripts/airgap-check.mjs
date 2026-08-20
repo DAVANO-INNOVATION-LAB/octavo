@@ -55,6 +55,7 @@ const ROUTES = [
   ["/admin/audit", "audit log"],
   ["/inbox", "inbox"],
   ["/field-guide/sync", "markdown sync"],
+  ["/guide-fr", "translation variant"],
 ];
 
 rmSync(PROFILE, { recursive: true, force: true });

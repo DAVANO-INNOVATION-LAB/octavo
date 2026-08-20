@@ -56,6 +56,7 @@ import {
   deleteSpace,
   getPage,
   getSpaceBySlug,
+  setSpaceVariant,
   getVersion,
   savePage,
   snapshotNow,
@@ -773,4 +774,33 @@ export async function runSyncAction(formData: FormData) {
   redirect(
     `/${slug}/sync?done=1&w=${report.written}&i=${report.imported}&c=${report.conflicts.length}`
   );
+}
+
+export async function setSpaceVariantAction(formData: FormData) {
+  const user = await requireUser();
+  const slug = String(formData.get("slug") ?? "");
+  const space = getSpaceBySlug(slug);
+  if (!space) redirect("/");
+  if (!canAdminSpace(user, space.id)) redirect(`/${slug}`);
+  setSpaceVariant(space.id, {
+    group: String(formData.get("group") ?? ""),
+    label: String(formData.get("label") ?? ""),
+    kind: String(formData.get("kind") ?? "version"),
+    position: Number(formData.get("position") ?? 0),
+  });
+  recordAudit({
+    actor: user,
+    action: "space.updated",
+    objectType: "space",
+    objectId: space.id,
+    objectLabel: space.name,
+    spaceId: space.id,
+    detail: {
+      variant_group: String(formData.get("group") ?? ""),
+      variant_label: String(formData.get("label") ?? ""),
+    },
+  });
+  revalidatePath("/");
+  revalidatePath(`/${slug}`);
+  redirect(`/${slug}/settings`);
 }

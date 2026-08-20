@@ -32,6 +32,10 @@ CREATE TABLE IF NOT EXISTS spaces (
   kind TEXT NOT NULL DEFAULT 'docs',
   accent TEXT NOT NULL DEFAULT 'vermilion',
   position REAL NOT NULL DEFAULT 0,
+  variant_group TEXT NOT NULL DEFAULT '',
+  variant_label TEXT NOT NULL DEFAULT '',
+  variant_kind TEXT NOT NULL DEFAULT 'version',
+  variant_position REAL NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );
@@ -278,6 +282,15 @@ function migrate(db: Database.Database) {
   // a reply to something nobody can read any more.
   if (commentCols.length && !commentCols.includes("anchor_text")) {
     db.exec("ALTER TABLE comments ADD COLUMN anchor_text TEXT NOT NULL DEFAULT ''");
+  }
+  const spaceCols = (
+    db.prepare("PRAGMA table_info(spaces)").all() as { name: string }[]
+  ).map((c) => c.name);
+  if (spaceCols.length && !spaceCols.includes("variant_group")) {
+    db.exec("ALTER TABLE spaces ADD COLUMN variant_group TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE spaces ADD COLUMN variant_label TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE spaces ADD COLUMN variant_kind TEXT NOT NULL DEFAULT 'version'");
+    db.exec("ALTER TABLE spaces ADD COLUMN variant_position REAL NOT NULL DEFAULT 0");
   }
   if (!userCols.includes("totp_secret")) {
     db.exec("ALTER TABLE users ADD COLUMN totp_secret TEXT");

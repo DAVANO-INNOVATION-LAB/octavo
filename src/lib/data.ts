@@ -1,4 +1,5 @@
 import "server-only";
+import { asVariantKind, type VariantSpace } from "./variants";
 import { getDb } from "./db";
 import { newId, now, slugify } from "./util";
 import { extractText } from "./blocks";
@@ -18,6 +19,10 @@ export type Space = {
   position: number;
   created_at: number;
   updated_at: number;
+  variant_group: string;
+  variant_label: string;
+  variant_kind: string;
+  variant_position: number;
 };
 
 export type Page = {
@@ -899,4 +904,69 @@ export function searchInsights(days = 30): {
     top: rows.slice(0, 10),
     empty: rows.filter((r) => r.hits === 0).slice(0, 10),
   };
+}
+
+// ---- content variants ----
+
+/**
+ * Sibling spaces in the same variant group, plus which of them have a page
+ * with the given slug. One query for the group and one for the slugs, rather
+ * than a lookup per sibling.
+ */
+export function variantSiblings(space: {
+  id: string;
+  variant_group?: string;
+}): { spaces: VariantSpace[]; slugs: Map<string, Set<string>> } {
+  const group = (space.variant_group ?? "").trim();
+  if (!group) return { spaces: [], slugs: new Map() };
+  const db = getDb();
+  const spaces = db
+    .prepare(
+      `SELECT id, slug, name, variant_group, variant_label, variant_kind, variant_position
+       FROM spaces WHERE variant_group = ? ORDER BY variant_position`
+    )
+    .all(group) as VariantSpace[];
+  const slugs = new Map<string, Set<string>>();
+  if (spaces.length > 1) {
+    const rows = db
+      .prepare(
+        `SELECT space_id, slug FROM pages
+         WHERE space_id IN (${spaces.map(() => "?").join(",")})`
+      )
+      .all(...spaces.map((s) => s.id)) as { space_id: string; slug: string }[];
+    for (const r of rows) {
+      if (!slugs.has(r.space_id)) slugs.set(r.space_id, new Set());
+      slugs.get(r.space_id)!.add(r.slug);
+    }
+  }
+  return { spaces, slugs };
+}
+
+/** Variant groups an admin can attach a space to, with how many are in each. */
+export function variantGroups(): { group: string; count: number }[] {
+  return getDb()
+    .prepare(
+      `SELECT variant_group AS "group", COUNT(*) AS count FROM spaces
+       WHERE variant_group != '' GROUP BY variant_group ORDER BY variant_group`
+    )
+    .all() as { group: string; count: number }[];
+}
+
+export function setSpaceVariant(
+  spaceId: string,
+  v: { group: string; label: string; kind: string; position: number }
+) {
+  getDb()
+    .prepare(
+      `UPDATE spaces SET variant_group = ?, variant_label = ?, variant_kind = ?,
+         variant_position = ?, updated_at = ? WHERE id = ?`
+    )
+    .run(
+      v.group.trim().slice(0, 80),
+      v.label.trim().slice(0, 60),
+      asVariantKind(v.kind),
+      Number.isFinite(v.position) ? v.position : 0,
+      now(),
+      spaceId
+    );
 }

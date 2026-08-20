@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { variantSiblings } from "@/lib/data";
+import { resolveVariants } from "@/lib/variants";
+import { VariantSwitcher } from "@/components/VariantSwitcher";
 import { notFound, redirect } from "next/navigation";
 import { FolderSync, ArrowRight, BookOpen, Download, Lock, Plus, Settings, Users, Zap } from "lucide-react";
 import { currentUser } from "@/lib/auth";
@@ -32,6 +35,9 @@ export default async function SpaceCover({
   const flat = flattenTree(tree);
   const first = flat.find((p) => p.published === 1) ?? flat[0];
 
+  const sib = variantSiblings(space);
+  const variantLinks = resolveVariants(sib.spaces, space.id, null, sib.slugs);
+
   return (
     <SpaceShell space={space} tree={tree} editing={editing}>
       <div className="rise mx-auto max-w-2xl">
@@ -51,6 +57,11 @@ export default async function SpaceCover({
           >
             {space.name}
           </h1>
+          {variantLinks.length > 1 && (
+            <div className="mt-4">
+              <VariantSwitcher links={variantLinks} />
+            </div>
+          )}
           {space.description && (
             <p className="mt-4 text-lg leading-relaxed text-muted">
               {space.description}

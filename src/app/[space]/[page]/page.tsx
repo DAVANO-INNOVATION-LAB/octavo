@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
 import { may } from "@/lib/roles";
+import { variantSiblings } from "@/lib/data";
+import { resolveVariants } from "@/lib/variants";
+import { VariantSwitcher } from "@/components/VariantSwitcher";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, Download, GitPullRequest, PenLine } from "lucide-react";
 import { currentUser } from "@/lib/auth";
@@ -85,6 +88,8 @@ export default async function ReaderPage({
   const blocks = parseBlocks(page.content);
   const commentable = COMMENTABLE_KINDS.has(space.kind);
   const openChanges = openCrCount(page.id);
+  const sib = variantSiblings(space);
+  const variantLinks = resolveVariants(sib.spaces, space.id, page.slug, sib.slugs);
   // Ids still present on the page, so a thread whose passage was deleted can
   // say so rather than linking into nothing.
   const liveBlockIds = new Set<string>(
@@ -164,6 +169,11 @@ export default async function ReaderPage({
               <span className="mx-2 text-line-strong">—</span>
               {space.name}
             </p>
+          )}
+          {variantLinks.length > 1 && (
+            <div className="mb-4">
+              <VariantSwitcher links={variantLinks} />
+            </div>
           )}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <h1

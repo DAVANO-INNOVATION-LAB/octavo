@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { BookOpen, Plus, Upload } from "lucide-react";
 import { currentUser, userCount } from "@/lib/auth";
 import { listSpaces, listPages } from "@/lib/data";
+import { primaryOnly } from "@/lib/variants";
 import { SiteHeader } from "@/components/SiteHeader";
 import { LibraryGrid, type ShelfSpace } from "@/components/LibraryGrid";
 
@@ -30,7 +31,9 @@ function timeAgo(ts: number): string {
 export default async function Home() {
   if (userCount() === 0) redirect("/setup");
   const user = await currentUser();
-  const spaces = listSpaces(Boolean(user));
+  // Variants of one library share a shelf entry; the rest are reached from
+  // the switcher, so six translations of a handbook do not fill the shelf.
+  const spaces = primaryOnly(listSpaces(Boolean(user)));
   const shelf: ShelfSpace[] = spaces.map((s) => ({
     slug: s.slug,
     name: s.name,
