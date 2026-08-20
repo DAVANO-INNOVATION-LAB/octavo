@@ -28,6 +28,9 @@ export default async function AdminBackups() {
           Uploaded files live beside the database in <code className="rounded bg-surface-2 px-1">/data/uploads</code>;
           include that directory in volume snapshots.
         </p>
+        {/* File download from a route handler — a real navigation, not a
+            client-side route; <Link> would be wrong here. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/api/admin/backup"
           className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink shadow-card transition-transform hover:-translate-y-px"
