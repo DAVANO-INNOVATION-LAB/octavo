@@ -808,3 +808,24 @@ mark {
   font-size: 11px;
   color: var(--faint);
 }
+
+/* ————— Code block polish: gutter, marked lines, wrapping ————— */
+
+.codeblock .line { display: inline-block; width: 100%; }
+.codeblock-numbered pre { padding-left: 0.6rem; }
+.codeblock-numbered .line::before {
+  content: attr(data-line);
+  display: inline-block;
+  width: 2.1rem;
+  margin-right: 1rem;
+  text-align: right;
+  color: #5c574c;
+  user-select: none;
+}
+.codeblock .line-marked {
+  background: rgba(255, 190, 92, 0.11);
+  box-shadow: inset 2px 0 0 rgba(255, 190, 92, 0.65);
+}
+.codeblock-wrap pre code,
+.codeblock-wrap pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.codeblock-wrap .line::before { vertical-align: top; }

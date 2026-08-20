@@ -246,9 +246,18 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
       const language = String(b.props?.language ?? "");
       if (language === "mermaid") return <Mermaid source={code} />;
       const runnable = ctx.run && ctx.run.connectors.length > 0;
+      const meta = {
+        filename: b.props?.filename ? String(b.props.filename) : undefined,
+        highlight: b.props?.highlight ? String(b.props.highlight) : undefined,
+        lineNumbers:
+          b.props?.lineNumbers === undefined
+            ? undefined
+            : Boolean(b.props.lineNumbers),
+        wrap: Boolean(b.props?.wrap),
+      };
       return (
         <div>
-          <CodeBlock code={code} language={language} />
+          <CodeBlock code={code} language={language} meta={meta} />
           {runnable && (
             <RunButton
               pageId={ctx.run!.pageId}
