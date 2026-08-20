@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -25,6 +25,7 @@ const totp = await import(pathToFileURL(path.join(STAGE, "totp.ts")));
 const mentions = await import(pathToFileURL(path.join(STAGE, "mentions.ts")));
 const diff = await import(pathToFileURL(path.join(STAGE, "diff.ts")));
 const sync = await import(pathToFileURL(path.join(STAGE, "sync.ts")));
+const caps = await import(pathToFileURL(path.join(STAGE, "capabilities.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -331,6 +332,53 @@ test("sync: file paths are slug-safe and nested", () => {
   eq(sync.filePathFor(["Getting Started"]), "getting-started.md");
   eq(sync.filePathFor(["guide", "Deploy & Run"]), "guide/deploy-run.md");
   ok(!sync.filePathFor(["../etc/passwd"]).includes(".."));
+});
+
+test("capabilities: the four roles differ where they should", () => {
+  const has = (ir, sr, c) => caps.can(ir, sr, c);
+  // admin runs the space
+  ok(has("member", "admin", "administer"));
+  ok(has("member", "admin", "merge"));
+  // editor writes but does not administer
+  ok(has("member", "editor", "write"));
+  ok(has("member", "editor", "publish"));
+  eq(has("member", "editor", "administer"), false);
+  // reader takes part but changes nothing directly
+  ok(has("member", "reader", "comment"));
+  ok(has("member", "reader", "propose"));
+  eq(has("member", "reader", "write"), false);
+  eq(has("member", "reader", "merge"), false);
+});
+
+test("capabilities: an agent may read and propose, and nothing more", () => {
+  eq(caps.capabilities("member", "agent").sort().join(","), "propose,read");
+  eq(caps.can("member", "agent", "comment"), false);
+  eq(caps.can("member", "agent", "write"), false);
+  eq(caps.can("member", "agent", "merge"), false);
+});
+
+test("capabilities: an agent cannot be promoted out of the ceiling", () => {
+  // Granted space admin, and even instance admin, it stays capped.
+  eq(caps.can("agent", "admin", "write"), false);
+  eq(caps.can("agent", "admin", "merge"), false);
+  eq(caps.can("agent", "admin", "administer"), false);
+  eq(caps.can("admin", "agent", "write"), false);
+  ok(caps.can("agent", "admin", "propose"));
+});
+
+test("capabilities: an instance admin administers every space", () => {
+  ok(caps.can("admin", null, "administer"));
+  ok(caps.can("admin", "reader", "merge"));
+});
+
+test("capabilities: signed out can do nothing", () => {
+  eq(caps.capabilities(null, null).length, 0);
+});
+
+test("capabilities: unknown roles fall back to reader, not to admin", () => {
+  eq(caps.asSpaceRole("wizard"), "reader");
+  eq(caps.asSpaceRole(undefined), "reader");
+  eq(caps.asSpaceRole("ADMIN"), "admin");
 });
 
 test("audit chain verifies, and detects tampering", () => {

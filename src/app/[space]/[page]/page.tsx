@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
+import { may } from "@/lib/roles";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, Download, GitPullRequest, PenLine } from "lucide-react";
 import { currentUser } from "@/lib/auth";
@@ -70,6 +71,8 @@ export default async function ReaderPage({
 
   const user = await currentUser();
   const editing = Boolean(user);
+  const mayWrite = may(user, space.id, "write");
+  const mayPropose = may(user, space.id, "propose");
   if (space.visibility === "private" && !user) redirect("/login");
   if (page.published === 0 && !editing) notFound();
 
@@ -194,6 +197,7 @@ export default async function ReaderPage({
                       </span>
                     )}
                   </Link>
+                  {mayPropose && (
                   <Link
                     href={`/${space.slug}/${page.slug}/propose`}
                     className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-muted transition-colors hover:border-line-strong hover:text-ink"
@@ -201,6 +205,8 @@ export default async function ReaderPage({
                     <PenLine size={13} />
                     Propose
                   </Link>
+                  )}
+                  {mayWrite && (
                   <Link
                     href={`/${space.slug}/${page.slug}/edit`}
                     className="flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-xs font-medium text-muted transition-colors hover:border-line-strong hover:text-ink"
@@ -208,6 +214,7 @@ export default async function ReaderPage({
                     <PenLine size={13} />
                     Edit
                   </Link>
+                  )}
                 </>
               )}
             </span>

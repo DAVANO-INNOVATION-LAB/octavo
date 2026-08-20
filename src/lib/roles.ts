@@ -2,20 +2,29 @@ import "server-only";
 import { getDb } from "./db";
 import { now } from "./util";
 import type { User } from "./auth";
+import {
+  asSpaceRole,
+  capabilities,
+  type Capability,
+  type InstanceRole,
+  type SpaceRole,
+} from "./capabilities";
 
-// Two levels of authority, deliberately only two:
+// Authority has two layers:
 //
-//   instance admin  — the binder. Runs the library: users, SSO, backups,
-//                     and any space. Role lives on the user record.
-//   space admin     — runs ONE space: its settings, its members, and its
-//                     own connectors. Role lives in space_members.
-//   editor          — writes in a space.
+//   instance role  — on the user record. "admin" runs the library: users,
+//                    SSO, backups, and every space. "agent" caps a principal
+//                    everywhere, whatever it is granted afterwards.
+//   space role     — in space_members: admin, editor, reader, or agent.
 //
-// A space admin is the "tenant admin" of their space. When tenant
-// namespaces land, a tenant is a group of spaces and this same table
-// carries the membership — no third concept needed.
+// What each role may actually do lives in ./capabilities as a plain matrix,
+// so it can be read and tested without inferring it from these queries.
+//
+// A space admin is the "tenant admin" of their space. When tenant namespaces
+// land, a tenant is a group of spaces and this same table carries the
+// membership — no third concept needed.
 
-export type SpaceRole = "admin" | "editor";
+export type { SpaceRole } from "./capabilities";
 
 export type SpaceMember = {
   user_id: string;
@@ -24,6 +33,27 @@ export type SpaceMember = {
   role: SpaceRole;
   added_at: number;
 };
+
+/** The instance role as stored, narrowed to what the matrix understands. */
+function instanceRoleOf(user: User | null): InstanceRole | null {
+  if (!user) return null;
+  const r = String(user.role);
+  return r === "admin" || r === "agent" ? r : "member";
+}
+
+/** Everything a principal may do in one space. */
+export function capsFor(user: User | null, spaceId: string): Capability[] {
+  if (!user) return [];
+  return capabilities(instanceRoleOf(user), spaceRole(user.id, spaceId));
+}
+
+export function may(
+  user: User | null,
+  spaceId: string,
+  capability: Capability
+): boolean {
+  return capsFor(user, spaceId).includes(capability);
+}
 
 export function spaceRole(userId: string, spaceId: string): SpaceRole | null {
   const row = getDb()
@@ -34,16 +64,12 @@ export function spaceRole(userId: string, spaceId: string): SpaceRole | null {
 
 /** Instance admins administer every space; space admins administer theirs. */
 export function canAdminSpace(user: User | null, spaceId: string): boolean {
-  if (!user) return false;
-  if (user.role === "admin") return true;
-  return spaceRole(user.id, spaceId) === "admin";
+  return may(user, spaceId, "administer");
 }
 
-/** Anyone signed in may write today; space membership refines it later. */
+/** May change the pages themselves, rather than propose a change to them. */
 export function canEditSpace(user: User | null, spaceId: string): boolean {
-  if (!user) return false;
-  if (user.role === "admin") return true;
-  return spaceRole(user.id, spaceId) !== null || true;
+  return may(user, spaceId, "write");
 }
 
 export function listSpaceMembers(spaceId: string): SpaceMember[] {
@@ -67,7 +93,7 @@ export function setSpaceMember(
        VALUES (?, ?, ?, ?)
        ON CONFLICT(space_id, user_id) DO UPDATE SET role = excluded.role`
     )
-    .run(spaceId, userId, role === "admin" ? "admin" : "editor", now());
+    .run(spaceId, userId, asSpaceRole(role), now());
 }
 
 export function removeSpaceMember(spaceId: string, userId: string) {
@@ -98,8 +124,9 @@ export function spacesAdministeredBy(user: User): { id: string; name: string; sl
  * the space's own admins, or the instance's admins when a space has none.
  */
 export function reviewersFor(spaceId: string): string[] {
+  // Whoever can actually merge: space admins and editors.
   const admins = listSpaceMembers(spaceId)
-    .filter((m) => m.role === "admin")
+    .filter((m) => m.role === "admin" || m.role === "editor")
     .map((m) => m.user_id);
   if (admins.length > 0) return admins;
   return (

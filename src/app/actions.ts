@@ -39,6 +39,7 @@ import {
 } from "@/lib/connectors";
 import {
   canAdminSpace,
+  may,
   reviewersFor,
   removeSpaceMember,
   setSpaceMember,
@@ -236,11 +237,12 @@ export async function deleteSpaceAction(formData: FormData) {
 // ---- pages ----
 
 export async function createPageAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const spaceSlug = String(formData.get("space") ?? "");
   const parentId = String(formData.get("parentId") ?? "") || null;
   const space = getSpaceBySlug(spaceSlug);
   if (!space) redirect("/");
+  if (!may(user, space.id, "write")) redirect(`/${space.slug}`);
   const page = createPage({ spaceId: space.id, parentId });
   revalidatePath(`/${space.slug}`);
   redirect(`/${space.slug}/${page.slug}/edit`);
@@ -251,6 +253,7 @@ export async function deletePageAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const spaceSlug = String(formData.get("space") ?? "");
   const doomed = getPage(id);
+  if (doomed && !may(user, doomed.space_id, "write")) redirect(`/${spaceSlug}`);
   if (doomed)
     recordAudit({
       actor: user,
@@ -267,11 +270,12 @@ export async function deletePageAction(formData: FormData) {
 }
 
 export async function publishPageAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const id = String(formData.get("id") ?? "");
   const publish = String(formData.get("publish") ?? "") === "1";
   const page = getPage(id);
   if (!page) redirect("/");
+  if (!may(user, page.space_id, "publish")) redirect(`/${String(formData.get("space") ?? "")}`);
   const saved = savePage(id, { published: publish });
   const spaceSlug = String(formData.get("space") ?? "");
   revalidatePath(`/${spaceSlug}`);
@@ -294,6 +298,8 @@ export async function addCommentAction(formData: FormData) {
   const body = String(formData.get("body") ?? "");
   const page = getPage(pageId);
   if (!page) redirect("/");
+  if (!may(user, page.space_id, "comment"))
+    redirect(`/${String(formData.get("space") ?? "")}/${page.slug}`);
   const id = addComment(pageId, user.id, body, {
     blockId: String(formData.get("blockId") ?? ""),
     parentId: String(formData.get("parentId") ?? "") || undefined,
@@ -395,7 +401,8 @@ export async function setRoleAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const role = String(formData.get("role") ?? "");
   if (id === admin.id) redirect("/admin/users?error=self");
-  if (role !== "admin" && role !== "member") redirect("/admin/users");
+  if (role !== "admin" && role !== "member" && role !== "agent")
+    redirect("/admin/users");
   setUserRole(id, role);
   recordAudit({
     actor: admin,
@@ -556,6 +563,7 @@ export async function createChangeRequestAction(formData: FormData) {
   const pageId = String(formData.get("pageId") ?? "");
   const page = getPage(pageId);
   if (!page) redirect("/");
+  if (!may(user, page.space_id, "propose")) redirect(`/${String(formData.get("space") ?? "")}`);
   const cr = createChangeRequest({
     pageId,
     authorId: user.id,
@@ -625,6 +633,8 @@ export async function mergeChangeRequestAction(formData: FormData) {
   const pageSlug = String(formData.get("page") ?? "");
   const cr = getChangeRequest(id);
   if (!cr) redirect("/");
+  if (!may(user, cr.space_id, "merge"))
+    redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
   const merged = mergeChangeRequest(id, user.id);
   if (merged) {
     recordAudit({

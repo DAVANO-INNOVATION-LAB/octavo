@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { addComment, getPage } from "@/lib/data";
+import { may } from "@/lib/roles";
 
 /**
  * Start a thread on a block, from the editor.
@@ -33,8 +34,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
 
   // Anchor to a page that exists; a thread on nothing is a thread nobody finds.
-  if (!getPage(pageId))
+  const page = getPage(pageId);
+  if (!page)
     return NextResponse.json({ error: "no such page" }, { status: 404 });
+  if (!may(user, page.space_id, "comment"))
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const id = addComment(pageId, user.id, body, {
     blockId: String(payload.blockId ?? ""),

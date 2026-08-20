@@ -210,7 +210,10 @@ export function listUsers(): AdminUserRow[] {
     .all() as AdminUserRow[];
 }
 
-export function setUserRole(id: string, role: "admin" | "member") {
+export function setUserRole(
+  id: string,
+  role: "admin" | "member" | "agent"
+) {
   getDb().prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
 }
 

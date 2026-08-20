@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { ROLE_BLURB, ROLE_LABEL, SPACE_ROLES } from "@/lib/capabilities";
 import { ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { getSpaceBySlug, pageTree } from "@/lib/data";
@@ -33,8 +34,19 @@ export default async function SpaceMembers({
       <div className="mx-auto max-w-2xl">
         <h1 className="wordmark text-2xl text-ink">Who works on {space.name}</h1>
         <p className="mt-1 text-sm leading-relaxed text-muted">
-          A space admin runs this space: its settings, its members, and its own
-          connectors. Instance admins can administer every space.
+          Four roles, and what each one means here.
+        </p>
+        <ul className="mt-3 space-y-1 text-sm text-muted">
+          {SPACE_ROLES.map((r) => (
+            <li key={r}>
+              <span className="font-medium text-ink">{ROLE_LABEL[r]}</span> —{" "}
+              {ROLE_BLURB[r]}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-sm text-muted">
+          Instance admins administer every space. An AI Agent is capped at
+          reading and proposing no matter what else it is granted.
         </p>
 
         {error === "nouser" && (
@@ -60,20 +72,26 @@ export default async function SpaceMembers({
                   )}
                 </span>
                 <span className="block truncate text-xs text-muted">
-                  {m.email} · space {m.role}
+                  {m.email} · {ROLE_LABEL[m.role] ?? m.role}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
-                <form action={setSpaceMemberAction}>
+                <form action={setSpaceMemberAction} className="flex items-center gap-1.5">
                   <input type="hidden" name="space" value={space.slug} />
                   <input type="hidden" name="email" value={m.email} />
-                  <input
-                    type="hidden"
+                  <select
                     name="role"
-                    value={m.role === "admin" ? "editor" : "admin"}
-                  />
+                    defaultValue={m.role}
+                    className="h-8 rounded-md border border-line bg-bg px-2 text-xs text-muted"
+                  >
+                    {SPACE_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABEL[r]}
+                      </option>
+                    ))}
+                  </select>
                   <button className="h-8 rounded-md border border-line bg-bg px-2.5 text-xs font-medium text-muted transition-colors hover:text-ink">
-                    {m.role === "admin" ? "Make editor" : "Make space admin"}
+                    Set
                   </button>
                 </form>
                 <form action={removeSpaceMemberAction}>
@@ -118,8 +136,11 @@ export default async function SpaceMembers({
               name="role"
               className="h-10 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
             >
-              <option value="editor">Editor</option>
-              <option value="admin">Space admin</option>
+              {SPACE_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABEL[r]}
+                </option>
+              ))}
             </select>
             <button className="h-10 shrink-0 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink shadow-card">
               Add
