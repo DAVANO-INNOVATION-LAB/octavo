@@ -17,6 +17,7 @@ import {
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
 import { recordAudit } from "@/lib/audit";
+import { applySync } from "@/lib/sync-io";
 import { markAllRead, markRead, notify, notifyAll } from "@/lib/notify";
 import { mentionedUserIds } from "@/lib/mentions";
 import {
@@ -733,4 +734,33 @@ export async function saveWebhookAction(formData: FormData) {
     objectLabel: value ? "webhook set" : "webhook cleared",
   });
   redirect("/admin/notifications?saved=1");
+}
+
+// ---- markdown sync ----
+
+export async function runSyncAction(formData: FormData) {
+  const user = await requireUser();
+  const slug = String(formData.get("space") ?? "");
+  const space = getSpaceBySlug(slug);
+  if (!space) redirect("/");
+  if (!canAdminSpace(user, space.id)) redirect(`/${slug}`);
+
+  const report = applySync(space);
+  recordAudit({
+    actor: user,
+    action: "sync.run",
+    objectType: "space",
+    objectId: space.id,
+    objectLabel: space.name,
+    spaceId: space.id,
+    detail: {
+      written: report.written,
+      imported: report.imported,
+      conflicts: report.conflicts.length,
+    },
+  });
+  revalidatePath(`/${slug}`);
+  redirect(
+    `/${slug}/sync?done=1&w=${report.written}&i=${report.imported}&c=${report.conflicts.length}`
+  );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowRight, BookOpen, Download, Lock, Plus, Settings, Users, Zap } from "lucide-react";
+import { FolderSync, ArrowRight, BookOpen, Download, Lock, Plus, Settings, Users, Zap } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { flattenTree, getSpaceBySlug, pageTree } from "@/lib/data";
 import { createPageAction } from "@/app/actions";
@@ -103,6 +103,13 @@ export default async function SpaceCover({
                     >
                       <Users size={15} />
                       Members
+                    </Link>
+                    <Link
+                      href={`/${space.slug}/sync`}
+                      className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                    >
+                      <FolderSync size={15} />
+                      Sync
                     </Link>
                     <Link
                       href={`/${space.slug}/connectors`}

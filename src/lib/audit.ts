@@ -60,6 +60,8 @@ export type AuditAction =
   | "cr.merged"
   | "cr.closed"
   | "cr.reopened"
+  // sync
+  | "sync.run"
   // moderation
   | "comment.deleted_by_moderator"
   | "comment.thread_resolved"

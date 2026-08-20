@@ -88,6 +88,15 @@ CREATE TABLE IF NOT EXISTS connectors (
 );
 CREATE INDEX IF NOT EXISTS connectors_space ON connectors(space_id);
 
+CREATE TABLE IF NOT EXISTS sync_state (
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  page_id TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  synced_at INTEGER NOT NULL,
+  PRIMARY KEY (space_id, path)
+);
+
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -59,6 +59,7 @@ const ROUTES = [
   { path: "/admin/audit", name: "audit log" },
   { path: "/admin/notifications", name: "notification settings" },
   { path: "/inbox", name: "inbox" },
+  { path: "/field-guide/sync", name: "markdown sync" },
   { path: "/admin/connectors", name: "connectors" },
   { path: "/admin/sso", name: "single sign-on" },
   { path: `/${pubPage.space}/settings`, name: "space settings" },

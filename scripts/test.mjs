@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -24,6 +24,7 @@ const util = await import(pathToFileURL(path.join(STAGE, "util.ts")));
 const totp = await import(pathToFileURL(path.join(STAGE, "totp.ts")));
 const mentions = await import(pathToFileURL(path.join(STAGE, "mentions.ts")));
 const diff = await import(pathToFileURL(path.join(STAGE, "diff.ts")));
+const sync = await import(pathToFileURL(path.join(STAGE, "sync.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -249,6 +250,87 @@ test("collapseUnchanged keeps context and drops the rest", () => {
   eq(groups.length, 1);
   ok(groups[0].length < 12, "context window, not the whole document");
   ok(groups[0].some((r) => r.kind === "add"));
+});
+
+test("sync: a page edited only in Octavo is written out", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "new" }],
+    [{ path: "a.md", title: "A", hash: "old" }],
+    [{ path: "a.md", pageId: "p1", hash: "old" }]
+  );
+  eq(plan.actions.length, 1);
+  eq(plan.actions[0].kind, "write");
+});
+
+test("sync: a file edited only on disk is imported", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "old" }],
+    [{ path: "a.md", title: "A", hash: "new" }],
+    [{ path: "a.md", pageId: "p1", hash: "old" }]
+  );
+  eq(plan.actions[0].kind, "import");
+});
+
+test("sync: both sides edited is a conflict, never a guess", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "octavo" }],
+    [{ path: "a.md", title: "A", hash: "disk" }],
+    [{ path: "a.md", pageId: "p1", hash: "base" }]
+  );
+  eq(plan.actions[0].kind, "conflict");
+});
+
+test("sync: both sides edited to the same text is not a conflict", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "same" }],
+    [{ path: "a.md", title: "A", hash: "same" }],
+    [{ path: "a.md", pageId: "p1", hash: "base" }]
+  );
+  eq(plan.actions.length, 0);
+  eq(plan.unchanged, 1);
+});
+
+test("sync: a deleted file never silently deletes the page", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "same" }],
+    [],
+    [{ path: "a.md", pageId: "p1", hash: "same" }]
+  );
+  eq(plan.actions[0].kind, "orphan-page");
+});
+
+test("sync: a deleted file whose page moved on is rewritten, not lost", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "edited" }],
+    [],
+    [{ path: "a.md", pageId: "p1", hash: "base" }]
+  );
+  eq(plan.actions[0].kind, "write");
+});
+
+test("sync: first run with both sides differing is a conflict, not a clobber", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "x" }],
+    [{ path: "a.md", title: "A", hash: "y" }],
+    []
+  );
+  eq(plan.actions[0].kind, "conflict");
+});
+
+test("sync: new pages write and new files import", () => {
+  const plan = sync.planSync(
+    [{ id: "p1", path: "a.md", title: "A", hash: "x" }],
+    [{ path: "b.md", title: "B", hash: "y" }],
+    []
+  );
+  const kinds = plan.actions.map((a) => a.kind).sort();
+  eq(kinds.join(","), "import,write");
+});
+
+test("sync: file paths are slug-safe and nested", () => {
+  eq(sync.filePathFor(["Getting Started"]), "getting-started.md");
+  eq(sync.filePathFor(["guide", "Deploy & Run"]), "guide/deploy-run.md");
+  ok(!sync.filePathFor(["../etc/passwd"]).includes(".."));
 });
 
 test("audit chain verifies, and detects tampering", () => {
