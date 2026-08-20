@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The collaboration server runs outside the bundle and is loaded by
+    // Next's own CommonJS entry, so it is CommonJS on purpose.
+    "server/**",
   ]),
 ]);
 

@@ -183,6 +183,14 @@ function attachCollab(server, { port }) {
   const db = openDb();
   const wss = new WebSocketServer({ noServer: true });
 
+  // Next installs its own upgrade listener that destroys the socket for any
+  // path it does not recognise. Both listeners fire, and ours has to await an
+  // authorization check first, so Next's tears the connection down before we
+  // answer. Take ownership of the event and hand everything that is not ours
+  // straight back to the listeners that were already there.
+  const inherited = server.listeners("upgrade").slice();
+  server.removeAllListeners("upgrade");
+
   server.on("upgrade", async (req, socket, head) => {
     let url;
     try {
@@ -191,7 +199,14 @@ function attachCollab(server, { port }) {
       socket.destroy();
       return;
     }
-    if (url.pathname !== "/collab") return; // not ours; leave it alone
+    if (url.pathname !== "/collab") {
+      for (const listener of inherited) listener.call(server, req, socket, head);
+      return;
+    }
+
+    // Nothing may be read off the socket while the permission check is in
+    // flight, or the first frames arrive with no one listening for them.
+    socket.pause();
 
     const pageId = url.searchParams.get("page") ?? "";
     if (!pageId) {
@@ -206,6 +221,7 @@ function attachCollab(server, { port }) {
       socket.destroy();
       return;
     }
+    socket.resume();
 
     wss.handleUpgrade(req, socket, head, (ws) => {
       const room = getRoom(db, pageId);

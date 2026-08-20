@@ -50,7 +50,12 @@ export function publicConfig(): PublicConfig {
   const origin = drawioOrigin();
   // Offline with no self-hosted editor configured means no editor at all.
   const drawioEnabled = !offline || origin !== DEFAULT_DRAWIO_ORIGIN;
-  return { drawioOrigin: origin, drawioEnabled, offline };
+  return {
+    drawioOrigin: origin,
+    drawioEnabled,
+    offline,
+    collab: process.env.OCTAVO_COLLAB !== "0",
+  };
 }
 
 /**

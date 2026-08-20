@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   SideMenu,
   SideMenuController,
@@ -9,6 +9,8 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { filterSuggestionItems, type PartialBlock } from "@blocknote/core";
+import { withCollaboration, blocksToYXmlFragment } from "@blocknote/core/yjs";
+import type { CollabSession } from "./useCollab";
 import { BlockNoteView } from "@blocknote/mantine";
 import { BlockCommentButton } from "./BlockCommentButton";
 import "@blocknote/mantine/style.css";
@@ -129,11 +131,14 @@ export default function Editor({
   initialContent,
   onChange,
   pageId,
+  collab,
 }: {
   initialContent: string;
   onChange: (blocks: unknown[]) => void;
   /** Absent on a page that has not been saved yet — nothing to anchor to. */
   pageId?: string;
+  /** When present, the document is shared and this editor joins it. */
+  collab?: CollabSession | null;
 }) {
   const parsed = useMemo(() => {
     try {
@@ -146,13 +151,49 @@ export default function Editor({
     }
   }, [initialContent]);
 
-  const editor = useCreateBlockNote({
-    schema: octavoSchema,
-    initialContent: parsed,
-    uploadFile,
-    pasteHandler: smartPaste as never,
-  });
+  // Under collaboration the shared document is the source of truth, and
+  // passing initialContent as well would replay the page into it on every
+  // join. Seeding happens once, below, and only for the browser that holds
+  // the claim.
+  const editor = useCreateBlockNote(
+    collab
+      ? (withCollaboration({
+          schema: octavoSchema,
+          uploadFile,
+          pasteHandler: smartPaste as never,
+          collaboration: {
+            fragment: collab.fragment,
+            user: collab.user,
+            provider: { awareness: collab.provider.awareness },
+          },
+        }) as never)
+      : {
+          schema: octavoSchema,
+          initialContent: parsed,
+          uploadFile,
+          pasteHandler: smartPaste as never,
+        },
+    [collab]
+  );
   const theme = useOctavoTheme();
+
+  // Put the page's existing content into an empty shared document exactly
+  // once. Waiting for the first sync matters: before it, every document looks
+  // empty, and seeding then would duplicate what the server already had.
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!collab || !collab.seed || seeded.current) return;
+    return collab.provider.onSynced(() => {
+      if (seeded.current) return;
+      seeded.current = true;
+      if (collab.fragment.length > 0) return; // somebody got there first
+      const blocks = parsed;
+      if (!blocks || blocks.length === 0) return;
+      collab.provider.doc.transact(() => {
+        blocksToYXmlFragment(editor as never, blocks as never, collab.fragment);
+      });
+    });
+  }, [collab, editor, parsed]);
 
   return (
     <div className="octavo-editor">

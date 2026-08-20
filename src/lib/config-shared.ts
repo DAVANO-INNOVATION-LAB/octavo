@@ -9,6 +9,8 @@ export const DEFAULT_DRAWIO_ORIGIN = "https://embed.diagrams.net";
 
 export type PublicConfig = {
   drawioOrigin: string;
+  /** False when this deployment has turned real-time co-editing off. */
+  collab: boolean;
   /** False when draw.io editing is unavailable on this instance. */
   drawioEnabled: boolean;
   offline: boolean;

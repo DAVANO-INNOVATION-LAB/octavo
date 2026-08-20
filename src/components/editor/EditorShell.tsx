@@ -3,6 +3,9 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCollab } from "./useCollab";
+import { collabEnabled } from "@/lib/client-config";
+import { Users, WifiOff } from "lucide-react";
 
 const Editor = dynamic(() => import("./Editor"), {
   ssr: false,
@@ -32,6 +35,9 @@ export function EditorShell({
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [status, setStatus] = useState<Status>("saved");
+  // Co-editing is on unless this deployment turned it off or the socket
+  // cannot be reached; either way the editor still opens and still saves.
+  const { session, status: link, peers, failed } = useCollab(pageId, collabEnabled());
   const router = useRouter();
   const slugRef = useRef(pageSlug);
   const pendingRef = useRef<{ title?: string; content?: unknown[] }>({});
@@ -98,6 +104,40 @@ export function EditorShell({
         >
           {status === "saving" ? "Saving…" : status === "error" ? "Save failed — retrying on next edit" : "Saved"}
         </span>
+
+        {/* Who else is in this document, and whether we can still hear them. */}
+        {session && peers.length > 0 && (
+          <span
+            className="flex items-center gap-1.5 text-[11px] text-faint"
+            title={peers.map((p) => p.name).join(", ")}
+          >
+            <Users size={12} />
+            <span className="flex -space-x-1.5">
+              {peers.slice(0, 4).map((p, i) => (
+                <span
+                  key={`${p.name}-${i}`}
+                  aria-hidden
+                  className="flex h-5 w-5 items-center justify-center rounded-full border border-bg text-[9px] font-semibold text-white"
+                  style={{ background: p.color }}
+                >
+                  {p.name.slice(0, 1).toUpperCase()}
+                </span>
+              ))}
+            </span>
+            {peers.length > 4 && <span>+{peers.length - 4}</span>}
+          </span>
+        )}
+        {session && link !== "connected" && (
+          <span className="flex items-center gap-1.5 text-[11px] text-faint">
+            <WifiOff size={12} />
+            {link === "connecting" ? "Connecting…" : "Reconnecting — your edits are kept"}
+          </span>
+        )}
+        {failed && (
+          <span className="text-[11px] text-faint">
+            Editing alone — co-editing is unavailable
+          </span>
+        )}
       </div>
       <textarea
         value={title}
@@ -118,6 +158,7 @@ export function EditorShell({
       />
       <Editor
         pageId={pageId}
+        collab={session}
         initialContent={initialContent}
         onChange={(blocks) => queue({ content: blocks })}
       />
