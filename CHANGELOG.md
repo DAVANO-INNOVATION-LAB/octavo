@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.2.0 — 2026-08-20
+
+### Added
+
+- **Discussion threads** under technical documents, wikis, and articles —
+  quiet margin-notes with author attribution; cookbooks deliberately stay
+  clean.
+- **Named shelves with drag-to-organize**: group spaces under named
+  shelves on the library home; signed-in curators drag books to reorder,
+  and dropping one onto another shelf's card moves it there. Order and
+  shelf persist for everyone. One page, curator's order — never pagination.
+- **Book-structured navigation**: docs and cookbooks now read as numbered
+  chapters in the sidebar (with recipes/articles/pages labels per space
+  kind); article collections stay a flat stack, as separate pieces should.
+- **Helm chart** (`charts/octavo`): single-writer Recreate deployment, PVC
+  for the SQLite volume, optional ingress, hardened pod security defaults.
+- **CI/CD**: GitHub Actions verify (tests, types, lint, build, helm lint)
+  on every push; tagged releases build multi-arch (amd64+arm64) images to
+  `ghcr.io/davano-innovation-lab/octavo`, package the chart, and publish a
+  GitHub Release with notes from this changelog.
+- **Test corpora**: 150 real technical documents (arXiv abstracts + classic
+  RFCs) and 150 code-heavy ops recipes across Kubernetes, Airflow, Ray,
+  Jenkins, OpenShift Pipelines, and Jupyter — the future test bed for
+  remote execution.
+- **The covenant** in the README — export, privacy, no phone-home, the
+  permanent default theme, and nothing load-bearing behind a paywall.
+
+
 ## v0.1.0 — 2026-08-19
 
 The first bound volume. Octavo is an open-source, self-hosted documentation

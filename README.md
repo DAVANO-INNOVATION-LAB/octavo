@@ -45,6 +45,9 @@ tweet.
 - **Private and public spaces** — spaces are private (members only) by
   default; flip one public to share a cookbook with the world. Drafts stay
   invisible until published; published URLs never change.
+- **Discussion where it belongs** — comment threads under technical docs,
+  wikis, and articles so teams can collaborate in the margins; cookbooks
+  stay clean and executable.
 - **Search that works** — SQLite FTS5 with BM25 ranking, prefix matching,
   highlighted snippets, cmd+K everywhere. Private content never leaks into
   anonymous search.
@@ -57,11 +60,35 @@ tweet.
   sqlite3 /data/octavo.db ".backup /backups/octavo-$(date +%F).db"
   ```
 
+## The covenant
+
+Octavo holds these as promises, not features. Breaking one is a bug of the
+highest severity.
+
+1. **Your writing outlives Octavo.** Every page exports as plain Markdown,
+   every space as a zip you can read with `unzip` and `cat`. The SQLite
+   schema is boring on purpose.
+2. **Private means private.** Membership-scoped queries everywhere; nothing
+   private ever touches public search, trees, or exports.
+3. **No phone-home.** Octavo makes no network calls you didn't ask for.
+4. **The default theme never changes out from under you**, and the reading
+   experience is never traded away for a dashboard.
+5. **Nothing load-bearing goes behind a paywall.** SSO, export, the API —
+   core, forever. AGPL keeps hosted copies honest.
+
 ## Run it
 
 ```bash
 docker compose up -d
 # then open http://localhost:3000 — the first visit creates your admin account
+```
+
+On Kubernetes or OpenShift:
+
+```bash
+helm install octavo ./charts/octavo \
+  --set persistence.size=10Gi
+kubectl port-forward svc/octavo 3000:3000
 ```
 
 Or for development:
@@ -100,8 +127,9 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
   what, when, and which page version. Octavo never executes anything
   itself — it dispatches to systems that already enforce their own
   credentials and RBAC, and renders what comes back
-- Markdown/Git round-trip: export every page as Markdown, sync a space with a
-  repo (content never held hostage)
+- Markdown/Git round-trip: sync a space with a repo (export already ships)
+- Wikilinks and backlinks — `[[page]]` autocomplete and a "referenced by"
+  panel that renders in the published view too
 - Multi-tenant organizations: team name, logo, and theme per tenant
 - Importers for Wiki.js, BookStack, and MkDocs Material (EOL Nov 2026)
 - Page version history and review workflows (change requests)
