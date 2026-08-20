@@ -5,6 +5,8 @@
 Write like Notion. Publish like a press. Host it anywhere for free — one
 container, one SQLite file, zero external services.
 
+![The library](docs/screenshots/library.png)
+
 ## Why
 
 The open-source documentation field splits into two camps that never meet:
