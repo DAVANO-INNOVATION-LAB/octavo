@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { useCreateBlockNote } from "@blocknote/react";
-import { useOctavoTheme } from "@/lib/theme-store";
+import {
+  SuggestionMenuController,
+  getDefaultReactSlashMenuItems,
+  useCreateBlockNote,
+} from "@blocknote/react";
+import { filterSuggestionItems, type PartialBlock } from "@blocknote/core";
 import { BlockNoteView } from "@blocknote/mantine";
-import type { PartialBlock } from "@blocknote/core";
 import "@blocknote/mantine/style.css";
+import "katex/dist/katex.min.css";
+import { useOctavoTheme } from "@/lib/theme-store";
+import { customSlashItems, octavoSchema } from "./customBlocks";
 
 async function uploadFile(file: File): Promise<string> {
   const body = new FormData();
@@ -23,16 +29,22 @@ export default function Editor({
   initialContent: string;
   onChange: (blocks: unknown[]) => void;
 }) {
-  const parsed = useMemo<PartialBlock[] | undefined>(() => {
+  const parsed = useMemo(() => {
     try {
       const blocks = JSON.parse(initialContent);
-      return Array.isArray(blocks) && blocks.length > 0 ? blocks : undefined;
+      return Array.isArray(blocks) && blocks.length > 0
+        ? (blocks as PartialBlock<typeof octavoSchema.blockSchema>[])
+        : undefined;
     } catch {
       return undefined;
     }
   }, [initialContent]);
 
-  const editor = useCreateBlockNote({ initialContent: parsed, uploadFile });
+  const editor = useCreateBlockNote({
+    schema: octavoSchema,
+    initialContent: parsed,
+    uploadFile,
+  });
   const theme = useOctavoTheme();
 
   return (
@@ -40,8 +52,22 @@ export default function Editor({
       <BlockNoteView
         editor={editor}
         theme={theme}
+        slashMenu={false}
         onChange={() => onChange(editor.document as unknown[])}
-      />
+      >
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={async (query) =>
+            filterSuggestionItems(
+              [
+                ...getDefaultReactSlashMenuItems(editor),
+                ...customSlashItems(editor),
+              ],
+              query
+            )
+          }
+        />
+      </BlockNoteView>
     </div>
   );
 }

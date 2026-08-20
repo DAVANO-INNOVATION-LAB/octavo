@@ -6,6 +6,13 @@ import {
   cellContent,
   inlineText,
 } from "@/lib/blocks";
+import katex from "katex";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  OctagonAlert,
+} from "lucide-react";
 import { CodeBlock } from "./CodeBlock";
 import { Mermaid } from "./Mermaid";
 import { TableCsv } from "./TableCsv";
@@ -85,11 +92,42 @@ function ListItem({ block, ctx }: { block: Block; ctx: Ctx }) {
   );
 }
 
+const TONE_META: Record<string, { icon: ReactNode; label: string }> = {
+  info: { icon: <Info size={16} />, label: "Note" },
+  success: { icon: <CheckCircle2 size={16} />, label: "Tip" },
+  warning: { icon: <AlertTriangle size={16} />, label: "Warning" },
+  danger: { icon: <OctagonAlert size={16} />, label: "Caution" },
+};
+
 function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
   const out: ReactNode[] = [];
   let i = 0;
   while (i < blocks.length) {
     const b = blocks[i];
+
+    // Group consecutive steps into one connected sequence.
+    if (b.type === "step") {
+      const group: Block[] = [];
+      while (i < blocks.length && blocks[i].type === "step") group.push(blocks[i++]);
+      out.push(
+        <ol key={b.id} className="blk-steps">
+          {group.map((g, n) => (
+            <li key={g.id} className="blk-steps-item">
+              <span aria-hidden className="blk-steps-n">{n + 1}</span>
+              <div className="blk-steps-body">
+                <p className="blk-steps-title">{renderInline(g.content)}</p>
+                {g.children?.length > 0 && (
+                  <div className="[&>*+*]:mt-[0.9em]">
+                    <Blocks blocks={g.children} ctx={ctx} />
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      );
+      continue;
+    }
 
     // Group consecutive list items into a single list element.
     if (
@@ -288,6 +326,51 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
         >
           ↓ {name}
         </a>
+      );
+    }
+    case "callout": {
+      const tone = String(b.props?.tone ?? "info");
+      const meta = TONE_META[tone] ?? TONE_META.info;
+      return (
+        <aside className={`blk-callout blk-callout-${tone}`}>
+          <span className="blk-callout-icon" aria-label={meta.label}>
+            {meta.icon}
+          </span>
+          <div className="blk-callout-body">
+            <p>{renderInline(b.content)}</p>
+            {kids}
+          </div>
+        </aside>
+      );
+    }
+    case "expandable":
+      return (
+        <details className="blk-details">
+          <summary>{renderInline(b.content)}</summary>
+          <div className="blk-details-body [&>*+*]:mt-[1.1em]">
+            {b.children?.length > 0 && (
+              <Blocks blocks={b.children} ctx={ctx} />
+            )}
+          </div>
+        </details>
+      );
+    case "math": {
+      const tex = inlineText(b.content);
+      if (!tex.trim()) return null;
+      let html = "";
+      try {
+        html = katex.renderToString(tex, {
+          displayMode: true,
+          throwOnError: false,
+        });
+      } catch {
+        return <pre className="blk-math-err">{tex}</pre>;
+      }
+      return (
+        <div
+          className="blk-math-display"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
       );
     }
     default:

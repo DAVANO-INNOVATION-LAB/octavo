@@ -403,6 +403,160 @@ mark {
   @page { margin: 2cm 1.8cm; }
 }
 
+/* ————— Docs block library ————— */
+
+.blk-callout {
+  display: flex;
+  gap: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid;
+  padding: 0.85rem 1rem;
+  line-height: 1.6;
+}
+.blk-callout-icon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+.blk-callout-body { min-width: 0; flex: 1; }
+.blk-callout-body > * + * { margin-top: 0.6em; }
+.blk-callout-info    { border-color: rgba(59,130,246,.35);  background: rgba(59,130,246,.08);  }
+.blk-callout-info .blk-callout-icon    { color: #3b82f6; }
+.blk-callout-success { border-color: rgba(34,160,94,.35);   background: rgba(34,160,94,.08);   }
+.blk-callout-success .blk-callout-icon { color: #22a05e; }
+.blk-callout-warning { border-color: rgba(217,119,6,.4);    background: rgba(217,119,6,.09);   }
+.blk-callout-warning .blk-callout-icon { color: #d97706; }
+.blk-callout-danger  { border-color: rgba(220,38,38,.4);    background: rgba(220,38,38,.08);   }
+.blk-callout-danger .blk-callout-icon  { color: #dc2626; }
+
+.blk-details {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.blk-details > summary {
+  cursor: pointer;
+  padding: 0.7rem 1rem;
+  font-weight: 550;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.blk-details > summary::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 1.5px solid var(--faint);
+  border-bottom: 1.5px solid var(--faint);
+  transform: rotate(-45deg);
+  transition: transform 150ms ease;
+  flex-shrink: 0;
+}
+.blk-details[open] > summary::before { transform: rotate(45deg); }
+.blk-details-body { padding: 0.25rem 1rem 1rem 2rem; }
+
+.blk-steps { list-style: none; padding: 0; counter-reset: none; }
+.blk-steps-item {
+  display: flex;
+  gap: 0.9rem;
+  position: relative;
+  padding-bottom: 1.4rem;
+}
+.blk-steps-item:last-child { padding-bottom: 0; }
+.blk-steps-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 0.8rem;
+  top: 1.9rem;
+  bottom: 0.2rem;
+  width: 1px;
+  background: var(--line-strong);
+}
+.blk-steps-n {
+  flex-shrink: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+.blk-steps-body { min-width: 0; flex: 1; }
+.blk-steps-title { font-weight: 550; }
+
+.blk-math-display {
+  overflow-x: auto;
+  padding: 0.5rem 0;
+  text-align: center;
+}
+.blk-math-err {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* editor-side flavors */
+.octavo-editor .blk-callout { margin: 2px 0; }
+.octavo-editor .blk-expandable {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0.5rem 0.9rem;
+}
+.octavo-editor .blk-expandable-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 550;
+}
+.octavo-editor .blk-expandable-chevron { color: var(--faint); flex-shrink: 0; }
+.octavo-editor .blk-expandable-title { flex: 1; min-width: 0; }
+.octavo-editor .blk-expandable-hint {
+  margin: 0.2rem 0 0.1rem 1.35rem;
+  font-size: 11px;
+  color: var(--faint);
+}
+.octavo-editor .blk-step { display: flex; gap: 0.9rem; align-items: baseline; }
+.octavo-editor .blk-step-n {
+  flex-shrink: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+.octavo-editor .blk-step-body { flex: 1; min-width: 0; font-weight: 550; }
+.octavo-editor .blk-math {
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+}
+.octavo-editor .blk-math-src {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.octavo-editor .blk-math-preview { text-align: center; padding-top: 0.4rem; }
+
 /* ————— Seasonal decor ————— */
 
 /* A single 13s pass; the component mounts the rider only while flying,

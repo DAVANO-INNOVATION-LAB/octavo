@@ -50,21 +50,38 @@ const LIST_TYPES = new Set([
   "bulletListItem",
   "numberedListItem",
   "checkListItem",
+  "step",
 ]);
+
+const TONE_TO_ADMONITION: Record<string, string> = {
+  info: "NOTE",
+  success: "TIP",
+  warning: "WARNING",
+  danger: "CAUTION",
+};
+const ADMONITION_TO_TONE: Record<string, string> = {
+  NOTE: "info",
+  TIP: "success",
+  IMPORTANT: "info",
+  WARNING: "warning",
+  CAUTION: "danger",
+};
 
 export function blocksToMarkdown(blocks: Block[], depth = 0): string {
   const items: { text: string; list: boolean }[] = [];
   const out: string[] = [];
   const indent = "  ".repeat(depth);
   let numbered = 0;
+  const CONSUMES_KIDS = new Set(["callout", "expandable"]);
   const take = (b: Block, kids: string) => {
     const text = out.splice(0).join("\n");
     const list = LIST_TYPES.has(b.type);
-    items.push({ text: kids ? `${text}\n${kids}` : text, list });
+    const merged = kids && !CONSUMES_KIDS.has(b.type) ? `${text}\n${kids}` : text;
+    items.push({ text: merged, list });
   };
 
   for (const b of blocks) {
-    if (b.type !== "numberedListItem") numbered = 0;
+    if (b.type !== "numberedListItem" && b.type !== "step") numbered = 0;
     const kids = b.children?.length
       ? blocksToMarkdown(b.children, depth + 1)
       : "";
@@ -78,6 +95,30 @@ export function blocksToMarkdown(blocks: Block[], depth = 0): string {
       case "quote":
         out.push(`> ${inlineToMd(b.content)}`);
         break;
+      case "callout": {
+        const tone = TONE_TO_ADMONITION[String(b.props?.tone ?? "info")] ?? "NOTE";
+        const lines = [`> [!${tone}]`, `> ${inlineToMd(b.content)}`];
+        if (kids)
+          lines.push(...kids.split("\n").map((l) => (l ? `> ${l}` : ">")));
+        out.push(lines.join("\n"));
+        break;
+      }
+      case "expandable": {
+        out.push(
+          `<details>\n<summary>${inlineToMd(b.content)}</summary>\n\n${kids}\n\n</details>`
+        );
+        break;
+      }
+      case "step":
+        out.push(`${indent}${++numbered}. ${inlineToMd(b.content)}`);
+        break;
+      case "math": {
+        const tex = Array.isArray(b.content)
+          ? b.content.map((c) => (c.type === "text" ? c.text : "")).join("")
+          : "";
+        out.push("```math\n" + tex + "\n```");
+        break;
+      }
       case "bulletListItem":
         out.push(`${indent}- ${inlineToMd(b.content)}`);
         break;
@@ -258,9 +299,11 @@ export function markdownToBlocks(md: string): MdBlock[] {
         i++;
       }
       i++; // closing fence
-      out.push(
-        block("codeBlock", { language: lang }, [text(buf.join("\n"))])
-      );
+      if (lang === "math") {
+        out.push(block("math", {}, [text(buf.join("\n"))]));
+      } else {
+        out.push(block("codeBlock", { language: lang }, [text(buf.join("\n"))]));
+      }
       continue;
     }
 
@@ -294,7 +337,7 @@ export function markdownToBlocks(md: string): MdBlock[] {
       continue;
     }
 
-    // blockquote
+    // blockquote — GitHub admonitions become callouts
     if (trimmed.startsWith(">")) {
       flushPara();
       listStack.length = 0;
@@ -303,7 +346,40 @@ export function markdownToBlocks(md: string): MdBlock[] {
         buf.push(lines[i].trim().replace(/^>\s?/, ""));
         i++;
       }
-      out.push(block("quote", {}, parseInline(buf.join(" "))));
+      const adm = buf[0]?.match(/^\[!([A-Z]+)\]\s*$/);
+      if (adm && ADMONITION_TO_TONE[adm[1]]) {
+        const first = buf[1] ?? "";
+        const rest = buf.slice(2).filter((l) => l.trim());
+        const node = block(
+          "callout",
+          { tone: ADMONITION_TO_TONE[adm[1]] },
+          parseInline(first)
+        );
+        node.children = rest.map((l) => block("paragraph", {}, parseInline(l)));
+        out.push(node);
+      } else {
+        out.push(block("quote", {}, parseInline(buf.join(" "))));
+      }
+      continue;
+    }
+
+    // <details> blocks become expandables
+    if (/^<details>\s*$/i.test(trimmed)) {
+      flushPara();
+      listStack.length = 0;
+      i++;
+      let summary = "";
+      const body: string[] = [];
+      while (i < lines.length && !/^<\/details>\s*$/i.test(lines[i].trim())) {
+        const sm = lines[i].trim().match(/^<summary>(.*)<\/summary>$/i);
+        if (sm) summary = sm[1];
+        else body.push(lines[i]);
+        i++;
+      }
+      i++; // </details>
+      const node = block("expandable", {}, parseInline(summary || "Details"));
+      node.children = markdownToBlocks(body.join("\n"));
+      out.push(node);
       continue;
     }
 
