@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Security scan reports stay local — never in the public repo
 /docs/security/
+
+# Agent scaffolding files (regenerated locally by tooling)
+CLAUDE.md
