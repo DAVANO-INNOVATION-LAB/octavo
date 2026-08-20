@@ -310,6 +310,39 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
         </div>
       );
     }
+    case "themeImage": {
+      const url = String(b.props?.url ?? "");
+      const darkUrl = String(b.props?.darkUrl ?? "");
+      const caption = String(b.props?.caption ?? "");
+      if (!url && !darkUrl) return null;
+      return (
+        <figure className="my-2">
+          {url && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={url}
+              alt={caption || "image"}
+              loading="lazy"
+              className={darkUrl ? "img-light-only" : undefined}
+            />
+          )}
+          {darkUrl && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={darkUrl}
+              alt={caption || "image"}
+              loading="lazy"
+              className={url ? "img-dark-only" : undefined}
+            />
+          )}
+          {caption && (
+            <figcaption className="mt-2 text-center text-sm text-muted">
+              {caption}
+            </figcaption>
+          )}
+        </figure>
+      );
+    }
     case "image": {
       const url = String(b.props?.url ?? "");
       const darkUrl = String(b.props?.darkUrl ?? "");

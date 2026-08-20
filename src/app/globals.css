@@ -874,3 +874,51 @@ mark {
 @media print {
   .margin-note-body { position: static; display: block; width: auto; }
 }
+
+/* editor-side margin note + theme image */
+.octavo-editor .blk-note-mark { border-bottom: 1px dotted var(--accent); }
+.octavo-editor .blk-themeimage { display: flex; gap: 0.6rem; }
+.octavo-editor .blk-themeimage-slot {
+  flex: 1;
+  min-width: 0;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  padding: 0.5rem;
+  background: var(--surface);
+  cursor: pointer;
+}
+.octavo-editor .blk-themeimage-slot img { max-width: 100%; border-radius: 6px; display: block; margin: 0 auto; }
+.octavo-editor .blk-themeimage-empty {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 1.2rem 0; font-size: 0.8rem; color: var(--muted);
+}
+.octavo-editor .blk-themeimage-label {
+  display: block; margin-top: 0.35rem; text-align: center;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint);
+}
+
+.octavo-editor .blk-model-edit {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.octavo-editor .blk-model-edit-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--line);
+  padding: 0.4rem 0.6rem;
+  color: var(--faint);
+}
+.octavo-editor .blk-model-edit-bar select,
+.octavo-editor .blk-model-edit-bar input {
+  height: 1.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.78rem;
+  padding: 0 0.4rem;
+}
+.octavo-editor .blk-model-edit-bar input { flex: 1; min-width: 0; }

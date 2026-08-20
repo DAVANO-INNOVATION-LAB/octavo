@@ -3,19 +3,24 @@
 import {
   BlockNoteSchema,
   defaultBlockSpecs,
+  defaultStyleSpecs,
   insertOrUpdateBlockForSlashMenu,
 } from "@blocknote/core";
 import {
   createReactBlockSpec,
+  createReactStyleSpec,
   type DefaultReactSuggestionItem,
 } from "@blocknote/react";
 import katex from "katex";
+import { Model3D, type ModelKind } from "@/components/render/Model3D";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
   Info,
+  Boxes,
+  Image as ImageIcon,
   ListOrdered,
   OctagonAlert,
   PenTool,
@@ -316,6 +321,144 @@ export const Drawio = createReactBlockSpec(
   }
 );
 
+/**
+ * A margin note: text carrying an annotation. Stored as a style so the note
+ * travels with the words it qualifies rather than sitting in a separate block.
+ */
+export const NoteStyle = createReactStyleSpec(
+  { type: "note", propSchema: "string" },
+  {
+    render: (props) => (
+      <span
+        className="blk-note-mark"
+        title={props.value}
+        ref={props.contentRef}
+      />
+    ),
+  }
+);
+
+/** An image with a second source used in dark mode. */
+export const ThemeImage = createReactBlockSpec(
+  {
+    type: "themeImage",
+    propSchema: {
+      url: { default: "" },
+      darkUrl: { default: "" },
+      caption: { default: "" },
+    },
+    content: "none",
+  },
+  {
+    render: (props) => {
+      const url = String(props.block.props.url ?? "");
+      const darkUrl = String(props.block.props.darkUrl ?? "");
+      const caption = String(props.block.props.caption ?? "");
+      const set = async (which: "url" | "darkUrl") => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) return;
+          const body = new FormData();
+          body.append("file", file);
+          const res = await fetch("/api/upload", { method: "POST", body });
+          if (!res.ok) return;
+          const data = await res.json();
+          props.editor.updateBlock(props.block, {
+            props: { [which]: data.url as string },
+          });
+        };
+        input.click();
+      };
+      return (
+        <div className="blk-themeimage">
+          {[
+            ["url", "Light mode", url],
+            ["darkUrl", "Dark mode", darkUrl],
+          ].map(([key, label, src]) => (
+            <button
+              key={key}
+              type="button"
+              className="blk-themeimage-slot"
+              onClick={() => set(key as "url" | "darkUrl")}
+            >
+              {src ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={src} alt={caption || String(label)} />
+              ) : (
+                <span className="blk-themeimage-empty">
+                  <ImageIcon size={14} /> {label}
+                </span>
+              )}
+              <span className="blk-themeimage-label">{label}</span>
+            </button>
+          ))}
+        </div>
+      );
+    },
+  }
+);
+
+const MODEL_KINDS = [
+  ["architecture", "Architecture"],
+  ["network", "Network"],
+  ["pipeline", "Pipeline"],
+  ["culture", "Cell culture"],
+  ["molecule", "Molecule"],
+  ["embedding", "Embedding space"],
+] as const;
+
+/** A 3D model scene chosen per discipline. */
+export const Model3DBlock = createReactBlockSpec(
+  {
+    type: "model3d",
+    propSchema: {
+      kind: { default: "architecture" as string },
+      title: { default: "" as string },
+    },
+    content: "none",
+  },
+  {
+    render: (props) => {
+      const kind = String(props.block.props.kind ?? "architecture");
+      const title = String(props.block.props.title ?? "");
+      return (
+        <div className="blk-model-edit">
+          <div className="blk-model-edit-bar">
+            <Boxes size={14} className="shrink-0" />
+            <select
+              value={kind}
+              onChange={(e) =>
+                props.editor.updateBlock(props.block, {
+                  props: { kind: e.target.value },
+                })
+              }
+            >
+              {MODEL_KINDS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={title}
+              placeholder="Caption (optional)"
+              onChange={(e) =>
+                props.editor.updateBlock(props.block, {
+                  props: { title: e.target.value },
+                })
+              }
+            />
+          </div>
+          <Model3D kind={kind as ModelKind} height={220} />
+        </div>
+      );
+    },
+  }
+);
+
 export const octavoSchema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
@@ -324,6 +467,12 @@ export const octavoSchema = BlockNoteSchema.create({
     step: Step(),
     math: MathBlock(),
     drawio: Drawio(),
+    themeImage: ThemeImage(),
+    model3d: Model3DBlock(),
+  },
+  styleSpecs: {
+    ...defaultStyleSpecs,
+    note: NoteStyle,
   },
 });
 
@@ -342,7 +491,9 @@ export function customSlashItems(
     title: string,
     subtext: string,
     icon: React.ReactElement,
-    type: "callout" | "expandable" | "step" | "math" | "drawio",
+    type:
+      | "callout" | "expandable" | "step" | "math"
+      | "drawio" | "themeImage" | "model3d",
     props?: Record<string, string>
   ): DefaultReactSuggestionItem => ({
     title,
@@ -358,5 +509,7 @@ export function customSlashItems(
     make("Step", "Numbered step for guides", <ListOrdered size={18} />, "step"),
     make("Math", "Display formula (KaTeX)", <Sigma size={18} />, "math"),
     make("Draw.io diagram", "A diagram saved in this page", <PenTool size={18} />, "drawio"),
+    make("Theme-aware image", "A different image in light and dark", <ImageIcon size={18} />, "themeImage"),
+    make("3D model", "A rotatable scene for this discipline", <Boxes size={18} />, "model3d", { kind: "architecture" }),
   ];
 }

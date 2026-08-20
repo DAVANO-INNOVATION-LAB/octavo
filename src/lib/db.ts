@@ -141,9 +141,42 @@ CREATE TABLE IF NOT EXISTS comments (
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   body TEXT NOT NULL,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  block_id TEXT NOT NULL DEFAULT '',
+  parent_id TEXT,
+  resolved INTEGER NOT NULL DEFAULT 0,
+  resolved_by TEXT,
+  resolved_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS comments_page ON comments(page_id, created_at);
+CREATE INDEX IF NOT EXISTS comments_thread ON comments(page_id, parent_id, created_at);
+
+CREATE TABLE IF NOT EXISTS change_requests (
+  id TEXT PRIMARY KEY,
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open',
+  proposed_title TEXT NOT NULL,
+  proposed_content TEXT NOT NULL,
+  base_updated_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  merged_at INTEGER,
+  merged_by TEXT
+);
+CREATE INDEX IF NOT EXISTS crs_page ON change_requests(page_id, status, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS cr_reviews (
+  id TEXT PRIMARY KEY,
+  cr_id TEXT NOT NULL REFERENCES change_requests(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  verdict TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cr_reviews_cr ON cr_reviews(cr_id, at DESC);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
   page_id UNINDEXED,
@@ -188,6 +221,16 @@ function migrate(db: Database.Database) {
   const userCols = (
     db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
   ).map((c) => c.name);
+  const commentCols = (
+    db.prepare("PRAGMA table_info(comments)").all() as { name: string }[]
+  ).map((c) => c.name);
+  if (commentCols.length && !commentCols.includes("block_id")) {
+    db.exec("ALTER TABLE comments ADD COLUMN block_id TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE comments ADD COLUMN parent_id TEXT");
+    db.exec("ALTER TABLE comments ADD COLUMN resolved INTEGER NOT NULL DEFAULT 0");
+    db.exec("ALTER TABLE comments ADD COLUMN resolved_by TEXT");
+    db.exec("ALTER TABLE comments ADD COLUMN resolved_at INTEGER");
+  }
   if (!userCols.includes("totp_secret")) {
     db.exec("ALTER TABLE users ADD COLUMN totp_secret TEXT");
   }
