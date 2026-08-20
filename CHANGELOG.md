@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.4 — 2026-08-20
 
 ### Added
 
@@ -21,6 +21,17 @@
 - **Notifications** — an inbox and unread count for mentions, replies, and
   change-request activity, with an optional outbound webhook that Slack and
   Teams accept directly.
+- **Four roles** — Admin, Editor, Reader, and AI Agent. The agent role is a
+  ceiling rather than a weaker reader: an agent may read and propose and
+  never write, publish, merge, or comment, whatever else it is granted.
+  Agents propose; people merge.
+- **Round-trip Markdown sync** — a space mirrors to a directory of Markdown
+  files and reads edits back. Both sides changed is reported as a conflict
+  and neither is touched; a missing file never deletes a page. Point the
+  directory at a working tree and commit it with your own tooling.
+- **Content variants** — versions and translations of one library, linked by
+  a group key and switched from the reader. Pages correspond by slug, and a
+  variant missing a page says so rather than hiding.
 - **Offline operation** — every runtime asset is served from the container,
   `OCTAVO_OFFLINE=1` declares an instance disconnected, and
   `OCTAVO_DRAWIO_URL` points the diagram editor at a self-hosted one. See
