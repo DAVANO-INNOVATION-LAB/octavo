@@ -61,6 +61,8 @@ const ROUTES = [
   { path: "/inbox", name: "inbox" },
   { path: "/field-guide/sync", name: "markdown sync" },
   { path: "/guide-fr", name: "translation variant" },
+  { path: "/petstore-api/get-pets", name: "API reference (interactive)" },
+  { path: "/import/openapi", name: "OpenAPI import" },
   { path: "/admin/connectors", name: "connectors" },
   { path: "/admin/sso", name: "single sign-on" },
   { path: `/${pubPage.space}/settings`, name: "space settings" },
@@ -260,11 +262,16 @@ if (!searchWorks) fail("search", "no results for a term known to exist");
 console.log(`  ${searchWorks ? "✓" : "✗"} search returns results`);
 
 checks++;
+// Toggle against whatever the page currently is. Asserting that "dark"
+// changes the background assumes the page started light, which is false
+// whenever the browser reports a dark system preference.
 const themeWorks = await evaluate(`(async () => {
-  const before = getComputedStyle(document.body).backgroundColor;
-  document.documentElement.setAttribute("data-theme", "dark");
+  const read = () => getComputedStyle(document.body).backgroundColor;
+  const before = read();
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
   await new Promise(r => setTimeout(r, 250));
-  const after = getComputedStyle(document.body).backgroundColor;
+  const after = read();
   document.documentElement.removeAttribute("data-theme");
   return before !== after;
 })()`);

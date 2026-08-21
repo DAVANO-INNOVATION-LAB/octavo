@@ -18,6 +18,7 @@ import {
 import { verifyTotp } from "@/lib/totp";
 import { recordAudit } from "@/lib/audit";
 import { applySync } from "@/lib/sync-io";
+import { generatePages, importInto } from "@/lib/openapi-pages";
 import { markAllRead, markRead, notify, notifyAll } from "@/lib/notify";
 import { mentionedUserIds } from "@/lib/mentions";
 import {
@@ -803,4 +804,40 @@ export async function setSpaceVariantAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath(`/${slug}`);
   redirect(`/${slug}/settings`);
+}
+
+// ---- OpenAPI import ----
+
+export async function importOpenApiAction(formData: FormData) {
+  const user = await requireUser();
+  const spec = String(formData.get("spec") ?? "");
+  const given = String(formData.get("name") ?? "").trim();
+
+  let result;
+  try {
+    // Read it before creating anything: a space left behind by a failed
+    // import is worse than a message saying the document could not be read.
+    const preview = generatePages(spec);
+    const space = createSpace({
+      name: given || preview.api.title || "API",
+      description: preview.api.version ? `Version ${preview.api.version}` : "",
+      kind: "docs",
+    });
+    result = importInto(space.id, spec, createPage);
+    recordAudit({
+      actor: user,
+      action: "space.created",
+      objectType: "space",
+      objectId: space.id,
+      objectLabel: space.name,
+      spaceId: space.id,
+      detail: { from: "openapi", operations: preview.api.operations.length },
+    });
+    revalidatePath("/");
+    redirect(`/${space.slug}`);
+  } catch (err) {
+    if (err && typeof err === "object" && "digest" in err) throw err; // redirect
+    const why = err instanceof Error ? err.message : "the document could not be read";
+    redirect(`/import/openapi?error=${encodeURIComponent(why)}`);
+  }
 }

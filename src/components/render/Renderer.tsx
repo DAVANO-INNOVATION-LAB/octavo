@@ -19,6 +19,7 @@ import { Model3D, type ModelKind } from "./Model3D";
 import { MarginNote } from "./MarginNote";
 import { Mermaid } from "./Mermaid";
 import { TableCsv } from "./TableCsv";
+import { ApiRequest } from "./ApiRequest";
 import { isOffline } from "@/lib/runtime-config";
 
 /** Recognize YouTube/Vimeo URLs and return a privacy-friendly embed URL. */
@@ -397,6 +398,19 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
             </figcaption>
           )}
         </figure>
+      );
+    }
+    case "apiRequest": {
+      const p = b.props ?? {};
+      return (
+        <ApiRequest
+          method={String(p.method ?? "GET")}
+          path={String(p.path ?? "/")}
+          servers={String(p.servers ?? "")}
+          params={String(p.params ?? "[]")}
+          body={String(p.body ?? "")}
+          auth={String(p.auth ?? "")}
+        />
       );
     }
     case "video": {

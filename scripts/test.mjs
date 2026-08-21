@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -27,6 +27,8 @@ const diff = await import(pathToFileURL(path.join(STAGE, "diff.ts")));
 const sync = await import(pathToFileURL(path.join(STAGE, "sync.ts")));
 const caps = await import(pathToFileURL(path.join(STAGE, "capabilities.ts")));
 const variants = await import(pathToFileURL(path.join(STAGE, "variants.ts")));
+const yaml = await import(pathToFileURL(path.join(STAGE, "yaml.ts")));
+const oa = await import(pathToFileURL(path.join(STAGE, "openapi.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -429,6 +431,254 @@ test("variants: the shelf shows one space per group", () => {
 test("variants: kind is normalized, never trusted raw", () => {
   eq(variants.asVariantKind("translation"), "translation");
   eq(variants.asVariantKind("nonsense"), "version");
+});
+
+test("yaml: nested mappings and sequences", () => {
+  const d = yaml.parseYaml(`
+openapi: 3.0.3
+info:
+  title: Pet Store
+  version: "1.2"
+servers:
+  - url: https://api.example.com/v1
+  - url: https://staging.example.com/v1
+`);
+  eq(d.openapi, "3.0.3");
+  eq(d.info.title, "Pet Store");
+  eq(d.info.version, "1.2");
+  eq(d.servers.length, 2);
+  eq(d.servers[0].url, "https://api.example.com/v1");
+});
+
+test("yaml: a colon inside a URL is not a key separator", () => {
+  const d = yaml.parseYaml("url: https://api.example.com:8443/v1");
+  eq(d.url, "https://api.example.com:8443/v1");
+});
+
+test("yaml: literals, numbers, and nulls", () => {
+  const d = yaml.parseYaml("a: true\nb: false\nc: null\nd: 42\ne: 1.5\nf: ~");
+  eq(d.a, true); eq(d.b, false); eq(d.c, null);
+  eq(d.d, 42); eq(d.e, 1.5); eq(d.f, null);
+});
+
+test("yaml: flow collections", () => {
+  const d = yaml.parseYaml('tags: [pets, store]\nlimits: {min: 1, max: 20}');
+  eq(d.tags.join(","), "pets,store");
+  eq(d.limits.max, 20);
+});
+
+test("yaml: block scalars keep and fold", () => {
+  const d = yaml.parseYaml("description: |\n  line one\n  line two\nsummary: >\n  folded one\n  folded two");
+  eq(d.description, "line one\nline two");
+  eq(d.summary, "folded one folded two");
+});
+
+test("yaml: comments are ignored, including trailing ones", () => {
+  const d = yaml.parseYaml("# leading\nname: value # trailing\nother: 2");
+  eq(d.name, "value");
+  eq(d.other, 2);
+});
+
+test("yaml: a sequence of mappings", () => {
+  const d = yaml.parseYaml(`
+parameters:
+  - name: petId
+    in: path
+    required: true
+  - name: limit
+    in: query
+    required: false
+`);
+  eq(d.parameters.length, 2);
+  eq(d.parameters[0].name, "petId");
+  eq(d.parameters[1].in, "query");
+  eq(d.parameters[0].required, true);
+});
+
+test("yaml: a sequence may sit at its key's own indentation", () => {
+  // Valid YAML, and how the OpenAPI examples are actually written.
+  const d = yaml.parseYaml(`
+schema:
+  type: object
+  required:
+  - id
+  - name
+  properties:
+    id:
+      type: integer
+`);
+  eq(d.schema.required.join(","), "id,name");
+  eq(d.schema.properties.id.type, "integer");
+});
+
+test("yaml: JSON is accepted too", () => {
+  const d = yaml.parseYaml('{"openapi":"3.1.0","info":{"title":"X"}}');
+  eq(d.info.title, "X");
+});
+
+test("yaml: a tab in indentation is rejected, not guessed at", () => {
+  let threw = false;
+  try { yaml.parseYaml("a:\n\tb: 1"); } catch { threw = true; }
+  ok(threw, "tab indentation must be an error");
+});
+
+const SPEC = `
+openapi: 3.0.3
+info:
+  title: Pet Store
+  version: "1.0"
+  description: A sample API.
+servers:
+  - url: https://api.example.com/v1
+tags:
+  - name: pets
+  - name: store
+paths:
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getPetById
+      summary: Find pet by ID
+      tags: [pets]
+      parameters:
+        - name: verbose
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        "404":
+          description: Not found
+    delete:
+      operationId: deletePet
+      tags: [pets]
+      deprecated: true
+      responses:
+        "204":
+          description: Gone
+  /store/orders:
+    post:
+      operationId: placeOrder
+      tags: [store]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+      responses:
+        "201":
+          description: Created
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tag:
+          type: string
+    Order:
+      type: object
+      properties:
+        petId:
+          type: integer
+        quantity:
+          type: integer
+`;
+
+test("openapi: reads info, servers, and every operation", () => {
+  const d = oa.parseOpenApi(SPEC);
+  eq(d.title, "Pet Store");
+  eq(d.version, "1.0");
+  eq(d.servers[0], "https://api.example.com/v1");
+  eq(d.operations.length, 3);
+  eq(d.tags.join(","), "pets,store");
+});
+
+test("openapi: path-level parameters apply to each operation", () => {
+  const d = oa.parseOpenApi(SPEC);
+  const get = d.operations.find((o) => o.operationId === "getPetById");
+  eq(get.parameters.length, 2);
+  ok(get.parameters.some((p) => p.name === "petId" && p.in === "path" && p.required));
+  ok(get.parameters.some((p) => p.name === "verbose" && p.in === "query"));
+});
+
+test("openapi: $ref is resolved into a real schema", () => {
+  const d = oa.parseOpenApi(SPEC);
+  const get = d.operations.find((o) => o.operationId === "getPetById");
+  const ok200 = get.responses.find((r) => r.status === "200");
+  eq(ok200.contentType, "application/json");
+  ok(ok200.schema.properties.name, "Pet.name resolved");
+});
+
+test("openapi: request bodies and deprecation are carried through", () => {
+  const d = oa.parseOpenApi(SPEC);
+  const post = d.operations.find((o) => o.operationId === "placeOrder");
+  eq(post.requestBody.required, true);
+  eq(post.requestBody.contentType, "application/json");
+  eq(d.operations.find((o) => o.operationId === "deletePet").deprecated, true);
+});
+
+test("openapi: a document that is not a spec is refused", () => {
+  let threw = false;
+  try { oa.parseOpenApi("name: something\nvalue: 2"); } catch { threw = true; }
+  ok(threw, "must refuse a non-specification");
+});
+
+test("openapi: external refs are described, never fetched", () => {
+  const d = oa.parseOpenApi(`
+openapi: 3.0.0
+info: {title: X, version: "1"}
+paths:
+  /a:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "https://evil.example.com/schema.json"
+`);
+  const s = d.operations[0].responses[0].schema;
+  ok(String(s.description).includes("external reference"));
+});
+
+test("openapi: slugs are stable and readable", () => {
+  eq(oa.opSlug({ operationId: "getPetById", method: "GET", path: "/pets/{petId}" }), "get-pet-by-id");
+  // Without an operationId the path supplies the name, and camel case in a
+  // path segment splits the same way it does in an operation id.
+  eq(oa.opSlug({ method: "GET", path: "/pets/{petId}" }), "get-pets-pet-id");
+  // Operation ids are free text; real specifications contain spaces.
+  eq(oa.opSlug({ operationId: "find pet by id", method: "GET", path: "/x" }), "find-pet-by-id");
+  eq(oa.opSlug({ operationId: "Get_User.Profile", method: "GET", path: "/x" }), "get-user-profile");
+});
+
+test("openapi: example bodies follow the schema shape", () => {
+  const d = oa.parseOpenApi(SPEC);
+  const post = d.operations.find((o) => o.operationId === "placeOrder");
+  const ex = oa.exampleFor(post.requestBody.schema);
+  eq(ex.petId, 0);
+  eq(ex.quantity, 0);
+});
+
+test("openapi: type names read like types", () => {
+  eq(oa.typeName({ type: "array", items: { type: "string" } }), "string[]");
+  eq(oa.typeName({ type: "string", format: "uuid" }), "string(uuid)");
+  eq(oa.typeName({ enum: ["a", "b"] }), "a | b");
 });
 
 test("audit chain verifies, and detects tampering", () => {

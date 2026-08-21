@@ -299,6 +299,19 @@ mark {
 .reader {
   font-feature-settings: "onum", "pnum";
 }
+/* A chapter that opens with code takes no drop cap: setting a 3-line capital
+   on a monospaced token breaks the token in half. */
+.reader-dropcap > p:first-child:has(code)::first-letter,
+.reader-dropcap > p:first-child:has(.blk-code-inline)::first-letter {
+  float: none;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+}
+
 .reader-dropcap > p:first-child::first-letter {
   font-family: var(--font-fraunces), Georgia, serif;
   font-variation-settings: "opsz" 72;
@@ -626,7 +639,20 @@ mark {
   letter-spacing: -0.02em;
 }
 [data-typeface="technical"] .reader { font-size: 1rem; line-height: 1.7; }
-[data-typeface="technical"] .reader-dropcap > p:first-child::first-letter {
+[data-typeface="technical"] /* A chapter that opens with code takes no drop cap: setting a 3-line capital
+   on a monospaced token breaks the token in half. */
+.reader-dropcap > p:first-child:has(code)::first-letter,
+.reader-dropcap > p:first-child:has(.blk-code-inline)::first-letter {
+  float: none;
+  font-size: inherit;
+  line-height: inherit;
+  font-family: inherit;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+}
+
+.reader-dropcap > p:first-child::first-letter {
   font-family: var(--font-geist-sans), sans-serif;
   font-weight: 700;
 }
@@ -966,3 +992,33 @@ mark {
   border-radius: 0.5rem;
   box-shadow: 0 0 0 0.5rem var(--accent-soft);
 }
+
+/* ————— API reference blocks ————— */
+.blk-api-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  margin: 2px 0;
+  background: var(--surface-2);
+}
+.blk-api-editor-method {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.35rem;
+}
+.blk-api-editor-path {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.blk-api-editor-note { margin-left: auto; font-size: 0.7rem; color: var(--faint); }

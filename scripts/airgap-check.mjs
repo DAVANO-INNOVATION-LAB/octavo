@@ -56,6 +56,7 @@ const ROUTES = [
   ["/inbox", "inbox"],
   ["/field-guide/sync", "markdown sync"],
   ["/guide-fr", "translation variant"],
+  ["/petstore-api/get-pets", "API reference"],
 ];
 
 rmSync(PROFILE, { recursive: true, force: true });

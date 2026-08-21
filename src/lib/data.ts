@@ -227,6 +227,8 @@ export function createPage(input: {
   parentId?: string | null;
   title?: string;
   content?: string;
+  /** New pages start as drafts; an import of an existing document does not. */
+  published?: boolean;
 }): Page {
   const db = getDb();
   const id = newId();
@@ -241,7 +243,7 @@ export function createPage(input: {
     .get(input.spaceId, input.parentId ?? null) as { p: number }).p;
   db.prepare(
     `INSERT INTO pages (id, space_id, parent_id, slug, title, content, content_text, position, published, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     input.spaceId,
@@ -251,6 +253,7 @@ export function createPage(input: {
     content,
     content === "[]" ? "" : extractText(content),
     maxPos + 1,
+    input.published ? 1 : 0,
     t,
     t
   );
