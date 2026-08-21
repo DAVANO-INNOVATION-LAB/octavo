@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.8 — 2026-08-20
+
+### Changed
+
+- The image no longer carries the `docs/` directory. Documentation is not a
+  runtime asset, and the previous exclusion matched only top-level Markdown,
+  so everything under `docs/` was being copied in.
+
 ## v0.6.7 — 2026-08-20
 
 ### Changed
