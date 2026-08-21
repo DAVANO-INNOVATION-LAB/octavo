@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.6.9 — 2026-08-20
+
+### Added
+
+- **API references from OpenAPI.** Import a specification and get a page per
+  operation — parameters, request and response shapes, examples, and a panel
+  that sends the request from your own browser. The output is ordinary
+  blocks, so a generated reference is searchable, exportable, translatable
+  and editable like anything else.
+- **Answers from your library, with citations.** Ask a question and get an
+  answer written only from pages you can already read, shown beside the
+  passages it came from. The model is your own — anything OpenAI-compatible,
+  including one on your own network. Configure nothing and the feature is not
+  offered.
+
+### Fixed
+
+- A chapter opening with code no longer takes a drop cap, which had been
+  setting a three-line capital across a monospaced token.
+
 ## v0.6.8 — 2026-08-20
 
 ### Changed
