@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.7 — 2026-08-20
+
+### Changed
+
+- Published images now carry a source revision that resolves in this
+  repository. The previous images labelled themselves with commits from
+  before a history rewrite, which meant the label pointed at something no
+  branch or tag referenced.
+
 ## v0.6.6 — 2026-08-20
 
 ### Added
