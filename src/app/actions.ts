@@ -17,6 +17,7 @@ import {
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
 import { recordAudit } from "@/lib/audit";
+import { saveAskConfig } from "@/lib/ask";
 import { applySync } from "@/lib/sync-io";
 import { generatePages, importInto } from "@/lib/openapi-pages";
 import { markAllRead, markRead, notify, notifyAll } from "@/lib/notify";
@@ -840,4 +841,22 @@ export async function importOpenApiAction(formData: FormData) {
     const why = err instanceof Error ? err.message : "the document could not be read";
     redirect(`/import/openapi?error=${encodeURIComponent(why)}`);
   }
+}
+
+export async function saveAskAction(formData: FormData) {
+  const admin = await requireAdmin();
+  saveAskConfig({
+    endpoint: String(formData.get("endpoint") ?? ""),
+    model: String(formData.get("model") ?? ""),
+    key: String(formData.get("key") ?? "") || undefined,
+    clearKey: String(formData.get("clearKey") ?? "") === "1",
+  });
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "ask",
+    objectLabel: String(formData.get("endpoint") ?? "") ? "answering configured" : "answering disabled",
+  });
+  redirect("/admin/ask?saved=1");
 }

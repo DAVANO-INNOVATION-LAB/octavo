@@ -63,6 +63,8 @@ const ROUTES = [
   { path: "/guide-fr", name: "translation variant" },
   { path: "/petstore-api/get-pets", name: "API reference (interactive)" },
   { path: "/import/openapi", name: "OpenAPI import" },
+  { path: "/ask", name: "ask the library" },
+  { path: "/admin/ask", name: "ask settings" },
   { path: "/admin/connectors", name: "connectors" },
   { path: "/admin/sso", name: "single sign-on" },
   { path: `/${pubPage.space}/settings`, name: "space settings" },

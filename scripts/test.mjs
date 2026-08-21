@@ -681,6 +681,33 @@ test("openapi: type names read like types", () => {
   eq(oa.typeName({ enum: ["a", "b"] }), "a | b");
 });
 
+test("ask: question words are stripped before searching", () => {
+  // Mirrors keyTerms in ask.ts, which cannot be staged (server-only imports).
+  const STOP = new Set(["how","do","i","and","the","from","a","to","what","is","in","of","my"]);
+  const keyTerms = (q) => q.toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu," ").split(/\s+/)
+    .filter((t) => t.length > 2 && !STOP.has(t));
+  eq(keyTerms("How do I back up and restore?").join(","), "back,restore");
+  eq(keyTerms("What is the retention policy in my space?").join(","), "retention,policy,space");
+});
+
+test("ask: citations are extracted and bounded", () => {
+  // The pure helpers are staged the same way as the rest; ask.ts pulls in
+  // server-only modules, so reimplement the two pure functions' contract.
+  const cited = (answer, count) => {
+    const found = new Set();
+    for (const m of answer.matchAll(/\[(\d{1,2})\]/g)) {
+      const n = Number(m[1]) - 1;
+      if (n >= 0 && n < count) found.add(n);
+    }
+    return [...found].sort((a, b) => a - b);
+  };
+  eq(cited("See [1] and [3].", 4).join(","), "0,2");
+  eq(cited("No citations here.", 4).length, 0);
+  // A model citing a passage that was never supplied must not index past the end.
+  eq(cited("As shown in [9].", 3).length, 0);
+  eq(cited("[2] [2] [2]", 3).join(","), "1");
+});
+
 test("audit chain verifies, and detects tampering", () => {
   // The hash logic is pure: rebuild it here rather than standing up a db.
   const { createHash } = nodeCrypto;
