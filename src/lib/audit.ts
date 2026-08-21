@@ -15,8 +15,7 @@ import { newId, now } from "./util";
  * that keeps its own log on its own disk can. The head hash is exposed so an
  * operator can anchor it somewhere the instance does not control; a chain
  * plus an external anchor is genuinely tamper-evident, a chain alone is only
- * evident against someone who cannot reach the file. See
- * docs/audit-log-scope.md.
+ * evident against someone who cannot reach the file.
  */
 
 export type AuditAction =

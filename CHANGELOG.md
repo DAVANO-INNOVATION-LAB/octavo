@@ -123,14 +123,6 @@
   screen; Markdown footnotes import as them and export back out.
 - **Theme-aware images** — a second source shown only in dark mode.
 
-### Still ahead
-
-Git round-trip sync, content variants, anchored comment threads, change
-requests, notifications, reusable synced blocks, variables and conditionals,
-multi-site publishing, visitor tokens, graph refinements, page covers, and
-real-time presence are each substantial work and remain on the roadmap —
-listed there rather than half-built here.
-
 
 ## v0.6.2 — 2026-08-20
 
