@@ -1,10 +1,8 @@
 # ---- build ----
-FROM node:22-bookworm-slim AS build
+FROM node:22-alpine AS build
 WORKDIR /app
-# better-sqlite3 compiles from source when no prebuild matches
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
+# better-sqlite3 compiles from source when no prebuild matches.
+RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
@@ -21,13 +19,13 @@ RUN rm -rf \
       node_modules/better-sqlite3/prebuilds/win32-arm64 \
       node_modules/better-sqlite3/prebuilds/darwin-x64 \
       node_modules/better-sqlite3/prebuilds/darwin-arm64 \
-      node_modules/better-sqlite3/prebuilds/linuxmusl-x64 \
-      node_modules/better-sqlite3/prebuilds/linuxmusl-arm64 \
+      node_modules/better-sqlite3/prebuilds/linux-x64 \
+      node_modules/better-sqlite3/prebuilds/linux-arm64 \
     && find node_modules/yjs node_modules/y-protocols node_modules/lib0 \
       \( -name '*.map' -o -name '*.ts' \) -delete 2>/dev/null || true
 
 # ---- run ----
-FROM node:22-bookworm-slim AS run
+FROM node:22-alpine AS run
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/DAVANO-INNOVATION-LAB/octavo" \
@@ -44,8 +42,9 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
-# The runtime never installs packages: remove npm, corepack, and yarn so
-# their dependency trees (and their CVEs) never ship.
+# The runtime never installs packages: remove npm, corepack and yarn so their
+# dependency trees never ship. Alpine additionally carries no perl, which is
+# where every unfixed finding in the Debian base was concentrated.
 RUN rm -rf /usr/local/lib/node_modules /opt/yarn* \
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
     /usr/local/bin/yarn /usr/local/bin/yarnpkg

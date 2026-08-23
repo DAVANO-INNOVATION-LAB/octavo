@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.6.10 — 2026-08-20
+
+### Added
+
+- **Audit forwarding.** Send audit events to a syslog collector (RFC 5424 over
+  UDP, TCP or TLS) or an HTTP endpoint shaped for Splunk HEC. Each event
+  carries its hash and the previous one, so a collector holds evidence that
+  can be checked against this instance's chain. Delivery is best-effort and
+  always after the entry is committed.
+- **A signed bill of materials with every release.** CycloneDX 1.5, generated
+  from the lockfile, attached to the release and attested through Sigstore
+  along with the image itself. Verify either with `gh attestation verify`.
+
+### Changed
+
+- The container is built on Alpine. It is smaller, and it carries no perl —
+  which is where every unfixed vulnerability in the previous base was
+  concentrated.
+
 ## v0.6.9 — 2026-08-20
 
 ### Added
