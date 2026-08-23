@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.11 — 2026-08-20
+
+### Fixed
+
+- The Helm chart pulled an image tag that no longer exists. Its `appVersion`
+  had been left behind across several releases, and the chart is now stamped
+  from the release tag so it cannot drift again.
+
 ## v0.6.10 — 2026-08-20
 
 ### Added
