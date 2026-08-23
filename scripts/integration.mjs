@@ -115,6 +115,15 @@ if (priv) {
 
   const graph = await (await get("/graph", "it_outsider")).text();
   check("graph does not name private spaces to a non-member", !graph.includes(`/${priv.slug}"`));
+
+  // Taking part is a capability too: a non-member has none in a private space.
+  const pp = db.prepare("SELECT id FROM pages WHERE space_id=? LIMIT 1").get(priv.id);
+  if (pp) {
+    const c = await post("/api/comments", "it_outsider", { pageId: pp.id, blockId: "", anchorText: "", body: "probe it_outsider" });
+    check("a non-member may not comment on a private page", c.status === 403, `got ${c.status}`);
+    const pr = await post("/api/change-requests", "it_outsider", { pageId: pp.id, title: "probe it_outsider", proposedTitle: "t", proposedContent: [] });
+    check("a non-member may not propose against a private page", pr.status === 403, `got ${pr.status}`);
+  }
 } else {
   check("private space fixture present", false, "no private space to test");
 }
