@@ -116,6 +116,16 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
       - uses: azure/setup-helm@v4
+      - name: Stamp the chart with this release
+        # The chart's appVersion decides which image tag is pulled by default.
+        # Left to drift it points at a release that may no longer exist, and
+        # the failure lands on whoever runs `helm install`, not on us.
+        run: |
+          VERSION="${{ inputs.tag || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          sed -i "s/^version:.*/version: ${VERSION}/" charts/octavo/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" charts/octavo/Chart.yaml
+          grep -E '^(version|appVersion)' charts/octavo/Chart.yaml
       - run: helm package charts/octavo -d dist/
       - uses: actions/upload-artifact@v4
         with:
