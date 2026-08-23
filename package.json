@@ -13,7 +13,8 @@
     "test:ui": "node scripts/ui-test.mjs",
     "prebuild": "node scripts/vendor-assets.mjs",
     "test:airgap": "node scripts/airgap-check.mjs",
-    "sbom": "node scripts/sbom.mjs --prod"
+    "sbom": "node scripts/sbom.mjs --prod",
+    "test:integration": "node scripts/integration.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",
