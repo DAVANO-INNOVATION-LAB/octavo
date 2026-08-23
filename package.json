@@ -12,7 +12,8 @@
     "validate": "node scripts/validate-content.mjs",
     "test:ui": "node scripts/ui-test.mjs",
     "prebuild": "node scripts/vendor-assets.mjs",
-    "test:airgap": "node scripts/airgap-check.mjs"
+    "test:airgap": "node scripts/airgap-check.mjs",
+    "sbom": "node scripts/sbom.mjs --prod"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

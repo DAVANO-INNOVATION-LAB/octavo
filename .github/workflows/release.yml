@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
   packages: write
+  # Keyless signing through Sigstore: the runner's OIDC identity is the key,
+  # so there is nothing to store, rotate, or leak.
+  id-token: write
+  attestations: write
 
 env:
   # ghcr rejects uppercase namespaces — hardcode the lowercase org.
@@ -58,7 +62,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Bill of materials
+        run: |
+          npm ci --ignore-scripts
+          node scripts/sbom.mjs --prod > octavo-${{ steps.version.outputs.version }}.cdx.json
+      - id: push
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -69,6 +78,26 @@ jobs:
           tags: ${{ steps.registries.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # Signed evidence of what this image is and what went into it. A buyer
+      # asking for supply-chain assurance can verify both with `gh attestation
+      # verify`, against nothing but the artifact and this repository.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+      - name: Attest the bill of materials
+        uses: actions/attest-sbom@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: octavo-${{ steps.version.outputs.version }}.cdx.json
+          push-to-registry: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: "*.cdx.json"
       - name: Sync Docker Hub description
         if: steps.registries.outputs.hub == 'true'
         uses: peter-evans/dockerhub-description@v4
@@ -104,6 +133,10 @@ jobs:
         with:
           name: helm-chart
           path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: dist/
       - name: Extract changelog section for this version
         id: notes
         run: |
@@ -117,4 +150,6 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           body_path: release-notes.md
-          files: dist/*.tgz
+          files: |
+            dist/*.tgz
+            dist/*.cdx.json

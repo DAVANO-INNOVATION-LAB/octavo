@@ -763,6 +763,27 @@ test("syslog: TCP framing counts octets, not characters", () => {
   eq(framed.split(" ")[0], "6", "e-acute is two octets");
 });
 
+test("sbom: purls encode scopes and integrity converts to hex", () => {
+  // Mirrors scripts/sbom.mjs; a purl a downstream tool cannot parse is worse
+  // than no bill of materials, because it looks like one.
+  const purl = (name, version) => {
+    const at = name.lastIndexOf("/");
+    if (name.startsWith("@") && at > 0)
+      return `pkg:npm/${encodeURIComponent(name.slice(0, at))}/${name.slice(at + 1)}@${version}`;
+    return `pkg:npm/${name}@${version}`;
+  };
+  eq(purl("yjs", "13.6.32"), "pkg:npm/yjs@13.6.32");
+  eq(purl("@blocknote/core", "0.54.0"), "pkg:npm/%40blocknote/core@0.54.0");
+
+  const hex = (integrity) => {
+    const [alg, b64] = integrity.split("-");
+    return { alg, content: Buffer.from(b64, "base64").toString("hex") };
+  };
+  const h = hex("sha512-" + Buffer.from("abc").toString("base64"));
+  eq(h.alg, "sha512");
+  eq(h.content, "616263", "base64 integrity becomes hex");
+});
+
 test("audit chain verifies, and detects tampering", () => {
   // The hash logic is pure: rebuild it here rather than standing up a db.
   const { createHash } = nodeCrypto;
