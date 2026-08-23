@@ -25,7 +25,7 @@ RUN rm -rf \
       \( -name '*.map' -o -name '*.ts' \) -delete 2>/dev/null || true
 
 # ---- run ----
-FROM node:22-alpine AS run
+FROM alpine:3.22 AS run
 ARG VERSION=dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/DAVANO-INNOVATION-LAB/octavo" \
@@ -42,12 +42,17 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
-# The runtime never installs packages: remove npm, corepack and yarn so their
-# dependency trees never ship. Alpine additionally carries no perl, which is
-# where every unfixed finding in the Debian base was concentrated.
-RUN rm -rf /usr/local/lib/node_modules /opt/yarn* \
-    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
-    /usr/local/bin/yarn /usr/local/bin/yarnpkg
+# The runtime is a bare Alpine with the node binary copied in, rather than the
+# node image with the package managers deleted afterwards. Deleting them in a
+# later layer removes them from the filesystem but not from the image: the
+# bytes stay in the base layer, still shipped and still found by anything that
+# reads layers rather than the running container.
+#
+# libstdc++ is what the node binary links against; nothing else is added.
+RUN apk add --no-cache libstdc++ \
+    && addgroup -g 1000 node \
+    && adduser -u 1000 -G node -s /bin/sh -D node
+COPY --from=node:22-alpine /usr/local/bin/node /usr/local/bin/node
 
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static

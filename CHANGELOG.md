@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.6.12 — 2026-08-20
+
+### Changed
+
+- The runtime is a bare Alpine with the Node binary copied in, rather than
+  the Node image with its package managers deleted afterwards. Deleting them
+  in a later layer removed them from the filesystem but not from the image —
+  the bytes stayed in the base layer, still shipped and still readable by
+  anything that inspects layers. The image is 38MB smaller as a result.
+
 ## v0.6.11 — 2026-08-20
 
 ### Fixed
