@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { canReadSpace } from "@/lib/roles";
 import { notFound, redirect } from "next/navigation";
 import { Check, GitMerge, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { currentUser } from "@/lib/auth";
@@ -34,7 +35,9 @@ export default async function ChangeRequestPage({
   const space = getSpaceBySlug(spaceSlug);
   if (!space) notFound();
   const user = await currentUser();
-  if (space.visibility === "private" && !user) redirect("/login");
+  // Private means private from other members too, not merely from people
+  // who are signed out: otherwise one account is the whole library.
+  if (!canReadSpace(user, space)) redirect(user ? "/" : "/login");
 
   const cr = getChangeRequest(crId);
   if (!cr) notFound();

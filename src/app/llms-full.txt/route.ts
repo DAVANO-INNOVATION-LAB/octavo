@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     "> Every published page of every public space, in reading order.",
     "",
   ];
-  for (const space of listSpaces(false)) {
+  for (const space of listSpaces([])) {
     out.push(`# ${space.name}`);
     if (space.description) out.push(`> ${space.description}`, "");
     for (const p of flattenTree(pageTree(space.id, true))) {

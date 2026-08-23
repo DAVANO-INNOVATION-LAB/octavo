@@ -1,4 +1,5 @@
 import { currentUser } from "@/lib/auth";
+import { readablePrivateSpaceIds } from "@/lib/roles";
 import { linkGraph } from "@/lib/data";
 import { SiteHeader } from "@/components/SiteHeader";
 import { GraphCanvas } from "@/components/GraphCanvas";
@@ -9,7 +10,7 @@ export const metadata = { title: "Graph" };
 
 export default async function GraphPage() {
   const user = await currentUser();
-  const graph = linkGraph(Boolean(user));
+  const graph = linkGraph(readablePrivateSpaceIds(user));
 
   return (
     <div className="flex min-h-screen flex-col">

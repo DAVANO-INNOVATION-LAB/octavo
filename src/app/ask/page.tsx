@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Sparkle } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { ask, askConfig } from "@/lib/ask";
+import { readablePrivateSpaceIds } from "@/lib/roles";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export default async function Ask({
   const { q } = await searchParams;
   const cfg = askConfig();
   const question = (q ?? "").trim();
-  const result = question ? await ask(question, Boolean(user)) : null;
+  const result = question ? await ask(question, readablePrivateSpaceIds(user)) : null;
 
   return (
     <div className="flex min-h-screen flex-col">

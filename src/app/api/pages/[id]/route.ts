@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { getPage, savePage } from "@/lib/data";
+import { canEditSpace } from "@/lib/roles";
 
 export async function PATCH(
   req: NextRequest,
@@ -9,8 +10,14 @@ export async function PATCH(
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
-  if (!getPage(id))
+  const page = getPage(id);
+  if (!page)
     return NextResponse.json({ error: "not found" }, { status: 404 });
+  // Being signed in is not permission to rewrite the library. This is the
+  // route the whole role matrix hangs on: without the check here, a reader
+  // and an agent both write, whatever the matrix says.
+  if (!canEditSpace(user, page.space_id))
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const body = (await req.json()) as { title?: string; content?: unknown };
   const fields: { title?: string; content?: string } = {};

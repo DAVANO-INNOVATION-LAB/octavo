@@ -8,7 +8,6 @@ import {
   createPage,
   flattenTree,
   getPage,
-  getSpaceBySlug,
   pageTree,
   savePage,
   type Space,

@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.6.13 — 2026-08-23
+
+### Changed
+
+- **Space membership now governs what a signed-in person can see.** A private
+  space, its pages, its raw Markdown, its exports, its search hits, its graph
+  nodes and its place on the shelf are visible to its members and to the
+  instance administrator, and to nobody else. Every read path resolves the
+  same set of readable spaces and filters in SQL rather than after the fact,
+  so a surface cannot be added later that quietly skips the check.
+- **Writing is a capability, checked where the write happens.** Saving a page
+  requires `write` in that page's space; rearranging the library shelf, which
+  everyone sees, requires an administrator; running a connector requires being
+  able to read the page it hangs on. The AI-agent ceiling is enforced on the
+  routes that have no space to check against — creating a space, uploading,
+  and running a connector — so an agent proposes and never acts.
+- Drafts are shown to the people who write them rather than to everyone with
+  an account.
+
+### Added
+
+- The integration suite gained a fifth principal who is a member of nothing,
+  and 18 checks that hold every one of the rules above over HTTP. It is 44
+  checks now, and they run against a real instance.
+
 ## v0.6.12 — 2026-08-20
 
 ### Changed

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
+import { isAgent } from "@/lib/roles";
 import { importUpload } from "@/lib/transfer";
 
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -8,6 +9,8 @@ export async function POST(req: NextRequest) {
   const user = await currentUser();
   if (!user)
     return NextResponse.redirect(new URL("/login", req.url), { status: 303 });
+  if (isAgent(user))
+    return NextResponse.redirect(new URL("/", req.url), { status: 303 });
 
   const form = await req.formData();
   const file = form.get("file");

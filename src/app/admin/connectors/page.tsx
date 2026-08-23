@@ -26,7 +26,7 @@ export default async function AdminConnectors({
   if (user.role !== "admin") redirect("/");
   const { saved } = await searchParams;
   const connectors = listConnectors();
-  const spaces = listSpaces(true);
+  const spaces = listSpaces("all");
 
   return (
     <AdminShell active="/admin/connectors">

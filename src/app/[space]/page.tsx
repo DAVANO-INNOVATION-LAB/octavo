@@ -8,7 +8,7 @@ import { currentUser } from "@/lib/auth";
 import { flattenTree, getSpaceBySlug, pageTree } from "@/lib/data";
 import { createPageAction } from "@/app/actions";
 import { SpaceShell } from "@/components/SpaceShell";
-import { canAdminSpace } from "@/lib/roles";
+import { canAdminSpace , canReadSpace, canEditSpace } from "@/lib/roles";
 
 const KIND_LABEL: Record<string, string> = {
   docs: "Documentation",
@@ -28,8 +28,11 @@ export default async function SpaceCover({
   const space = getSpaceBySlug(spaceSlug);
   if (!space) notFound();
   const user = await currentUser();
-  const editing = Boolean(user);
-  if (space.visibility === "private" && !user) redirect("/login");
+  // Seeing drafts is a writer's privilege, not a side effect of signing in.
+  const editing = canEditSpace(user, space.id);
+  // Private means private from other members too, not merely from people
+  // who are signed out: otherwise one account is the whole library.
+  if (!canReadSpace(user, space)) redirect(user ? "/" : "/login");
   const isSpaceAdmin = canAdminSpace(user, space.id);
   const tree = pageTree(space.id, !editing);
   const flat = flattenTree(tree);

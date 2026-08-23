@@ -9,7 +9,7 @@ const esc = (s: string) =>
 export async function GET(req: NextRequest) {
   const origin = (process.env.OCTAVO_BASE_URL ?? req.nextUrl.origin).replace(/\/$/, "");
   const urls: string[] = [`  <url><loc>${esc(origin)}/</loc></url>`];
-  for (const space of listSpaces(false)) {
+  for (const space of listSpaces([])) {
     urls.push(
       `  <url><loc>${esc(`${origin}/${space.slug}`)}</loc><lastmod>${new Date(space.updated_at).toISOString()}</lastmod></url>`
     );

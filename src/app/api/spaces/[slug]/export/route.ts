@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
+import { canReadSpace } from "@/lib/roles";
 import { getSpaceBySlug } from "@/lib/data";
 import { exportSpaceZip } from "@/lib/transfer";
 
@@ -12,7 +13,7 @@ export async function GET(
   if (!space) return new NextResponse("not found", { status: 404 });
 
   const user = await currentUser();
-  if (space.visibility === "private" && !user)
+  if (!canReadSpace(user, space))
     return new NextResponse("unauthorized", { status: 401 });
 
   const buf = exportSpaceZip(space);

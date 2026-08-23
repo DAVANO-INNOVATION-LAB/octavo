@@ -7,6 +7,9 @@ type Entry = { slug: string; shelf: string };
 export async function POST(req: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // One shelf, seen by everyone. Rearranging it is running the library.
+  if (user.role !== "admin")
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const body = (await req.json()) as { order?: unknown };
   if (

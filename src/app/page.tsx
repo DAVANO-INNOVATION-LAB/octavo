@@ -4,6 +4,7 @@ import { BookOpen, Plus, Upload } from "lucide-react";
 import { currentUser, userCount } from "@/lib/auth";
 import { listSpaces, listPages } from "@/lib/data";
 import { primaryOnly } from "@/lib/variants";
+import { readablePrivateSpaceIds } from "@/lib/roles";
 import { SiteHeader } from "@/components/SiteHeader";
 import { LibraryGrid, type ShelfSpace } from "@/components/LibraryGrid";
 
@@ -33,7 +34,7 @@ export default async function Home() {
   const user = await currentUser();
   // Variants of one library share a shelf entry; the rest are reached from
   // the switcher, so six translations of a handbook do not fill the shelf.
-  const spaces = primaryOnly(listSpaces(Boolean(user)));
+  const spaces = primaryOnly(listSpaces(readablePrivateSpaceIds(user)));
   const shelf: ShelfSpace[] = spaces.map((s) => ({
     slug: s.slug,
     name: s.name,
@@ -106,7 +107,9 @@ export default async function Home() {
             )}
           </div>
         ) : (
-          <LibraryGrid spaces={shelf} editing={Boolean(user)} />
+          // The shelf is one arrangement everyone sees, so only the
+          // administrator rearranges it — matching the API.
+          <LibraryGrid spaces={shelf} editing={user?.role === "admin"} />
         )}
       </main>
     </div>

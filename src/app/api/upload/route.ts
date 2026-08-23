@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { currentUser } from "@/lib/auth";
+import { isAgent } from "@/lib/roles";
 import { UPLOADS_DIR } from "@/lib/db";
 import { newId } from "@/lib/util";
 
@@ -17,6 +18,8 @@ const EXT_ALLOW = new Set([
 export async function POST(req: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (isAgent(user))
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const form = await req.formData();
   const file = form.get("file");

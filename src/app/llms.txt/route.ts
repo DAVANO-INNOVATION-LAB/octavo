@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   const origin = process.env.OCTAVO_BASE_URL ?? req.nextUrl.origin;
-  const spaces = listSpaces(false);
+  const spaces = listSpaces([]);
   const lines: string[] = [
     "# Octavo library",
     "",

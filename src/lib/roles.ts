@@ -44,7 +44,22 @@ function instanceRoleOf(user: User | null): InstanceRole | null {
 /** Everything a principal may do in one space. */
 export function capsFor(user: User | null, spaceId: string): Capability[] {
   if (!user) return [];
-  return capabilities(instanceRoleOf(user), spaceRole(user.id, spaceId));
+  const role = spaceRole(user.id, spaceId);
+  // Being signed in is not membership. Without this, the instance-wide
+  // read/comment/propose that a signed-in non-member gets would apply to
+  // private spaces too, and one account would open the whole library.
+  if (!role && instanceRoleOf(user) !== "admin" && isPrivateSpace(spaceId)) {
+    return [];
+  }
+  return capabilities(instanceRoleOf(user), role);
+}
+
+/** Cheap enough to call per check; SQLite reads this from the page cache. */
+function isPrivateSpace(spaceId: string): boolean {
+  const row = getDb()
+    .prepare("SELECT visibility FROM spaces WHERE id = ?")
+    .get(spaceId) as { visibility: string } | undefined;
+  return row?.visibility === "private";
 }
 
 export function may(
@@ -53,6 +68,16 @@ export function may(
   capability: Capability
 ): boolean {
   return capsFor(user, spaceId).includes(capability);
+}
+
+/**
+ * An AI principal, wherever it appears. The ceiling in ./capabilities holds
+ * for anything expressed as a capability on a space; this covers the routes
+ * that have no space to check against yet — creating one, uploading into the
+ * library, running a connector outward.
+ */
+export function isAgent(user: User | null): boolean {
+  return String(user?.role) === "agent";
 }
 
 export function spaceRole(userId: string, spaceId: string): SpaceRole | null {
@@ -134,4 +159,37 @@ export function reviewersFor(spaceId: string): string[] {
       .prepare("SELECT id FROM users WHERE role = 'admin'")
       .all() as { id: string }[]
   ).map((u) => u.id);
+}
+
+/**
+ * Which spaces this principal may read.
+ *
+ * "private" has to mean private *from other members*, not merely from people
+ * who are signed out. Treating any authenticated session as sufficient makes
+ * the blast radius of one account — a contractor, a leaver, a reused password
+ * — the entire library, which is exactly what a private space exists to
+ * prevent.
+ *
+ * Returns "all" for an instance admin, otherwise the ids of private spaces
+ * this person belongs to. Public spaces are always readable and are not
+ * listed here.
+ */
+export function readablePrivateSpaceIds(user: User | null): "all" | string[] {
+  if (!user) return [];
+  if (user.role === "admin") return "all";
+  return (
+    getDb()
+      .prepare("SELECT space_id FROM space_members WHERE user_id = ?")
+      .all(user.id) as { space_id: string }[]
+  ).map((r) => r.space_id);
+}
+
+/** May this principal read this space at all? */
+export function canReadSpace(
+  user: User | null,
+  space: { id: string; visibility?: string }
+): boolean {
+  if ((space.visibility ?? "public") !== "private") return true;
+  const scope = readablePrivateSpaceIds(user);
+  return scope === "all" || scope.includes(space.id);
 }

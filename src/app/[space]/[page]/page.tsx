@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
-import { may } from "@/lib/roles";
+import { may , readablePrivateSpaceIds , canReadSpace, canEditSpace } from "@/lib/roles";
 import { variantSiblings } from "@/lib/data";
 import { resolveVariants } from "@/lib/variants";
 import { VariantSwitcher } from "@/components/VariantSwitcher";
@@ -73,10 +73,13 @@ export default async function ReaderPage({
   if (!page) notFound();
 
   const user = await currentUser();
-  const editing = Boolean(user);
+  // Seeing drafts is a writer's privilege, not a side effect of signing in.
+  const editing = canEditSpace(user, space.id);
   const mayWrite = may(user, space.id, "write");
   const mayPropose = may(user, space.id, "propose");
-  if (space.visibility === "private" && !user) redirect("/login");
+  // Private means private from other members too, not merely from people
+  // who are signed out: otherwise one account is the whole library.
+  if (!canReadSpace(user, space)) redirect(user ? "/" : "/login");
   if (page.published === 0 && !editing) notFound();
 
   const tree = pageTree(space.id, !editing);
@@ -99,7 +102,7 @@ export default async function ReaderPage({
   // Count the read before rendering — published pages only, so drafts and
   // previews never inflate the numbers.
   if (page.published === 1) recordView(page.id);
-  const refs = backlinks(page.id, editing);
+  const refs = backlinks(page.id, readablePrivateSpaceIds(user));
 
   // Runnable cookbooks: the play button appears only for signed-in members
   // on pages in a space that has connectors configured.

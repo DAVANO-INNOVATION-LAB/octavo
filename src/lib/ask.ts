@@ -1,7 +1,7 @@
 import "server-only";
 import { getSetting, setSetting } from "./settings";
 import { decryptSecret, encryptSecret } from "./crypto";
-import { getPage, searchPages } from "./data";
+import { getPage, searchPages, type SpaceScope } from "./data";
 import { parseBlocks } from "./blocks";
 import { blocksToMarkdown } from "./markdown";
 
@@ -134,7 +134,7 @@ export function keyTerms(question: string): string[] {
  * so a precise question still gets its precise answer, and a wordy one gets
  * something rather than nothing.
  */
-export function retrieve(question: string, includePrivate: boolean, limit = 6): Passage[] {
+export function retrieve(question: string, scope: SpaceScope, limit = 6): Passage[] {
   const terms = keyTerms(question);
   const seen = new Set<string>();
   const hits: ReturnType<typeof searchPages> = [];
@@ -147,14 +147,14 @@ export function retrieve(question: string, includePrivate: boolean, limit = 6): 
     }
   };
 
-  if (terms.length > 0) add(searchPages(terms.join(" "), includePrivate, limit));
+  if (terms.length > 0) add(searchPages(terms.join(" "), scope, limit));
   if (hits.length < limit) {
     for (const t of terms) {
       if (hits.length >= limit) break;
-      add(searchPages(t, includePrivate, limit - hits.length));
+      add(searchPages(t, scope, limit - hits.length));
     }
   }
-  if (hits.length === 0) add(searchPages(question, includePrivate, limit));
+  if (hits.length === 0) add(searchPages(question, scope, limit));
   const out: Passage[] = [];
   for (const hit of hits.slice(0, limit)) {
     const page = getPage(hit.page_id);
@@ -212,12 +212,12 @@ export function citedIn(answer: string, count: number): number[] {
  */
 export async function ask(
   question: string,
-  includePrivate: boolean
+  scope: SpaceScope
 ): Promise<Answer | { error: string }> {
   const cfg = askConfig();
   if (!cfg) return { error: "No model is configured for this instance." };
 
-  const passages = retrieve(question, includePrivate);
+  const passages = retrieve(question, scope);
   if (passages.length === 0) {
     return {
       text: "Nothing in the library matches that question closely enough to answer from.",

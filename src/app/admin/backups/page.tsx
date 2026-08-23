@@ -17,7 +17,7 @@ export default async function AdminBackups({
   if (!user) redirect("/login");
   if (user.role !== "admin") redirect("/");
   const { error, restored } = await searchParams;
-  const spaces = listSpaces(true);
+  const spaces = listSpaces("all");
 
   return (
     <AdminShell active="/admin/backups">

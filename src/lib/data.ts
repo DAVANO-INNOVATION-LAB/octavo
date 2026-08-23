@@ -45,11 +45,40 @@ export type TreeNode = PageMeta & { children: TreeNode[] };
 
 // ---- spaces ----
 
-export function listSpaces(includePrivate: boolean): Space[] {
-  const where = includePrivate ? "" : "WHERE visibility = 'public'";
+/**
+ * Which spaces a query may see. `"all"` is an instance administrator; an
+ * array is the private spaces this person belongs to, on top of the public
+ * ones. A boolean cannot express "signed in, but not a member of that", which
+ * is the case that matters.
+ */
+export type SpaceScope = "all" | string[];
+
+/**
+ * A condition restricting a query to the spaces in scope, with its bound
+ * parameters. Ids are bound rather than interpolated: these come from our own
+ * tables today, and a query built by string-joining identifiers is one
+ * refactor away from taking one that does not.
+ */
+export function scopeClause(
+  scope: SpaceScope,
+  visibilityColumn = "visibility",
+  idColumn = "id"
+): { sql: string; params: string[] } {
+  if (scope === "all") return { sql: "", params: [] };
+  if (scope.length === 0) return { sql: `${visibilityColumn} = 'public'`, params: [] };
+  const holes = scope.map(() => "?").join(",");
+  return {
+    sql: `(${visibilityColumn} = 'public' OR ${idColumn} IN (${holes}))`,
+    params: [...scope],
+  };
+}
+
+export function listSpaces(scope: SpaceScope): Space[] {
+  const { sql, params } = scopeClause(scope);
+  const where = sql ? `WHERE ${sql}` : "";
   return getDb()
     .prepare(`SELECT * FROM spaces ${where} ORDER BY position, created_at`)
-    .all() as Space[];
+    .all(...params) as Space[];
 }
 
 export function getSpaceBySlug(slug: string): Space | null {
@@ -386,7 +415,7 @@ export type SearchHit = {
 
 export function searchPages(
   query: string,
-  includePrivate: boolean,
+  scope: SpaceScope,
   limit = 12
 ): SearchHit[] {
   const q = query.trim();
@@ -399,6 +428,7 @@ export function searchPages(
     .map((t) => `"${t}"*`)
     .join(" ");
   if (!match) return [];
+  const scoped = scopeClause(scope, "s.visibility", "s.id");
   try {
     const rows = getDb()
       .prepare(
@@ -409,11 +439,11 @@ export function searchPages(
          JOIN pages p ON p.id = f.page_id
          JOIN spaces s ON s.id = p.space_id
          WHERE pages_fts MATCH ?
-           AND (? = 1 OR s.visibility = 'public')
+           ${scoped.sql ? `AND ${scoped.sql}` : ""}
          ORDER BY bm25(pages_fts, 0, 3.0, 1.0)
          LIMIT ?`
       )
-      .all(match, includePrivate ? 1 : 0, limit) as SearchHit[];
+      .all(match, ...scoped.params, limit) as SearchHit[];
     // Escape page-authored text, then swap the sentinel chars for <mark> tags,
     // so snippets are safe to render as HTML.
     for (const r of rows) {
@@ -646,7 +676,8 @@ export type Backlink = {
 };
 
 /** Pages that link to this one — the "referenced by" panel. */
-export function backlinks(pageId: string, includePrivate: boolean): Backlink[] {
+export function backlinks(pageId: string, scope: SpaceScope): Backlink[] {
+  const bscope = scopeClause(scope, "s.visibility", "s.id");
   return getDb()
     .prepare(
       `SELECT p.id AS page_id, p.title, p.slug AS page_slug,
@@ -655,23 +686,26 @@ export function backlinks(pageId: string, includePrivate: boolean): Backlink[] {
        JOIN pages p ON p.id = l.from_page
        JOIN spaces s ON s.id = p.space_id
        WHERE l.to_page = ? AND p.published = 1
-         AND (? = 1 OR s.visibility = 'public')
+           ${bscope.sql ? `AND ${bscope.sql}` : ""}
        ORDER BY s.name, p.title`
     )
-    .all(pageId, includePrivate ? 1 : 0) as Backlink[];
+    .all(pageId, ...bscope.params) as Backlink[];
 }
 
 /** Title lookup for the editor's page-link menu. */
-export function lookupPages(q: string, limit = 8): Backlink[] {
+export function lookupPages(q: string, scope: SpaceScope, limit = 8): Backlink[] {
   const like = `%${q.trim().replace(/[%_]/g, "")}%`;
+  const lscope = scopeClause(scope, "s.visibility", "s.id");
   return getDb()
     .prepare(
       `SELECT p.id AS page_id, p.title, p.slug AS page_slug,
               s.slug AS space_slug, s.name AS space_name
        FROM pages p JOIN spaces s ON s.id = p.space_id
-       WHERE p.title LIKE ? ORDER BY p.updated_at DESC LIMIT ?`
+       WHERE p.title LIKE ?
+             ${lscope.sql ? `AND ${lscope.sql}` : ""}
+       ORDER BY p.updated_at DESC LIMIT ?`
     )
-    .all(like, limit) as Backlink[];
+    .all(like, ...lscope.params, limit) as Backlink[];
 }
 
 // ---- graph ----
@@ -682,15 +716,16 @@ export type GraphData = {
 };
 
 /** The library's link graph — respects visibility like everything else. */
-export function linkGraph(includePrivate: boolean): GraphData {
+export function linkGraph(scope: SpaceScope): GraphData {
+  const gscope = scopeClause(scope, "s.visibility", "s.id");
   const db = getDb();
   const nodes = db
     .prepare(
       `SELECT p.id, p.title, s.name AS space, s.slug AS space_slug, p.slug
        FROM pages p JOIN spaces s ON s.id = p.space_id
-       WHERE p.published = 1 AND (? = 1 OR s.visibility = 'public')`
+       WHERE p.published = 1 ${gscope.sql ? `AND ${gscope.sql}` : ""}`
     )
-    .all(includePrivate ? 1 : 0) as {
+    .all(...gscope.params) as {
     id: string;
     title: string;
     space: string;
