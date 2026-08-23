@@ -17,6 +17,7 @@ import {
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
 import { recordAudit } from "@/lib/audit";
+import { saveForwardConfig } from "@/lib/audit-forward";
 import { saveAskConfig } from "@/lib/ask";
 import { applySync } from "@/lib/sync-io";
 import { generatePages, importInto } from "@/lib/openapi-pages";
@@ -859,4 +860,22 @@ export async function saveAskAction(formData: FormData) {
     objectLabel: String(formData.get("endpoint") ?? "") ? "answering configured" : "answering disabled",
   });
   redirect("/admin/ask?saved=1");
+}
+
+export async function saveAuditForwardAction(formData: FormData) {
+  const admin = await requireAdmin();
+  saveForwardConfig({
+    syslog: String(formData.get("syslog") ?? ""),
+    http: String(formData.get("http") ?? ""),
+    token: String(formData.get("token") ?? "") || undefined,
+    clearToken: String(formData.get("clearToken") ?? "") === "1",
+  });
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "audit_forwarding",
+    objectLabel: "audit forwarding changed",
+  });
+  redirect("/admin/audit");
 }

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { ShieldCheck, ShieldAlert, Download } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { auditActions, listAudit, verifyChain } from "@/lib/audit";
+import { forwardConfig } from "@/lib/audit-forward";
+import { saveAuditForwardAction } from "@/app/actions";
 import { AdminShell } from "@/components/AdminShell";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +41,7 @@ export default async function AdminAudit({
   });
   const chain = verifyChain();
   const actions = auditActions();
+  const fwd = forwardConfig();
 
   return (
     <AdminShell active="/admin/audit">
@@ -74,6 +77,77 @@ export default async function AdminAudit({
           Export
         </a>
       </div>
+
+      <details className="mb-6 rounded-xl border border-line bg-surface px-4 py-3">
+        <summary className="cursor-pointer text-sm font-medium text-ink">
+          Forward these events to your own collector
+        </summary>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+          Keeping the record here answers what happened. It does not tell
+          anyone when it happens, and it does not survive this machine. Sending
+          events to a collector puts them under your retention and out of reach
+          of whoever might compromise this host.
+        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+          Delivery is best-effort and always after the entry is committed, so a
+          collector that is slow or unreachable never delays or fails the action
+          being recorded. The collector can be on your own network.
+        </p>
+        <form action={saveAuditForwardAction} className="mt-4 space-y-3">
+          <label className="block">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+              Syslog target
+            </span>
+            <input
+              name="syslog"
+              defaultValue={fwd.syslog}
+              placeholder="udp://collector.internal:514 — or tcp:// or tls://"
+              className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 font-mono text-sm text-ink outline-none placeholder:text-faint focus:border-accent"
+            />
+            <span className="mt-1 block text-xs text-faint">
+              RFC 5424, with octet framing on the stream transports.
+            </span>
+          </label>
+          <label className="block">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+              HTTP collector
+            </span>
+            <input
+              name="http"
+              type="url"
+              defaultValue={fwd.http}
+              placeholder="https://splunk.internal:8088/services/collector"
+              className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 font-mono text-sm text-ink outline-none placeholder:text-faint focus:border-accent"
+            />
+          </label>
+          <label className="block">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
+              Collector token{" "}
+              {fwd.hasToken && <span className="normal-case text-faint">— one is stored</span>}
+            </span>
+            <input
+              name="token"
+              type="password"
+              autoComplete="off"
+              placeholder={fwd.hasToken ? "Leave empty to keep it" : "If the collector needs one"}
+              className="mt-1.5 w-full rounded-lg border border-line bg-bg px-3 py-2 font-mono text-sm text-ink outline-none placeholder:text-faint focus:border-accent"
+            />
+            <span className="mt-1 block text-xs text-faint">
+              Stored encrypted with this instance&rsquo;s secret.
+            </span>
+          </label>
+          {fwd.hasToken && (
+            <label className="flex items-center gap-2 text-sm text-muted">
+              <input type="checkbox" name="clearToken" value="1" /> Remove the stored token
+            </label>
+          )}
+          <div className="flex justify-end">
+            <button className="h-9 rounded-md bg-accent px-4 text-sm font-medium text-accent-ink">
+              Save forwarding
+            </button>
+          </div>
+        </form>
+      </details>
 
       <p className="mb-4 text-sm text-muted">
         Record the head hash somewhere this instance does not control — a

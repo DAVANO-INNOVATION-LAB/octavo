@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { getDb } from "./db";
 import { newId, now } from "./util";
+import { forwardAudit } from "./audit-forward";
 
 /**
  * The audit log: who did what, when, and whether the record still adds up.
@@ -137,6 +138,7 @@ export function recordAudit(input: {
   spaceId?: string | null;
   detail?: Record<string, unknown>;
 }): void {
+  let committed: AuditEntry | null = null;
   try {
     const db = getDb();
     // Reading the head and inserting must not interleave with another writer.
@@ -156,14 +158,21 @@ export function recordAudit(input: {
         detail: input.detail ? JSON.stringify(input.detail) : "",
         prev_hash: prev,
       };
+      const row = { ...partial, hash: digest(partial) };
       db.prepare(
         `INSERT INTO audit_log
            (id, at, actor_id, actor_name, action, object_type, object_id,
             object_label, space_id, detail, prev_hash, hash)
          VALUES (@id, @at, @actor_id, @actor_name, @action, @object_type,
                  @object_id, @object_label, @space_id, @detail, @prev_hash, @hash)`
-      ).run({ ...partial, hash: digest(partial) });
+      ).run(row);
+      committed = row as AuditEntry;
     })();
+
+    // Only after the entry is durable and chained. Forwarding a record that
+    // then failed to commit would put an event in the collector that this
+    // instance cannot show you.
+    if (committed) forwardAudit(committed);
   } catch (err) {
     console.error("audit: failed to record", input.action, err);
   }

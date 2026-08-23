@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -29,6 +29,7 @@ const caps = await import(pathToFileURL(path.join(STAGE, "capabilities.ts")));
 const variants = await import(pathToFileURL(path.join(STAGE, "variants.ts")));
 const yaml = await import(pathToFileURL(path.join(STAGE, "yaml.ts")));
 const oa = await import(pathToFileURL(path.join(STAGE, "openapi.ts")));
+const syslog = await import(pathToFileURL(path.join(STAGE, "syslog.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -706,6 +707,60 @@ test("ask: citations are extracted and bounded", () => {
   // A model citing a passage that was never supplied must not index past the end.
   eq(cited("As shown in [9].", 3).length, 0);
   eq(cited("[2] [2] [2]", 3).join(","), "1");
+});
+
+test("syslog: the line matches RFC 5424", () => {
+  const line = syslog.formatSyslog({
+    severity: syslog.SEVERITY.informational,
+    timestamp: new Date("2026-08-20T12:00:00.000Z"),
+    hostname: "octavo-1",
+    appName: "octavo",
+    msgId: "space.deleted",
+    structured: { actor: "dev", space: "handbook" },
+    message: "dev deleted the space handbook",
+  });
+  // facility 13 (log audit) * 8 + severity 6 = 110
+  ok(line.startsWith("<110>1 2026-08-20T12:00:00.000Z octavo-1 octavo "), line.slice(0, 60));
+  ok(line.includes("space.deleted"), "msgid is the event type");
+  ok(line.includes('[octavo@32473 actor="dev" space="handbook"]'), "structured data");
+  ok(line.endsWith("dev deleted the space handbook"));
+});
+
+test("syslog: quotes, backslashes and brackets are escaped", () => {
+  const line = syslog.formatSyslog({
+    severity: syslog.SEVERITY.warning,
+    timestamp: new Date("2026-08-20T12:00:00.000Z"),
+    hostname: "h", appName: "octavo", msgId: "x",
+    // Any of these unescaped would end the element early and corrupt the rest.
+    structured: { label: 'a"b\\c]d' },
+    message: "m",
+  });
+  ok(line.includes('label="a\\"b\\\\c\\]d"'), line);
+});
+
+test("syslog: empty fields become the nil value, never blanks", () => {
+  const line = syslog.formatSyslog({
+    severity: syslog.SEVERITY.informational,
+    timestamp: new Date("2026-08-20T12:00:00.000Z"),
+    hostname: "", appName: "", msgId: "", structured: {}, message: "hello",
+  });
+  ok(line.includes(" - - "), "nil values present");
+  ok(line.includes("] hello") || line.includes("- hello"), "message still trails");
+});
+
+test("syslog: newlines in a message cannot forge a second record", () => {
+  const line = syslog.formatSyslog({
+    severity: syslog.SEVERITY.informational,
+    timestamp: new Date("2026-08-20T12:00:00.000Z"),
+    hostname: "h", appName: "octavo", msgId: "x", structured: {},
+    message: "real\n<110>1 forged entry",
+  });
+  eq(line.split("\n").length, 1, "one line only");
+});
+
+test("syslog: TCP framing counts octets, not characters", () => {
+  const framed = syslog.octetFrame("héllo");
+  eq(framed.split(" ")[0], "6", "e-acute is two octets");
 });
 
 test("audit chain verifies, and detects tampering", () => {
