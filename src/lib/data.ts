@@ -81,6 +81,12 @@ export function listSpaces(scope: SpaceScope): Space[] {
     .all(...params) as Space[];
 }
 
+export function getSpace(id: string): Space | null {
+  return (getDb()
+    .prepare("SELECT * FROM spaces WHERE id = ?")
+    .get(id) ?? null) as Space | null;
+}
+
 export function getSpaceBySlug(slug: string): Space | null {
   return (getDb()
     .prepare("SELECT * FROM spaces WHERE slug = ?")

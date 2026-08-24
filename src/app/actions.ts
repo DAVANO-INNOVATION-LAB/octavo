@@ -34,6 +34,7 @@ import {
 import { deleteUser, findUserByEmail, setUserRole } from "@/lib/auth";
 import type { User } from "@/lib/auth";
 import { setSetting } from "@/lib/settings";
+import { forgetAllReading, pruneReading } from "@/lib/reading";
 import { discover, oidcSettings } from "@/lib/oidc";
 import {
   connectorsForSpace,
@@ -748,6 +749,43 @@ export async function saveWebhookAction(formData: FormData) {
     objectLabel: value ? "webhook set" : "webhook cleared",
   });
   redirect("/admin/notifications?saved=1");
+}
+
+// ---- reading signals ----
+
+/**
+ * Turn reading signals on or off, and set how long they are kept.
+ *
+ * Switching off deletes what was already collected. A switch that only stops
+ * new collection would leave an operator saying "we do not do that" while the
+ * old rows sat there, which is not the same sentence.
+ */
+export async function saveReadingAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const on = String(formData.get("enabled") ?? "") === "on";
+  const days = Math.min(
+    3650,
+    Math.max(1, Math.round(Number(formData.get("retention_days") ?? 90)) || 90)
+  );
+
+  setSetting("reading_signals", on ? "on" : "off");
+  setSetting("reading_retention_days", String(days));
+
+  let forgotten = 0;
+  if (!on) forgotten = forgetAllReading();
+  else pruneReading();
+
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "reading_signals",
+    objectLabel: on
+      ? `reading signals on, kept ${days} days`
+      : "reading signals off, history deleted",
+    detail: forgotten ? { rowsDeleted: forgotten } : undefined,
+  });
+  redirect("/admin/reading?saved=1");
 }
 
 // ---- markdown sync ----

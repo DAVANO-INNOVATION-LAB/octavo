@@ -12,6 +12,8 @@
   --line: #e2dbc9;
   --line-strong: #cfc6ae;
   --accent: #b8401b;
+  /* Where readers stumble — warm enough to read as a signal, not an alarm. */
+  --snag: #c2410c;
   --accent-ink: #ffffff;
   --accent-soft: rgba(184, 64, 27, 0.09);
   --mark: rgba(184, 64, 27, 0.16);
@@ -31,6 +33,7 @@
     --line: #2b2519;
     --line-strong: #3d3524;
     --accent: #ff7a48;
+    --snag: #fb923c;
     --accent-ink: #1b0d05;
     --accent-soft: rgba(255, 122, 72, 0.12);
     --mark: rgba(255, 122, 72, 0.22);
@@ -50,6 +53,7 @@
   --line: #2b2519;
   --line-strong: #3d3524;
   --accent: #ff7a48;
+  --snag: #fb923c;
   --accent-ink: #1b0d05;
   --accent-soft: rgba(255, 122, 72, 0.12);
   --mark: rgba(255, 122, 72, 0.22);

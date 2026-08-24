@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { Children as ReactChildren, cloneElement, Fragment, isValidElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import {
   Block,
   InlineContent,
@@ -114,7 +115,7 @@ function Children({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
 
 function ListItem({ block, ctx }: { block: Block; ctx: Ctx }) {
   return (
-    <li>
+    <li data-blk={block.id}>
       {renderInline(block.content)}
       {block.children?.length > 0 && <Children blocks={block.children} ctx={ctx} />}
     </li>
@@ -128,6 +129,22 @@ const TONE_META: Record<string, { icon: ReactNode; label: string }> = {
   danger: { icon: <OctagonAlert size={16} />, label: "Caution" },
 };
 
+/**
+ * Carry the block id onto whatever element the block already renders as.
+ *
+ * cloneElement rather than a wrapper: the stylesheet leans on adjacent-
+ * sibling selectors for vertical rhythm, and an extra div in the flow would
+ * quietly change the spacing of every document. An attribute changes nothing
+ * and is all the reading observer needs to find a passage.
+ */
+function tag(node: ReactNode, id: string): ReactNode {
+  return isValidElement(node)
+    ? cloneElement(node as ReactElement<Record<string, unknown>>, {
+        "data-blk": id,
+      })
+    : node;
+}
+
 function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
   const out: ReactNode[] = [];
   let i = 0;
@@ -139,9 +156,9 @@ function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
       const group: Block[] = [];
       while (i < blocks.length && blocks[i].type === "step") group.push(blocks[i++]);
       out.push(
-        <ol key={b.id} className="blk-steps">
+        (<ol key={b.id} className="blk-steps">
           {group.map((g, n) => (
-            <li key={g.id} className="blk-steps-item">
+            <li key={g.id} data-blk={g.id} className="blk-steps-item">
               <span aria-hidden className="blk-steps-n">{n + 1}</span>
               <div className="blk-steps-body">
                 <p className="blk-steps-title">{renderInline(g.content)}</p>
@@ -153,7 +170,7 @@ function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
               </div>
             </li>
           ))}
-        </ol>
+        </ol>)
       );
       continue;
     }
@@ -169,25 +186,25 @@ function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
       while (i < blocks.length && blocks[i].type === type) group.push(blocks[i++]);
       if (type === "bulletListItem") {
         out.push(
-          <ul key={b.id}>
+          (<ul key={b.id}>
             {group.map((g) => (
               <ListItem key={g.id} block={g} ctx={ctx} />
             ))}
-          </ul>
+          </ul>)
         );
       } else if (type === "numberedListItem") {
         out.push(
-          <ol key={b.id}>
+          (<ol key={b.id}>
             {group.map((g) => (
               <ListItem key={g.id} block={g} ctx={ctx} />
             ))}
-          </ol>
+          </ol>)
         );
       } else {
         out.push(
-          <ul key={b.id}>
+          (<ul key={b.id}>
             {group.map((g) => (
-              <li key={g.id} className="checkitem">
+              <li key={g.id} data-blk={g.id} className="checkitem">
                 <input
                   type="checkbox"
                   disabled
@@ -203,7 +220,7 @@ function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
                 </span>
               </li>
             ))}
-          </ul>
+          </ul>)
         );
       }
       continue;
@@ -212,7 +229,7 @@ function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
     const marks = ctx.threads?.get(b.id);
     if (marks) {
       out.push(
-        <div key={b.id} id={`blk-${b.id}`} className="blk-anchored">
+        <div key={b.id} id={`blk-${b.id}`} data-blk={b.id} className="blk-anchored">
           <OneBlock block={b} ctx={ctx} />
           <a
             href={`#t-${b.id}`}
@@ -227,11 +244,42 @@ function Blocks({ blocks, ctx }: { blocks: Block[]; ctx: Ctx }) {
         </div>
       );
     } else {
-      out.push(<OneBlock key={b.id} block={b} ctx={ctx} />);
+      out.push(<TaggedBlock key={b.id} block={b} ctx={ctx} />);
     }
     i++;
   }
   return <>{out}</>;
+}
+
+/**
+ * OneBlock, with the block id attached to a real element.
+ *
+ * Two traps here, both found by watching a browser rather than by reading:
+ *
+ *   cloneElement on <OneBlock/> only sets a prop the component ignores, so
+ *   the attribute never reaches the DOM. Cloning what it *rendered* does.
+ *
+ *   A fragment has no element to hang the attribute on, and wrapping it in a
+ *   display:contents div does not help — such a div has no box at all, so an
+ *   IntersectionObserver never sees it and the passage is silently never
+ *   measured. Tag the fragment's first real child instead and the DOM is
+ *   unchanged.
+ */
+function TaggedBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
+  return tagDeep(OneBlock({ block: b, ctx }), b.id);
+}
+
+function tagDeep(node: ReactNode, id: string): ReactNode {
+  if (!isValidElement(node)) return node;
+  if (node.type !== Fragment) return tag(node, id);
+  const kids = ReactChildren.toArray(
+    (node.props as { children?: ReactNode }).children
+  );
+  const first = kids.findIndex((k: ReactNode) => isValidElement(k));
+  if (first === -1) return node;
+  const next: ReactNode[] = [...kids];
+  next[first] = tag(kids[first], id);
+  return <>{next}</>;
 }
 
 function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {

@@ -10,6 +10,7 @@ const TABS = [
   { href: "/admin/links", label: "Broken links" },
   { href: "/admin/audit", label: "Audit log" },
   { href: "/admin/notifications", label: "Notifications" },
+  { href: "/admin/reading", label: "Reading signals" },
   { href: "/admin/ask", label: "Ask" },
   { href: "/admin/connectors", label: "Connectors" },
   { href: "/admin/sso", label: "Single sign-on" },

@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -30,6 +30,7 @@ const variants = await import(pathToFileURL(path.join(STAGE, "variants.ts")));
 const yaml = await import(pathToFileURL(path.join(STAGE, "yaml.ts")));
 const oa = await import(pathToFileURL(path.join(STAGE, "openapi.ts")));
 const syslog = await import(pathToFileURL(path.join(STAGE, "syslog.ts")));
+const reading = await import(pathToFileURL(path.join(STAGE, "reading-score.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -823,6 +824,84 @@ test("audit chain verifies, and detects tampering", () => {
 
   const removed = chain.filter((_, i) => i !== 1);
   eq(walk(removed).ok, false);
+});
+
+test("reading: a passage read at reading pace scores near zero", () => {
+  const text = "The retry timeout is thirty seconds by default.";
+  const words = text.split(/\s+/).length;
+  const expected = (words / 220) * 60_000;
+  const p = reading.scorePassage({
+    text, views: 20, dwellMs: expected * 20, revisits: 0, exits: 0,
+  });
+  ok(p.score < 0.05, `scored ${p.score}`);
+  ok(Math.abs(p.slowdown - 1) < 0.01);
+});
+
+test("reading: scrolling back dominates the score", () => {
+  const text = "Reconciliation is eventually consistent across partitions.";
+  const paced = { text, views: 20, dwellMs: 0, revisits: 0, exits: 0 };
+  const expected = reading.scorePassage(paced).expectedMs;
+
+  const slow = reading.scorePassage({ ...paced, dwellMs: expected * 20 * 4 });
+  const reread = reading.scorePassage({ ...paced, dwellMs: expected * 20, revisits: 8 });
+  // Half the readers went back. That must outweigh being four times slow.
+  ok(reread.score > slow.score, `reread ${reread.score} vs slow ${slow.score}`);
+});
+
+test("reading: the score is bounded whatever the input", () => {
+  for (const bad of [
+    { views: 1, dwellMs: 1e12, revisits: 1e9, exits: 1e9 },
+    { views: 0, dwellMs: 0, revisits: 0, exits: 0 },
+    { views: -5, dwellMs: -1, revisits: -1, exits: -1 },
+    { views: 3, dwellMs: NaN, revisits: NaN, exits: NaN },
+  ]) {
+    const p = reading.scorePassage({ text: "x y z", ...bad });
+    ok(p.score >= 0 && p.score <= 1, `score ${p.score} for ${JSON.stringify(bad)}`);
+  }
+});
+
+test("reading: a short passage is not judged instantly hard", () => {
+  // A two-word heading has almost no reading time, so a naive ratio would
+  // call every heading a stumble. The floor exists to stop that.
+  const p = reading.scorePassage({
+    text: "Overview", views: 30, dwellMs: 30 * 1500, revisits: 0, exits: 0,
+  });
+  ok(p.expectedMs >= 1200);
+  ok(p.score < 0.2, `heading scored ${p.score}`);
+});
+
+test("reading: too few readers is marked as not enough", () => {
+  const few = reading.scorePassage({ text: "a b c", views: 2, dwellMs: 9e4, revisits: 2, exits: 2 });
+  const many = reading.scorePassage({ text: "a b c", views: 40, dwellMs: 18e5, revisits: 40, exits: 40 });
+  eq(few.enough, false);
+  eq(many.enough, true);
+});
+
+test("reading: passages come out in document order with their ids", () => {
+  const blocks = [
+    { id: "a", type: "paragraph", props: {}, content: [{ type: "text", text: "First." }], children: [] },
+    { id: "b", type: "heading", props: {}, content: [{ type: "text", text: "Second" }], children: [
+      { id: "c", type: "paragraph", props: {}, content: [{ type: "text", text: "Nested." }], children: [] },
+    ] },
+    { id: "d", type: "image", props: {}, children: [] },
+  ];
+  const got = reading.readablePassages(blocks);
+  eq(got.map((p) => p.id).join(","), "a,b,c");
+  eq(got[2].text, "Nested.");
+});
+
+test("reading: dividers and headings are never ranked", () => {
+  ok(!reading.isRankable("Motivation: ------------"));
+  ok(!reading.isRankable("------------------------------------"));
+  ok(!reading.isRankable("Abstract"));
+  ok(!reading.isRankable("The Problem: ---"));
+  ok(reading.isRankable("This protocol was originally designed for the DEC, Intel and Xerox Ethernet."));
+});
+
+test("reading: days bucket to UTC midnight", () => {
+  const d = reading.dayOf(Date.UTC(2026, 7, 23, 13, 45, 6));
+  eq(d, Date.UTC(2026, 7, 23));
+  eq(reading.dayOf(Date.UTC(2026, 7, 23)), Date.UTC(2026, 7, 23));
 });
 
 test("newId shape", () => {

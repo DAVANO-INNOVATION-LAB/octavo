@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.7.0 — 2026-08-23
+
+### Added
+
+- **Where readers stumble.** A page is written by the person who least needs
+  it, so its author cannot see which sentence is hard. Octavo now watches
+  where readers slow down, scroll back, and stop, and shows the writer those
+  passages ranked, with a link straight to the editor at the passage that
+  failed. Every documentation tool in this category asks the reader to press
+  a thumb; response rates to those buttons run at a few percent, because a
+  thumb asks the reader to pass judgement on a whole page. Nothing is asked
+  here. Re-reading a paragraph three times is a stronger statement about that
+  paragraph than any button, and it costs the reader nothing to make.
+- Reading signals are **anonymous by construction, not by policy.** The table
+  has no column for a user, a session, or an address — “did this person read
+  this page” is a question the schema cannot answer, whoever asks it. Only
+  people who can edit a space see the signals for its pages, readers who send
+  Global Privacy Control are not measured, time accrues only while the tab is
+  actually in front, and an administrator can switch the whole thing off in
+  one click, which also deletes what was already collected. Retention
+  defaults to 90 days and is enforced by the code that writes, not by a cron
+  someone has to remember to set up.
+
+### Changed
+
+- Every rendered passage now carries its own identifier in the page, so
+  anchored comments, reading signals and future passage-level features all
+  address the same thing.
+- ESLint no longer parses the vendored diagram assets. It was exhausting its
+  heap on them, which meant the linter had not actually run to completion.
+
 ## v0.6.13 — 2026-08-23
 
 ### Changed

@@ -57,3 +57,4 @@ AGENTS.md
 # Planning and competitive material — kept locally, never published.
 /docs/internal/
 /public/drawio/
+.claude/launch.json

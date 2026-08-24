@@ -187,6 +187,25 @@ CREATE TABLE IF NOT EXISTS page_links (
 );
 CREATE INDEX IF NOT EXISTS page_links_to ON page_links(to_page);
 
+-- Reading signals: where readers slow down, double back, and give up.
+--
+-- Deliberately shaped so it CANNOT answer "did this person read this page".
+-- There is no user id, no session id, no address, and no event stream — only
+-- counters summed per passage per day. That is not a policy we promise to
+-- keep, it is the only thing the table is able to hold. A writer learns which
+-- sentences fail; nobody learns who failed at them.
+CREATE TABLE IF NOT EXISTS reading_signals (
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  block_id TEXT NOT NULL,
+  day INTEGER NOT NULL,
+  views INTEGER NOT NULL DEFAULT 0,
+  dwell_ms INTEGER NOT NULL DEFAULT 0,
+  revisits INTEGER NOT NULL DEFAULT 0,
+  exits INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (page_id, block_id, day)
+);
+CREATE INDEX IF NOT EXISTS reading_day ON reading_signals(day);
+
 CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,

@@ -344,6 +344,95 @@ const insightsWork = await evaluate(
 if (!insightsWork) fail("insights", "sections missing");
 console.log(`  ${insightsWork ? "✓" : "✗"} insights render`);
 
+/* ————— reading signals: a real read produces a real signal ————— */
+//
+// The only check that proves the observer end to end. Scoring is unit-tested
+// and the endpoint is integration-tested; neither covers whether a browser
+// scrolling a page turns into rows.
+//
+// Scrolling is driven with real wheel events rather than scrollIntoView.
+// A headless page with no window does not move for programmatic scrolling,
+// which makes a scrollIntoView-based test pass by never exercising anything.
+{
+  const target = db
+    .prepare(
+      `SELECT p.id, p.slug, s.slug AS space
+         FROM pages p JOIN spaces s ON s.id = p.space_id
+        WHERE p.published = 1 AND s.visibility = 'public'
+          AND length(p.content) > 6000
+        LIMIT 1`
+    )
+    .get();
+
+  if (target) {
+    db.prepare("DELETE FROM reading_signals WHERE page_id = ?").run(target.id);
+    await send(
+      "Emulation.setDeviceMetricsOverride",
+      { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false },
+      sessionId
+    );
+    await visit(`/${target.space}/${target.slug}`, 2000);
+
+    const wheel = async (dy) => {
+      await send(
+        "Input.dispatchMouseEvent",
+        { type: "mouseWheel", x: 640, y: 360, deltaX: 0, deltaY: dy, pointerType: "mouse" },
+        sessionId
+      );
+      await sleep(260);
+    };
+    const scrollTop = () =>
+      evaluate("document.scrollingElement.scrollTop");
+
+    // Read down, come back up twice, then settle further down.
+    for (let i = 0; i < 8; i++) await wheel(400);
+    const midway = await scrollTop();
+    for (let i = 0; i < 6; i++) await wheel(-400);   // back up — re-read
+    await sleep(700);
+    for (let i = 0; i < 6; i++) await wheel(400);
+    await sleep(500);
+    for (let i = 0; i < 6; i++) await wheel(-400);   // back up again
+    await sleep(700);
+    for (let i = 0; i < 10; i++) await wheel(400);
+    await sleep(800);
+
+    // Leaving the page is what sends the beacon.
+    await visit("/graph", 2200);
+    await sleep(900);
+
+    const rows = db
+      .prepare(
+        "SELECT block_id, views, dwell_ms, revisits, exits FROM reading_signals WHERE page_id = ?"
+      )
+      .all(target.id);
+    const revisited = rows.filter((r) => r.revisits > 0);
+    const dwelt = rows.filter((r) => r.dwell_ms > 0);
+    const exited = rows.filter((r) => r.exits > 0);
+
+    checks++;
+    const scrolled = Number(midway) > 0;
+    if (!scrolled) fail("reading signals", "the page never scrolled, so nothing was exercised");
+    else if (rows.length === 0) fail("reading signals", "a full read produced no rows");
+    else if (dwelt.length === 0) fail("reading signals", "no passage recorded any time on screen");
+    else if (revisited.length === 0)
+      fail("reading signals", "scrolling back up recorded no revisits — the strongest signal is dead");
+    else if (exited.length !== 1)
+      fail("reading signals", `expected exactly one exit passage, got ${exited.length}`);
+    const good = scrolled && rows.length > 0 && dwelt.length > 0 && revisited.length > 0;
+    console.log(
+      `  ${good ? "✓" : "✗"} reading signals (${rows.length} passages, ` +
+        `${revisited.length} re-read, ${exited.length} exit)`
+    );
+
+    checks++;
+    const columns = Object.keys(rows[0] ?? {});
+    const identifying = columns.filter((c) => /user|session|ip|actor|visitor/i.test(c));
+    if (identifying.length)
+      fail("reading signals", `identity column present: ${identifying.join(", ")}`);
+    console.log(`  ${identifying.length ? "✗" : "✓"} no column identifies a reader`);
+  }
+}
+
 ws.close();
 chrome.kill();
 await sleep(400);

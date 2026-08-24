@@ -5,7 +5,9 @@ import { variantSiblings } from "@/lib/data";
 import { resolveVariants } from "@/lib/variants";
 import { VariantSwitcher } from "@/components/VariantSwitcher";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ArrowRight, Download, GitPullRequest, PenLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, GitPullRequest, PenLine,
+  Footprints,
+} from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import {
   COMMENTABLE_KINDS,
@@ -19,6 +21,8 @@ import {
 } from "@/lib/data";
 import Link2 from "next/link";
 import { extractHeadings, parseBlocks } from "@/lib/blocks";
+import { readingEnabled } from "@/lib/reading";
+import { ReadingObserver } from "@/components/render/ReadingObserver";
 import { connectorsForSpace, runsForPage } from "@/lib/connectors";
 import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
@@ -89,6 +93,7 @@ export default async function ReaderPage({
   const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
 
   const blocks = parseBlocks(page.content);
+  const readingOn = readingEnabled();
   const commentable = COMMENTABLE_KINDS.has(space.kind);
   const openChanges = openCrCount(page.id);
   const sib = variantSiblings(space);
@@ -242,6 +247,11 @@ export default async function ReaderPage({
           </p>
         </header>
 
+        {/* Passive and aggregate — see ReadingObserver for what leaves. */}
+        {readingOn && page.published === 1 && (
+          <ReadingObserver pageId={page.id} />
+        )}
+
         <Renderer
           blocks={blocks}
           threads={commentable ? blockThreadCounts(page.id) : undefined}
@@ -302,6 +312,20 @@ export default async function ReaderPage({
         </nav>
 
         {page.published === 1 && <Feedback pageId={page.id} />}
+
+        {/* Deliberately down here rather than in the action row: it is a
+            quiet writer's tool, and the row is already full at 375px. */}
+        {mayWrite && readingOn && page.published === 1 && (
+          <p className="mt-6 text-center text-xs print:hidden">
+            <Link
+              href={`/${space.slug}/${page.slug}/reading`}
+              className="inline-flex items-center gap-1.5 text-faint no-underline hover:text-accent"
+            >
+              <Footprints size={13} />
+              Where readers stumble
+            </Link>
+          </p>
+        )}
 
         {commentable && (
           <Discussion
