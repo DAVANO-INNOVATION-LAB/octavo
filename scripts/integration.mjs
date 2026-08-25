@@ -8,6 +8,7 @@
 // Usage: node scripts/integration.mjs [baseUrl]
 import Database from "better-sqlite3";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const BASE = process.argv[2] ?? "http://localhost:8541";
 const db = new Database(path.join(process.cwd(), "data", "octavo.db"));
@@ -316,6 +317,123 @@ section("Highlights are the reader's alone");
     const gone = await (await get(`/api/highlights?page=${page.id}`, "it_reader")).json();
     check("the owner's delete removes it", gone.highlights.length === 0);
   }
+}
+
+// --- 2c. the Confluence door -------------------------------------------------
+section("A Confluence XML export imports whole");
+{
+  // Stage the zip writer the way the unit tests do — it is pure TS.
+  const { mkdirSync, readFileSync, writeFileSync } = await import("node:fs");
+  const zstage = path.join(process.cwd(), ".int-stage");
+  mkdirSync(zstage, { recursive: true });
+  writeFileSync(
+    path.join(zstage, "zip.ts"),
+    readFileSync("src/lib/zip.ts", "utf8").replace(/import "server-only";\n?/, "")
+  );
+  const { zip } = await import(pathToFileURL(path.join(zstage, "zip.ts")));
+  const entities = `<?xml version="1.0" encoding="UTF-8"?>
+<hibernate-generic datetime="2026-08-25 01:00:00">
+<object class="Space" package="com.atlassian.confluence.spaces">
+  <id name="id">98305</id>
+  <property name="name"><![CDATA[Platform Handbook]]></property>
+  <property name="key"><![CDATA[PLAT]]></property>
+</object>
+<object class="Page" package="com.atlassian.confluence.pages">
+  <id name="id">100</id>
+  <property name="title"><![CDATA[Getting started]]></property>
+  <property name="position">0</property>
+  <property name="contentStatus"><![CDATA[current]]></property>
+  <collection name="bodyContents" class="java.util.Collection">
+    <element class="BodyContent" package="com.atlassian.confluence.core"><id name="id">500</id></element>
+  </collection>
+</object>
+<object class="Page" package="com.atlassian.confluence.pages">
+  <id name="id">101</id>
+  <property name="title"><![CDATA[Deploying]]></property>
+  <property name="position">1</property>
+  <property name="contentStatus"><![CDATA[current]]></property>
+  <property name="parent" class="Page" package="com.atlassian.confluence.pages"><id name="id">100</id></property>
+  <collection name="bodyContents" class="java.util.Collection">
+    <element class="BodyContent" package="com.atlassian.confluence.core"><id name="id">501</id></element>
+  </collection>
+</object>
+<object class="Page" package="com.atlassian.confluence.pages">
+  <id name="id">102</id>
+  <property name="title"><![CDATA[Getting started]]></property>
+  <property name="contentStatus"><![CDATA[current]]></property>
+  <property name="originalVersion" class="Page" package="com.atlassian.confluence.pages"><id name="id">100</id></property>
+</object>
+<object class="BodyContent" package="com.atlassian.confluence.core">
+  <id name="id">500</id>
+  <property name="body"><![CDATA[<h1>Welcome</h1><p>The <strong>platform</strong> handbook.</p><ac:structured-macro ac:name="code"><ac:parameter ac:name="language">bash</ac:parameter><ac:plain-text-body><![CDATA[kubectl get pods]]]]><![CDATA[></ac:plain-text-body></ac:structured-macro><p><ac:image ac:alt="architecture"><ri:attachment ri:filename="arch.png"/></ac:image></p>]]></property>
+  <property name="content" class="Page" package="com.atlassian.confluence.pages"><id name="id">100</id></property>
+</object>
+<object class="BodyContent" package="com.atlassian.confluence.core">
+  <id name="id">501</id>
+  <property name="body"><![CDATA[<ac:structured-macro ac:name="warning"><ac:rich-text-body><p>Deploys freeze on Fridays.</p></ac:rich-text-body></ac:structured-macro><ul><li>step one</li><li>step two</li></ul>]]></property>
+  <property name="content" class="Page" package="com.atlassian.confluence.pages"><id name="id">101</id></property>
+</object>
+<object class="Attachment" package="com.atlassian.confluence.pages">
+  <id name="id">900</id>
+  <property name="title"><![CDATA[arch.png]]></property>
+  <property name="version">1</property>
+  <property name="containerContent" class="Page" package="com.atlassian.confluence.pages"><id name="id">100</id></property>
+</object>
+</hibernate-generic>`;
+  const png = Buffer.from("89504e470d0a1a0a0000000d49484452", "hex");
+  const archive = zip([
+    { name: "entities.xml", data: Buffer.from(entities) },
+    { name: "attachments/100/900/1", data: png },
+  ]);
+
+  const fd = new FormData();
+  fd.set("file", new File([new Uint8Array(archive)], "Confluence-space-export-PLAT.xml.zip"));
+  const res = await fetch(`${BASE}/api/import`, { method: "POST", headers: as("it_editor"), body: fd, redirect: "manual" });
+  const location = res.headers.get("location") ?? "";
+  check("the export imports and lands on the new space",
+    res.status === 303 && !location.includes("error"), `HTTP ${res.status} -> ${location}`);
+
+  const slug = location.split("/").filter(Boolean).pop();
+  const spaceRow = db.prepare("SELECT id, name, visibility FROM spaces WHERE slug = ?").get(slug);
+  check("the space carries Confluence's name", spaceRow?.name === "Platform Handbook", spaceRow?.name);
+  check("it arrives private until the operator says otherwise", spaceRow?.visibility === "private");
+
+  const rows = db.prepare("SELECT title, parent_id, content FROM pages WHERE space_id = ?").all(spaceRow.id);
+  check("both live pages arrive, the historical version does not", rows.length === 2, `${rows.length} pages`);
+  const parent = rows.find((r) => r.title === "Getting started");
+  const kid = rows.find((r) => r.title === "Deploying");
+  check("the tree survives — Deploying is a child of Getting started",
+    kid?.parent_id === db.prepare("SELECT id FROM pages WHERE space_id = ? AND title = 'Getting started'").get(spaceRow.id)?.id);
+
+  const homeBlocks = JSON.parse(parent.content);
+  const flat = JSON.stringify(homeBlocks);
+  check("the code macro became a code block with its language",
+    homeBlocks.some((b) => b.type === "codeBlock" && b.props.language === "bash" && JSON.stringify(b.content).includes("kubectl")));
+  check("bold text kept its weight", flat.includes('"bold":true'));
+  const img = homeBlocks.find((b) => b.type === "image");
+  check("the attachment became a served image", Boolean(img && String(img.props.url).startsWith("/api/files/")));
+  if (img) {
+    const file = await fetch(`${BASE}${img.props.url}`, { headers: as("it_editor") });
+    check("and the served file is the attachment's bytes", file.ok, `HTTP ${file.status}`);
+  }
+  const deployBlocks = JSON.parse(kid.content);
+  check("the warning macro became a danger callout",
+    deployBlocks.some((b) => b.type === "callout" && b.props.tone === "danger"));
+
+  db.prepare("DELETE FROM spaces WHERE id = ?").run(spaceRow.id);
+}
+
+// --- 2d. import from a URL ----------------------------------------------------
+section("Import from a URL is fenced");
+{
+  const ssrf = await post("/api/import/url", "it_editor", { url: "http://169.254.169.254/latest/meta-data/" });
+  check("cloud metadata addresses are refused", ssrf.status === 400, `got ${ssrf.status}`);
+  const local = await post("/api/import/url", "it_editor", { url: "http://localhost:8541/" });
+  check("localhost is refused", local.status === 400, `got ${local.status}`);
+  const scheme = await post("/api/import/url", "it_editor", { url: "file:///etc/passwd" });
+  check("non-http schemes are refused", scheme.status === 400, `got ${scheme.status}`);
+  const agent = await post("/api/import/url", "it_agent", { url: "https://example.com/" });
+  check("an agent may not make the server fetch", agent.status === 403, `got ${agent.status}`);
 }
 
 // --- 3. change request lifecycle ---------------------------------------------

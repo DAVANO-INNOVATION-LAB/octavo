@@ -1,4 +1,5 @@
 import "server-only";
+import { looksLikeConfluence, readConfluenceExport } from "./confluence";
 import {
   Space,
   TreeNode,
@@ -288,6 +289,57 @@ export function importMarkdownEntries(
   return { spaceSlug: space.slug, pages: count };
 }
 
+/**
+ * A Confluence XML space export becomes one Octavo space, private until the
+ * operator says otherwise. Pages keep their tree and order; attachments land
+ * in uploads; everything imports published, because in Confluence it was.
+ */
+export function importConfluence(entries: ZipEntry[], nameOverride?: string): ImportResult {
+  const conf = readConfluenceExport(entries);
+  const space = createSpace({
+    name: nameOverride?.trim() || conf.name,
+    description: conf.description,
+    kind: "docs",
+    visibility: "private",
+  });
+  const byTitle = new Map<string, string>();
+  let remaining = conf.pages;
+  let guard = 0;
+  while (remaining.length && guard++ < 50) {
+    const next: typeof remaining = [];
+    for (const p of remaining) {
+      const parentNew = p.parentTitle ? byTitle.get(p.parentTitle) : null;
+      if (p.parentTitle && !parentNew) {
+        next.push(p);
+        continue;
+      }
+      const created = createPage({
+        spaceId: space.id,
+        parentId: parentNew ?? null,
+        title: p.title,
+        content: JSON.stringify(p.blocks),
+      });
+      savePage(created.id, { published: true });
+      byTitle.set(p.title, created.id);
+    }
+    if (next.length === remaining.length) {
+      for (const p of next) {
+        const created = createPage({
+          spaceId: space.id,
+          parentId: null,
+          title: p.title,
+          content: JSON.stringify(p.blocks),
+        });
+        savePage(created.id, { published: true });
+        byTitle.set(p.title, created.id);
+      }
+      break;
+    }
+    remaining = next;
+  }
+  return { spaceSlug: space.slug, pages: byTitle.size };
+}
+
 export function importUpload(
   fileName: string,
   data: Buffer,
@@ -296,6 +348,7 @@ export function importUpload(
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".zip")) {
     const entries = unzip(data);
+    if (looksLikeConfluence(entries)) return importConfluence(entries, nameOverride);
     const manifestEntry = entries.find((e) => e.name.endsWith("octavo.json"));
     if (manifestEntry) {
       const manifest = JSON.parse(manifestEntry.data.toString("utf8"));

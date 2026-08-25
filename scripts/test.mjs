@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -31,6 +31,8 @@ const yaml = await import(pathToFileURL(path.join(STAGE, "yaml.ts")));
 const oa = await import(pathToFileURL(path.join(STAGE, "openapi.ts")));
 const syslog = await import(pathToFileURL(path.join(STAGE, "syslog.ts")));
 const reading = await import(pathToFileURL(path.join(STAGE, "reading-score.ts")));
+const xml = await import(pathToFileURL(path.join(STAGE, "xml.ts")));
+const hb = await import(pathToFileURL(path.join(STAGE, "html-blocks.ts")));
 const policy = await import(pathToFileURL(path.join(STAGE, "policy-pure.ts")));
 
 let pass = 0;
@@ -922,6 +924,110 @@ test("policy: nonsense leaves the default standing", () => {
 test("policy: audit retention may be zero, meaning forever", () => {
   eq(policy.clampPolicy({ auditRetentionDays: 0 }).auditRetentionDays, 0);
   eq(policy.clampPolicy({ auditRetentionDays: 90 }).auditRetentionDays, 90);
+});
+
+test("xml: nesting, attributes, CDATA, entities", () => {
+  const [root] = xml.parseXml(
+    `<object class="Page"><id name="id">42</id><property name="title"><![CDATA[Hello & <World>]]></property></object>`
+  );
+  eq(root.tag, "object");
+  eq(root.attrs.class, "Page");
+  eq(xml.textOf(xml.child(root, "id")), "42");
+  eq(xml.textOf(xml.child(root, "property")), "Hello & <World>");
+});
+
+test("xml: survives real-world HTML sloppiness", () => {
+  const forest = xml.parseXml(
+    `<p>one<br>two<img src=pic.png><li>loose</p><div>after</div>`
+  );
+  // Nothing throws, all the text survives, void elements do not swallow.
+  const all = forest.map((n) => xml.textOf(n)).join(" ");
+  ok(all.includes("one") && all.includes("two") && all.includes("after"));
+});
+
+test("xml: script bodies are dropped, not parsed", () => {
+  const forest = xml.parseXml(`<div><script>if (a < b) { hack(); }</script><p>kept</p></div>`);
+  const text = forest.map((n) => xml.textOf(n)).join("");
+  ok(!text.includes("hack"));
+  ok(text.includes("kept"));
+});
+
+test("html-blocks: headings, lists, bold survive", () => {
+  const blocks = hb.htmlToBlocks(
+    `<h1>Title</h1><p>Plain <strong>bold</strong> text.</p><ul><li>one</li><li>two<ul><li>deep</li></ul></li></ul>`
+  );
+  eq(blocks[0].type, "heading");
+  eq(blocks[1].type, "paragraph");
+  const boldRun = blocks[1].content.find((c) => c.styles?.bold);
+  eq(boldRun.text.trim(), "bold");
+  eq(blocks[2].type, "bulletListItem");
+  eq(blocks[3].children[0].content[0].text, "deep");
+});
+
+test("html-blocks: confluence code macro becomes a code block", () => {
+  const blocks = hb.htmlToBlocks(
+    `<ac:structured-macro ac:name="code"><ac:parameter ac:name="language">python</ac:parameter>` +
+      `<ac:plain-text-body><![CDATA[print("hi < there")]]></ac:plain-text-body></ac:structured-macro>`
+  );
+  eq(blocks[0].type, "codeBlock");
+  eq(blocks[0].props.language, "python");
+  eq(blocks[0].content[0].text, 'print("hi < there")');
+});
+
+test("html-blocks: info macro becomes a callout, body intact", () => {
+  const blocks = hb.htmlToBlocks(
+    `<ac:structured-macro ac:name="warning"><ac:rich-text-body><p>Do not do the thing.</p></ac:rich-text-body></ac:structured-macro>`
+  );
+  eq(blocks[0].type, "callout");
+  eq(blocks[0].props.tone, "danger");
+});
+
+test("html-blocks: attachment images resolve through the caller", () => {
+  const blocks = hb.htmlToBlocks(
+    `<p><ac:image ac:alt="diagram"><ri:attachment ri:filename="arch.png"/></ac:image></p>`,
+    (f) => (f === "arch.png" ? "/api/files/x.png" : null)
+  );
+  eq(blocks[0].type, "image");
+  eq(blocks[0].props.url, "/api/files/x.png");
+  eq(blocks[0].props.caption, "diagram");
+});
+
+test("html-blocks: a missing attachment says so instead of vanishing", () => {
+  const blocks = hb.htmlToBlocks(
+    `<ac:image><ri:attachment ri:filename="gone.png"/></ac:image>`,
+    () => null
+  );
+  ok(blocks[0].content[0].text.includes("gone.png"));
+});
+
+test("html-blocks: confluence task list becomes checklist items", () => {
+  const blocks = hb.htmlToBlocks(
+    `<ac:task-list><ac:task><ac:task-status>complete</ac:task-status><ac:task-body>done thing</ac:task-body></ac:task>` +
+      `<ac:task><ac:task-status>incomplete</ac:task-status><ac:task-body>open thing</ac:task-body></ac:task></ac:task-list>`
+  );
+  eq(blocks[0].type, "checkListItem");
+  eq(blocks[0].props.checked, true);
+  eq(blocks[1].props.checked, false);
+});
+
+test("html-blocks: tables keep their cells", () => {
+  const blocks = hb.htmlToBlocks(
+    `<table><tbody><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></tbody></table>`
+  );
+  eq(blocks[0].type, "table");
+  eq(blocks[0].content.rows.length, 2);
+  eq(blocks[0].content.rows[1].cells[1][0].text, "2");
+});
+
+test("html-blocks: a web page's article is found and the nav is not imported", () => {
+  const { title, blocks } = hb.pageContentToBlocks(
+    `<html><head><title>Doc</title></head><body><nav><a href="/">Home</a></nav>` +
+      `<article><h2>Real</h2><p>Content here.</p></article><footer>legal</footer></body></html>`
+  );
+  eq(title, "Doc");
+  const text = JSON.stringify(blocks);
+  ok(text.includes("Content here"));
+  ok(!text.includes("legal") && !text.includes("Home"));
 });
 
 test("newId shape", () => {

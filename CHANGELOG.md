@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.10.0 — 2026-08-25
+
+### Added
+
+- **Confluence import.** Upload the XML space export Confluence's own backup
+  produces — Space Settings → Export — and the whole space arrives: every
+  current page, the page tree, code macros with their language, info and
+  warning panels as callouts, task lists as checklists, tables, bold and
+  links, and the attachments, served from your own disk. Historical versions
+  and trashed pages are left behind on purpose; Octavo starts its own history
+  at import. The import lands as a private space: your data, on your disk,
+  from the first second.
+- **Import from a URL.** Paste an address, get the article as a page in a new
+  private space. The fetch is fenced — public web addresses only, never
+  anything inside your own network, redirects checked hop by hop, and AI
+  agents cannot trigger it at all.
+- Both doors run on a new dependency-free markup engine, unit-tested against
+  Confluence storage format and sloppy real-world HTML alike, with the rule
+  that an importer's job is to rescue the words, never to grade the markup.
 ## v0.9.0 — 2026-08-25
 
 ### Added
