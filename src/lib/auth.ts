@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDb } from "./db";
 import { newId, now } from "./util";
@@ -54,6 +54,22 @@ export function createUser(email: string, name: string, password: string) {
   return id;
 }
 
+/**
+ * Whether cookies should carry the Secure flag: only when the request
+ * actually arrived over HTTPS (a TLS proxy says so in x-forwarded-proto).
+ *
+ * The old check was NODE_ENV === "production", which broke Safari on every
+ * local deployment: production builds served over plain http://localhost set
+ * Secure cookies, Chrome indulgently stores them, Safari correctly refuses —
+ * so sign-in "worked" and the session evaporated. The browser being right
+ * was the one we didn't test in.
+ */
+export async function cookieSecure(): Promise<boolean> {
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") ?? "";
+  return proto.split(",")[0].trim() === "https";
+}
+
 export async function createSession(userId: string) {
   const id = randomBytes(32).toString("hex");
   const ttl = sessionTtlMs();
@@ -64,7 +80,7 @@ export async function createSession(userId: string) {
   jar.set(SESSION_COOKIE, id, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: await cookieSecure(),
     path: "/",
     maxAge: ttl / 1000,
   });

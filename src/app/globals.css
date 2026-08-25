@@ -1041,3 +1041,12 @@ mark {
 @media print {
   .octavo-hl { background: none; }
 }
+
+/* Page cover washes — ink gradients, no photography required. */
+.cover-wash { background-size: cover; background-position: center; }
+.cover-dawn      { background-image: linear-gradient(120deg, #f6d8c3, #e8a87c 55%, #b8642f); }
+.cover-vermilion { background-image: linear-gradient(120deg, #b8401b, #7c2410 70%, #451208); }
+.cover-moss      { background-image: linear-gradient(120deg, #9fb98a, #55703f 60%, #2c3d1f); }
+.cover-indigo    { background-image: linear-gradient(120deg, #7c86c9, #3c4487 60%, #1d2147); }
+.cover-slate     { background-image: linear-gradient(120deg, #b8bcc4, #6a7078 60%, #3a3e44); }
+.cover-night     { background-image: linear-gradient(120deg, #3a3524, #211d12 60%, #0f0d08); }

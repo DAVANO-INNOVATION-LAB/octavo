@@ -551,6 +551,49 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
       const title = String(b.props?.title ?? "");
       return <Model3D kind={kind} title={title || undefined} />;
     }
+    case "sketch": {
+      const src = String(b.props?.svg ?? "");
+      if (!src) return null;
+      return (
+        <figure className="blk-drawio-published">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="Sketch" loading="lazy" />
+        </figure>
+      );
+    }
+    case "syncedFrame": {
+      // An embedded page: its live content inside a labelled frame, the
+      // label linking to the source. Blocks arrive already composed.
+      const href = String(b.props?.href ?? "");
+      const title = String(b.props?.title ?? "");
+      return (
+        <aside className="rounded-xl border border-line">
+          <a
+            href={href}
+            className="flex items-center gap-2 border-b border-line px-4 py-2 text-xs font-medium text-faint no-underline hover:text-accent"
+          >
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+            From {title || "another page"}
+          </a>
+          <div className="px-4 py-3 [&>*+*]:mt-[0.9em]">{kids}</div>
+        </aside>
+      );
+    }
+    case "syncedNote":
+      return (
+        <p className="rounded-lg border border-dashed border-line px-3 py-2 text-sm text-faint">
+          {renderInline(b.content)}
+        </p>
+      );
+    case "ifvar":
+      // Only reachable when composition was skipped (exports, sub-trees);
+      // showing the content beats losing it.
+      return (
+        <div>
+          <p>{renderInline(b.content)}</p>
+          {kids}
+        </div>
+      );
     case "drawio": {
       const src = String(b.props?.src ?? "");
       if (!src) return null;

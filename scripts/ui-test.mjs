@@ -220,6 +220,56 @@ for (const r of EDITOR_ROUTES) {
   );
 }
 
+/* ————— 2b. the slash menu offers the new blocks ————— */
+//
+// Typed with real key events, because the menu only opens for genuine input.
+// This is the check that catches a block registered in the schema but left
+// out of the menu — invisible to every other suite.
+{
+  await visit(`/${pubPage.space}/${pubPage.page}/edit`, 3800);
+  await evaluate(`(() => {
+    const ed = document.querySelector(".bn-editor [contenteditable=true], [contenteditable=true]");
+    ed?.focus();
+    const sel = window.getSelection();
+    const last = ed?.lastElementChild;
+    if (last) { const r = document.createRange(); r.selectNodeContents(last); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+    return true;
+  })()`);
+  const press = async (key, code, vk, text) => {
+    await send("Input.dispatchKeyEvent",
+      { type: text ? "keyDown" : "rawKeyDown", key, code, windowsVirtualKeyCode: vk, text }, sessionId);
+    await send("Input.dispatchKeyEvent",
+      { type: "keyUp", key, code, windowsVirtualKeyCode: vk }, sessionId);
+  };
+  await press("Enter", "Enter", 13, "\r");
+  await sleep(400);
+  // A real key event with text — insertText bypasses the editor's trigger.
+  await press("/", "Slash", 191, "/");
+  await sleep(1100);
+  const menu = await evaluate(`document.body.innerText`);
+  if (process.env.SLASH_DEBUG) {
+    const dbg = await evaluate(`JSON.stringify({
+      focused: document.activeElement?.className?.slice?.(0, 60) ?? String(document.activeElement?.tagName),
+      menus: [...document.querySelectorAll('[class*="uggestion"], [class*="mantine-Menu"], [role=listbox]')].length,
+      tail: document.body.innerText.slice(-200),
+    })`);
+    console.log("  DEBUG:", dbg);
+  }
+  checks++;
+  const wanted = ["Sketch", "Embed a page", "Audience block", "Draw.io diagram"];
+  const missing = wanted.filter((w) => !menu.includes(w));
+  if (missing.length) fail("slash menu", `missing: ${missing.join(", ")}`);
+  console.log(`  ${missing.length ? "✗" : "✓"} slash menu offers the new blocks`);
+  // Close the menu and discard the typed slash so the page is unchanged.
+  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape" }, sessionId);
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape" }, sessionId);
+  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" }, sessionId);
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" }, sessionId);
+  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" }, sessionId);
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" }, sessionId);
+  await sleep(400);
+}
+
 /* ————— 3. layout: no horizontal overflow at any viewport ————— */
 console.log("\nLayout — horizontal overflow at three viewports\n");
 for (const v of VIEWPORTS) {

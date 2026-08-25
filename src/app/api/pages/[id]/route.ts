@@ -19,7 +19,18 @@ export async function PATCH(
   if (!canEditSpace(user, page.space_id))
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const body = (await req.json()) as { title?: string; content?: unknown };
+  // Parse defensively: a non-JSON body, or a valid-JSON non-object like
+  // `null` or `[1,2,3]`, must be a 400, never a 500 from touching `.title`
+  // on a null.
+  let body: { title?: unknown; content?: unknown };
+  try {
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return NextResponse.json({ error: "bad request" }, { status: 400 });
+    body = parsed as { title?: unknown; content?: unknown };
+  } catch {
+    return NextResponse.json({ error: "bad request" }, { status: 400 });
+  }
   const fields: { title?: string; content?: string } = {};
   if (typeof body.title === "string") fields.title = body.title;
   if (body.content !== undefined) {

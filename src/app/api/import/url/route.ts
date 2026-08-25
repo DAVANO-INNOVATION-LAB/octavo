@@ -78,7 +78,12 @@ export async function POST(req: NextRequest) {
 
   let body: { url?: unknown; name?: unknown };
   try {
-    body = await req.json();
+    const parsed = await req.json();
+    // typeof null === "object", so guard both — a bare `null` body must be a
+    // 400, not a 500 from reading `.url` off it.
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return NextResponse.json({ error: "bad request" }, { status: 400 });
+    body = parsed as { url?: unknown; name?: unknown };
   } catch {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }

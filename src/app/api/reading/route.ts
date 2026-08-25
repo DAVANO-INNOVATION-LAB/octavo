@@ -24,7 +24,11 @@ export async function POST(req: NextRequest) {
     blocks?: unknown;
   };
   try {
-    body = await req.json();
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "bad request" }, { status: 400 });
+    }
+    body = parsed as typeof body;
   } catch {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }

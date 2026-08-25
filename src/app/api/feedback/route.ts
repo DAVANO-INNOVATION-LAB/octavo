@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPage, recordFeedback } from "@/lib/data";
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as {
-    pageId?: string; helpful?: boolean; note?: string;
-  };
+  let body: { pageId?: string; helpful?: boolean; note?: string };
+  try {
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== "object")
+      return NextResponse.json({ error: "bad request" }, { status: 400 });
+    body = parsed as { pageId?: string; helpful?: boolean; note?: string };
+  } catch {
+    return NextResponse.json({ error: "bad request" }, { status: 400 });
+  }
   if (!body.pageId || typeof body.helpful !== "boolean")
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   const page = getPage(body.pageId);

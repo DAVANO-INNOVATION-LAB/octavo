@@ -11,6 +11,9 @@ import {
   setSpaceMemberAction,
 } from "@/app/actions";
 import { listVisitorTokens } from "@/lib/visitors";
+import { parseVars } from "@/lib/page-compose";
+import { getSetting } from "@/lib/settings";
+import { saveSpaceVarsAction } from "@/app/actions";
 import { cookies } from "next/headers";
 import { Link2, Link2Off } from "lucide-react";
 import { SpaceShell } from "@/components/SpaceShell";
@@ -49,6 +52,7 @@ export default async function SpaceMembers({
   }
   const tokens =
     space.visibility === "private" ? listVisitorTokens(space.id) : [];
+  const vars = parseVars(getSetting(`vars:${space.id}`));
 
 
   return (
@@ -260,6 +264,41 @@ export default async function SpaceMembers({
             </form>
           </section>
         )}
+
+        <section className="rounded-2xl border border-line bg-surface p-6 shadow-card">
+          <h2 className="text-[15px] font-semibold text-ink">Variables</h2>
+          <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted">
+            Write <code className="rounded bg-wash px-1 text-[13px]">{"{{name}}"}</code>{" "}
+            in any page and readers see the value below. Audience blocks show
+            their content only when a variable matches — one page, dressed per
+            deployment.
+          </p>
+          <form action={saveSpaceVarsAction} className="mt-4 space-y-2">
+            <input type="hidden" name="space" value={space.id} />
+            {[...Object.entries(vars), ["", ""], ["", ""]].map(([k, v], i) => (
+              <div key={`${k}-${i}`} className="flex gap-2">
+                <input
+                  name="var_name"
+                  defaultValue={k}
+                  placeholder="audience"
+                  className="h-9 w-40 rounded-lg border border-line bg-bg px-3 font-mono text-xs text-ink placeholder:text-faint focus:border-accent"
+                />
+                <input
+                  name="var_value"
+                  defaultValue={v}
+                  placeholder="internal"
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-line bg-bg px-3 text-sm text-ink placeholder:text-faint focus:border-accent"
+                />
+              </div>
+            ))}
+            <p className="text-xs text-faint">
+              Clear a name to remove it. Two blank rows are always offered.
+            </p>
+            <button className="h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink">
+              Save variables
+            </button>
+          </form>
+        </section>
       </div>
     </SpaceShell>
   );

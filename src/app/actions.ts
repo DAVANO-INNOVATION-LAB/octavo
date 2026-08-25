@@ -13,8 +13,7 @@ import {
   getTotpSecret,
   issuePendingToken,
   setTotpSecret,
-  userCount,
-} from "@/lib/auth";
+  userCount, cookieSecure } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
 import { recordAudit } from "@/lib/audit";
 import { asSpaceRole } from "@/lib/capabilities";
@@ -59,6 +58,7 @@ import {
 } from "@/lib/connectors";
 import {
   canAdminSpace,
+  canEditSpace,
   may,
   reviewersFor,
   removeSpaceMember,
@@ -75,6 +75,7 @@ import {
   deletePage,
   deleteSpace,
   getPage,
+  getSpace,
   getSpaceBySlug,
   setSpaceVariant,
   getVersion,
@@ -83,6 +84,7 @@ import {
   updateSpace,
 } from "@/lib/data";
 import { getTemplate, type TemplatePage } from "@/lib/templates";
+import { getDb } from "@/lib/db";
 
 async function requireUser() {
   const user = await currentUser();
@@ -127,7 +129,7 @@ export async function loginAction(formData: FormData) {
     jar.set("octavo_pending_2fa", issuePendingToken(user.id), {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: await cookieSecure(),
       path: "/",
       maxAge: 300,
     });
@@ -752,6 +754,55 @@ export async function markAllReadAction() {
   redirect("/inbox");
 }
 
+// ---- page covers and space variables ----
+
+const COVER_PRESETS = new Set([
+  "dawn", "vermilion", "moss", "indigo", "slate", "night",
+]);
+
+/** Set or clear a page's cover: a preset wash or an uploaded image. */
+export async function saveCoverAction(formData: FormData) {
+  const user = await requireUser();
+  const pageId = String(formData.get("page") ?? "");
+  const page = getPage(pageId);
+  if (!page) redirect("/");
+  if (!canEditSpace(user, page.space_id)) redirect("/");
+
+  const raw = String(formData.get("cover") ?? "").trim();
+  let cover = "";
+  if (raw.startsWith("preset:") && COVER_PRESETS.has(raw.slice(7))) cover = raw;
+  else if (raw.startsWith("/api/files/") && /^[/a-zA-Z0-9._-]+$/.test(raw)) cover = raw;
+
+  getDb().prepare("UPDATE pages SET cover = ? WHERE id = ?").run(cover, pageId);
+  const space = getSpace(page.space_id);
+  redirect(`/${space?.slug}/${page.slug}`);
+}
+
+/**
+ * The space's variables — the values {{name}} resolves to and audience
+ * blocks match against. Space admins own them; they are content policy,
+ * not instance policy.
+ */
+export async function saveSpaceVarsAction(formData: FormData) {
+  const user = await requireUser();
+  const spaceId = String(formData.get("space") ?? "");
+  const space = getSpace(spaceId);
+  if (!space) redirect("/");
+  if (!canAdminSpace(user, space.id)) redirect(`/${space.slug}`);
+
+  const vars: Record<string, string> = {};
+  const names = formData.getAll("var_name").map(String);
+  const values = formData.getAll("var_value").map(String);
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i].trim().slice(0, 60);
+    if (!/^[a-zA-Z0-9_.-]+$/.test(name)) continue;
+    const value = String(values[i] ?? "").trim().slice(0, 500);
+    if (name && value) vars[name] = value;
+  }
+  setSetting(`vars:${space.id}`, Object.keys(vars).length ? JSON.stringify(vars) : null);
+  redirect(`/${space.slug}/members?saved=1`);
+}
+
 export async function saveWebhookAction(formData: FormData) {
   const admin = await requireAdmin();
   const raw = String(formData.get("webhook_url") ?? "").trim();
@@ -844,7 +895,7 @@ export async function createVisitorTokenAction(formData: FormData) {
   jar.set("octavo_new_visit", JSON.stringify({ token, space: space.slug }), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: await cookieSecure(),
     path: `/`,
     maxAge: 60,
   });
@@ -988,7 +1039,7 @@ export async function scimTokenAction(formData: FormData) {
   jar.set("octavo_new_scim", token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: await cookieSecure(),
     path: "/",
     maxAge: 60,
   });

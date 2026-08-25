@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -33,6 +33,7 @@ const syslog = await import(pathToFileURL(path.join(STAGE, "syslog.ts")));
 const reading = await import(pathToFileURL(path.join(STAGE, "reading-score.ts")));
 const xml = await import(pathToFileURL(path.join(STAGE, "xml.ts")));
 const hb = await import(pathToFileURL(path.join(STAGE, "html-blocks.ts")));
+const compose = await import(pathToFileURL(path.join(STAGE, "page-compose.ts")));
 const policy = await import(pathToFileURL(path.join(STAGE, "policy-pure.ts")));
 
 let pass = 0;
@@ -1028,6 +1029,72 @@ test("html-blocks: a web page's article is found and the nav is not imported", (
   const text = JSON.stringify(blocks);
   ok(text.includes("Content here"));
   ok(!text.includes("legal") && !text.includes("Home"));
+});
+
+test("compose: variables land in text and links, unknown ones stay visible", () => {
+  const blocks = [{
+    id: "a", type: "paragraph", props: {},
+    content: [{ type: "text", text: "Call {{support}} or {{unknown}}.", styles: {} }],
+    children: [],
+  }];
+  const out = compose.composeBlocks(blocks, { support: "ext. 4411" });
+  eq(out[0].content[0].text, "Call ext. 4411 or {{unknown}}.");
+});
+
+test("compose: audience blocks show for the matching audience only", () => {
+  const blocks = [{
+    id: "a", type: "ifvar", props: { name: "audience", equals: "internal" },
+    content: [{ type: "text", text: "The admin password rotates {{cadence}}.", styles: {} }],
+    children: [],
+  }];
+  const internal = compose.composeBlocks(blocks, { audience: "internal", cadence: "weekly" });
+  eq(internal.length, 1);
+  eq(internal[0].type, "paragraph");
+  ok(internal[0].content[0].text.includes("weekly"));
+  const external = compose.composeBlocks(blocks, { audience: "public" });
+  eq(external.length, 0);
+});
+
+test("compose: an embed resolves to a frame with the source's blocks", () => {
+  const blocks = [{ id: "e", type: "syncedPage", props: { pageId: "p9", title: "Source" }, children: [] }];
+  const out = compose.composeBlocks(blocks, {}, () => ({
+    state: "ok", title: "Source", href: "/s/source",
+    blocks: [{ id: "x", type: "paragraph", props: {}, content: [{ type: "text", text: "shared truth", styles: {} }], children: [] }],
+  }));
+  eq(out[0].type, "syncedFrame");
+  eq(out[0].props.href, "/s/source");
+  eq(out[0].children[0].content[0].text, "shared truth");
+});
+
+test("compose: a forbidden embed says nothing about the page", () => {
+  const blocks = [{ id: "e", type: "syncedPage", props: { pageId: "p9", title: "Secret Plans" }, children: [] }];
+  const out = compose.composeBlocks(blocks, {}, () => ({ state: "forbidden" }));
+  const flat = JSON.stringify(out);
+  ok(!flat.includes("Secret Plans"));
+  ok(flat.includes("access"));
+});
+
+test("compose: embed cycles are structurally impossible", () => {
+  // A embeds B; B embeds A. Resolution goes one level, then flattens.
+  const pageA = [{ id: "ea", type: "syncedPage", props: { pageId: "B", title: "B" }, children: [] }];
+  const pageB = [{ id: "eb", type: "syncedPage", props: { pageId: "A", title: "A" }, children: [] }];
+  let calls = 0;
+  const out = compose.composeBlocks(pageA, {}, (pid) => {
+    calls++;
+    return { state: "ok", title: pid, href: "/" + pid, blocks: pid === "B" ? pageB : pageA };
+  });
+  eq(calls, 1); // the nested embed never resolves
+  eq(out[0].type, "syncedFrame");
+  eq(out[0].children[0].type, "syncedNote");
+});
+
+test("compose: parseVars survives damage and clamps sizes", () => {
+  eq(Object.keys(compose.parseVars(null)).length, 0);
+  eq(Object.keys(compose.parseVars("{broken")).length, 0);
+  const v = compose.parseVars(JSON.stringify({ ok: "yes", bad: 42, long: "x".repeat(9999) }));
+  eq(v.ok, "yes");
+  eq(v.bad, undefined);
+  eq(v.long.length, 500);
 });
 
 test("newId shape", () => {

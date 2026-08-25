@@ -1,3 +1,4 @@
+import { cookieSecure } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { discover, oidc, oidcSettings, redirectUri } from "@/lib/oidc";
 
@@ -24,7 +25,7 @@ export async function GET() {
     res.cookies.set("octavo_oidc", JSON.stringify({ state, verifier }), {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
+      secure: await cookieSecure(),
       path: "/api/auth/oidc",
       maxAge: 600,
     });

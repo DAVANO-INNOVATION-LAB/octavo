@@ -23,7 +23,11 @@ export async function POST(req: NextRequest) {
     body?: string;
   };
   try {
-    payload = await req.json();
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return NextResponse.json({ error: "bad request" }, { status: 400 });
+    }
+    payload = parsed as typeof payload;
   } catch {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }

@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS pages (
   content_text TEXT NOT NULL DEFAULT '',
   position REAL NOT NULL DEFAULT 0,
   published INTEGER NOT NULL DEFAULT 1,
+  cover TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   UNIQUE(space_id, slug)
@@ -353,6 +354,12 @@ function open(): Database.Database {
 
 /** Additive migrations for databases created by earlier versions. */
 function migrate(db: Database.Database) {
+  {
+    const pageCols = (db.pragma("table_info(pages)") as { name: string }[]).map((c) => c.name);
+    if (pageCols.length && !pageCols.includes("cover")) {
+      db.exec("ALTER TABLE pages ADD COLUMN cover TEXT NOT NULL DEFAULT ''");
+    }
+  }
   const cols = (
     db.prepare("PRAGMA table_info(spaces)").all() as { name: string }[]
   ).map((c) => c.name);

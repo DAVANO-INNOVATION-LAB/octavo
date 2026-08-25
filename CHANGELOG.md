@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.11.0 — 2026-08-25
+
+### Fixed
+
+- **Sign-in now works in Safari on a self-hosted instance.** Session cookies
+  were marked Secure on any production build, including one served over plain
+  http on an internal network — Chrome stores such cookies, Safari correctly
+  refuses them, so sign-in appeared to fail. The Secure flag now follows the
+  actual request protocol. Anyone running Octavo over http behind their own
+  firewall was affected.
+- Every JSON API route now rejects a malformed or `null` body with 400 rather
+  than 500. A hardening pass, driven by a new adversarial test suite.
+
+### Added
+
+- **Editor: four new blocks.** A *sketch* block (Excalidraw drawn in the page,
+  saved with the page, shown to readers as a plain image); an *embed* block
+  that shows another page's current content, resolved with the reader's own
+  permissions and safe against cycles by construction; an *audience* block
+  that appears only when a space variable matches; and page *covers* — six ink
+  washes or an uploaded image.
+- **Space variables.** Define values once per space; write `{{name}}` anywhere
+  and readers see the value, or gate whole blocks on a match. One page,
+  dressed per audience or per deployment.
+- **An adversarial test suite** (`npm run test:breaking`): 19 probes that try
+  to break the app with malformed input, SSRF evasion, forged permission
+  boundaries, oversized beacons, concurrent writes, pathological documents,
+  and injected markup. Every probe must fail safely.
 ## v0.10.0 — 2026-08-25
 
 ### Added

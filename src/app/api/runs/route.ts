@@ -8,12 +8,21 @@ export async function POST(req: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const body = (await req.json()) as {
+  type RunBody = {
     pageId?: string;
     blockId?: string;
     connectorId?: string;
     params?: Record<string, unknown>;
   };
+  let body: RunBody;
+  try {
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return NextResponse.json({ error: "bad request" }, { status: 400 });
+    body = parsed as RunBody;
+  } catch {
+    return NextResponse.json({ error: "bad request" }, { status: 400 });
+  }
   if (!body.pageId || !body.blockId || !body.connectorId)
     return NextResponse.json({ error: "bad request" }, { status: 400 });
 

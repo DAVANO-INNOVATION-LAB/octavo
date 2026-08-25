@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
-import { may , readablePrivateSpaceIds , canReadSpaceAsVisitor, canEditSpace } from "@/lib/roles";
+import { may , readablePrivateSpaceIds , canReadSpaceAsVisitor, canEditSpace, canReadSpace } from "@/lib/roles";
 import { variantSiblings } from "@/lib/data";
 import { resolveVariants } from "@/lib/variants";
 import { VariantSwitcher } from "@/components/VariantSwitcher";
@@ -15,16 +15,22 @@ import {
   backlinks,
   recordView,
   flattenTree,
+  getPage,
   getPageBySlug,
+  getSpace,
   getSpaceBySlug,
   pageTree,
 } from "@/lib/data";
 import Link2 from "next/link";
 import { extractHeadings, parseBlocks } from "@/lib/blocks";
+import { composeBlocks, parseVars } from "@/lib/page-compose";
+import { getSetting } from "@/lib/settings";
 import { readingEnabled } from "@/lib/reading";
 import { ReadingObserver } from "@/components/render/ReadingObserver";
 import { AutoExpand } from "@/components/render/AutoExpand";
 import { Highlighter } from "@/components/render/Highlighter";
+import { CoverPicker } from "@/components/render/CoverPicker";
+import { saveCoverAction } from "@/app/actions";
 import { connectorsForSpace, runsForPage } from "@/lib/connectors";
 import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
@@ -95,7 +101,21 @@ export default async function ReaderPage({
   const prev = idx > 0 ? flat[idx - 1] : null;
   const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;
 
-  const blocks = parseBlocks(page.content);
+  // Composition: space variables land, audience blocks filter, embedded
+  // pages resolve — with this reader's permissions deciding what resolves.
+  const vars = parseVars(getSetting(`vars:${space.id}`));
+  const blocks = composeBlocks(parseBlocks(page.content), vars, (pid) => {
+    const target = getPage(pid);
+    if (!target || target.published !== 1) return { state: "missing" as const };
+    const tSpace = getSpace(target.space_id);
+    if (!tSpace || !canReadSpace(user, tSpace)) return { state: "forbidden" as const };
+    return {
+      state: "ok" as const,
+      title: target.title,
+      href: `/${tSpace.slug}/${target.slug}`,
+      blocks: parseBlocks(target.content),
+    };
+  });
   const readingOn = readingEnabled();
   const commentable = COMMENTABLE_KINDS.has(space.kind);
   const openChanges = openCrCount(page.id);
@@ -172,6 +192,24 @@ export default async function ReaderPage({
           <p className="mb-6 inline-block rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
             Draft — only signed-in writers can see this page
           </p>
+        )}
+        {page.cover && (
+          <div
+            aria-hidden
+            className={`mb-8 h-40 rounded-2xl border border-line shadow-card sm:h-52 ${
+              page.cover.startsWith("preset:")
+                ? `cover-wash cover-${page.cover.slice(7)}`
+                : ""
+            }`}
+            style={
+              page.cover.startsWith("/")
+                ? { backgroundImage: `url(${page.cover})`, backgroundSize: "cover", backgroundPosition: "center" }
+                : undefined
+            }
+          />
+        )}
+        {mayWrite && (
+          <CoverPicker pageId={page.id} cover={page.cover} action={saveCoverAction} />
         )}
         <header className="mb-8">
           {idx >= 0 && (

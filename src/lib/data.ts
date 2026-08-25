@@ -35,6 +35,7 @@ export type Page = {
   content_text: string;
   position: number;
   published: number;
+  cover: string;
   created_at: number;
   updated_at: number;
 };

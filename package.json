@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,7 +18,8 @@
     "preview": "OCTAVO_DATA_DIR=$PWD/data PORT=${PORT:-8545} node .next/standalone/server.js",
     "demo": "node scripts/demo.mjs",
     "demo:stop": "node scripts/demo.mjs stop",
-    "test:replication": "node scripts/replication-test.mjs"
+    "test:replication": "node scripts/replication-test.mjs",
+    "test:breaking": "node scripts/breaking-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

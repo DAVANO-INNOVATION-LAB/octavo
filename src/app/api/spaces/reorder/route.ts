@@ -11,7 +11,14 @@ export async function POST(req: NextRequest) {
   if (user.role !== "admin")
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const body = (await req.json()) as { order?: unknown };
+  let body: { order?: unknown };
+  try {
+    const parsed = await req.json();
+    if (!parsed || typeof parsed !== "object") throw new Error("not an object");
+    body = parsed as { order?: unknown };
+  } catch {
+    return NextResponse.json({ error: "bad request" }, { status: 400 });
+  }
   if (
     !Array.isArray(body.order) ||
     body.order.some(

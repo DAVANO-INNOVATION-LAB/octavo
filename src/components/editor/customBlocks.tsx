@@ -25,7 +25,10 @@ import {
   OctagonAlert,
   PenTool,
   Sigma,
+  Shapes, FileInput, SlidersHorizontal,
 } from "lucide-react";
+import { SketchBlockView } from "./SketchBlockView";
+import { SyncedPagePicker } from "./SyncedPagePicker";
 import { drawioOriginForMessages, drawioSrc } from "@/lib/client-config";
 
 // Resolved per render from the config the server injected, so an operator
@@ -496,6 +499,103 @@ export const ApiRequestBlock = createReactBlockSpec(
   }
 );
 
+/**
+ * A sketch drawn in place — Excalidraw behind the same contract as the
+ * draw.io block: source in one prop, rendered SVG in the other.
+ */
+export const Sketch = createReactBlockSpec(
+  {
+    type: "sketch",
+    propSchema: {
+      scene: { default: "" },
+      svg: { default: "" },
+    },
+    content: "none",
+  },
+  {
+    render: (props) => (
+      <SketchBlockView
+        scene={String(props.block.props.scene ?? "")}
+        svg={String(props.block.props.svg ?? "")}
+        onSave={(scene, svg) =>
+          props.editor.updateBlock(props.block, { props: { scene, svg } })
+        }
+      />
+    ),
+  }
+);
+
+/**
+ * Another page, embedded here. Write once, reference everywhere: the reader
+ * always sees the current content of the source page, resolved at read time
+ * on the server. In the editor it is a labelled card, not the content —
+ * editing the source happens on the source.
+ */
+export const SyncedPage = createReactBlockSpec(
+  {
+    type: "syncedPage",
+    propSchema: {
+      pageId: { default: "" },
+      title: { default: "" },
+    },
+    content: "none",
+  },
+  {
+    render: (props) => (
+      <SyncedPagePicker
+        pageId={String(props.block.props.pageId ?? "")}
+        title={String(props.block.props.title ?? "")}
+        onPick={(pageId, title) =>
+          props.editor.updateBlock(props.block, { props: { pageId, title } })
+        }
+      />
+    ),
+  }
+);
+
+/**
+ * Content that appears only for a matching audience. The space defines
+ * variables (audience=internal, region=eu, …); this block names one value
+ * and its children render only when the space's value matches. The editor
+ * always shows the content — writers must see what they wrote.
+ */
+export const IfVar = createReactBlockSpec(
+  {
+    type: "ifvar",
+    propSchema: {
+      name: { default: "audience" },
+      equals: { default: "" },
+    },
+    content: "inline",
+  },
+  {
+    render: (props) => (
+      <div className="rounded-lg border border-dashed border-line px-3 py-2">
+        <span className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.08em] text-faint">
+          <SlidersHorizontal size={11} />
+          only when
+          <input
+            className="w-24 rounded border border-line bg-bg px-1.5 py-0.5 font-mono text-[11px] text-ink"
+            value={String(props.block.props.name ?? "")}
+            onChange={(e) =>
+              props.editor.updateBlock(props.block, { props: { name: e.target.value } })
+            }
+          />
+          =
+          <input
+            className="w-24 rounded border border-line bg-bg px-1.5 py-0.5 font-mono text-[11px] text-ink"
+            value={String(props.block.props.equals ?? "")}
+            onChange={(e) =>
+              props.editor.updateBlock(props.block, { props: { equals: e.target.value } })
+            }
+          />
+        </span>
+        <span className="text-[15px]" ref={props.contentRef} />
+      </div>
+    ),
+  }
+);
+
 export const octavoSchema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
@@ -507,6 +607,9 @@ export const octavoSchema = BlockNoteSchema.create({
     themeImage: ThemeImage(),
     model3d: Model3DBlock(),
     apiRequest: ApiRequestBlock(),
+    sketch: Sketch(),
+    syncedPage: SyncedPage(),
+    ifvar: IfVar(),
   },
   styleSpecs: {
     ...defaultStyleSpecs,
@@ -531,7 +634,8 @@ export function customSlashItems(
     icon: React.ReactElement,
     type:
       | "callout" | "expandable" | "step" | "math"
-      | "drawio" | "themeImage" | "model3d",
+      | "drawio" | "themeImage" | "model3d"
+      | "sketch" | "syncedPage" | "ifvar",
     props?: Record<string, string>
   ): DefaultReactSuggestionItem => ({
     title,
@@ -549,5 +653,8 @@ export function customSlashItems(
     make("Draw.io diagram", "A diagram saved in this page", <PenTool size={18} />, "drawio"),
     make("Theme-aware image", "A different image in light and dark", <ImageIcon size={18} />, "themeImage"),
     make("3D model", "A rotatable scene for this discipline", <Boxes size={18} />, "model3d", { kind: "architecture" }),
+    make("Sketch", "Draw here; readers get an image", <Shapes size={18} />, "sketch"),
+    make("Embed a page", "Another page's content, always current", <FileInput size={18} />, "syncedPage"),
+    make("Audience block", "Shown only when a space variable matches", <SlidersHorizontal size={18} />, "ifvar"),
   ];
 }
