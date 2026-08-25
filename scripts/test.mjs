@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -31,6 +31,7 @@ const yaml = await import(pathToFileURL(path.join(STAGE, "yaml.ts")));
 const oa = await import(pathToFileURL(path.join(STAGE, "openapi.ts")));
 const syslog = await import(pathToFileURL(path.join(STAGE, "syslog.ts")));
 const reading = await import(pathToFileURL(path.join(STAGE, "reading-score.ts")));
+const policy = await import(pathToFileURL(path.join(STAGE, "policy-pure.ts")));
 
 let pass = 0;
 let fail = 0;
@@ -902,6 +903,25 @@ test("reading: days bucket to UTC midnight", () => {
   const d = reading.dayOf(Date.UTC(2026, 7, 23, 13, 45, 6));
   eq(d, Date.UTC(2026, 7, 23));
   eq(reading.dayOf(Date.UTC(2026, 7, 23)), Date.UTC(2026, 7, 23));
+});
+
+test("policy: values clamp to their bounds instead of being rejected", () => {
+  const p = policy.clampPolicy({ sessionDays: 9999, lockoutThreshold: 1, minPasswordLength: -5 });
+  eq(p.sessionDays, 365);
+  eq(p.lockoutThreshold, 3);
+  eq(p.minPasswordLength, 8);
+});
+
+test("policy: nonsense leaves the default standing", () => {
+  const p = policy.clampPolicy({ sessionDays: "soon", lockoutMinutes: NaN, auditRetentionDays: null });
+  eq(p.sessionDays, policy.DEFAULT_POLICY.sessionDays);
+  eq(p.lockoutMinutes, policy.DEFAULT_POLICY.lockoutMinutes);
+  eq(p.auditRetentionDays, 0);
+});
+
+test("policy: audit retention may be zero, meaning forever", () => {
+  eq(policy.clampPolicy({ auditRetentionDays: 0 }).auditRetentionDays, 0);
+  eq(policy.clampPolicy({ auditRetentionDays: 90 }).auditRetentionDays, 90);
 });
 
 test("newId shape", () => {

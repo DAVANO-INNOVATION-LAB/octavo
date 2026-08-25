@@ -3,6 +3,8 @@ import { AlertTriangle, Database, Download, Upload } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { listSpaces } from "@/lib/data";
 import { AdminShell } from "@/components/AdminShell";
+import { lastShipResult, replicaTarget } from "@/lib/replicate";
+import { saveReplicaAction, shipNowAction } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +13,14 @@ export const metadata = { title: "Backups" };
 export default async function AdminBackups({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; restored?: string }>;
+  searchParams: Promise<{ error?: string; restored?: string; replica?: string }>;
 }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "admin") redirect("/");
-  const { error, restored } = await searchParams;
+  const { error, restored, replica } = await searchParams;
+  const target = replicaTarget();
+  const last = lastShipResult();
   const spaces = listSpaces("all");
 
   return (
@@ -123,6 +127,102 @@ export default async function AdminBackups({
             </li>
           ))}
         </ul>
+      </section>
+      <section className="mt-10 max-w-2xl rounded-2xl border border-line bg-surface p-6 shadow-card">
+        <h3 className="text-sm font-semibold text-ink">Replication</h3>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Ships a verified snapshot of the database to S3-compatible object
+          storage on a cadence — AWS, MinIO, or R2; an air-gapped MinIO on the
+          same network works. Every snapshot is opened and integrity-checked
+          before it uploads, because a backup that cannot be read is not a
+          backup. Restore is one file: fetch{" "}
+          <code className="text-xs">octavo-latest.db</code> into the data
+          directory and start the container.
+        </p>
+
+        {replica === "saved" && (
+          <p className="mt-3 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
+            Saved. Snapshots ship on the cadence from now on.
+          </p>
+        )}
+        {replica === "shipped" && (
+          <p className="mt-3 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
+            Shipped and verified.
+          </p>
+        )}
+        {replica === "failed" && (
+          <p className="mt-3 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
+            Ship failed{last?.error ? ` — ${last.error}` : ""}. Nothing was
+            replaced in the bucket.
+          </p>
+        )}
+
+        <form action={saveReplicaAction} className="mt-4 grid gap-3 sm:grid-cols-2">
+          <input
+            name="endpoint"
+            defaultValue={target?.endpoint ?? ""}
+            placeholder="https://s3.us-east-1.amazonaws.com (empty disables)"
+            className="h-9 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent sm:col-span-2"
+          />
+          <input
+            name="bucket"
+            defaultValue={target?.bucket ?? ""}
+            placeholder="bucket"
+            className="h-9 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+          />
+          <input
+            name="region"
+            defaultValue={target?.region ?? "us-east-1"}
+            placeholder="region"
+            className="h-9 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+          />
+          <input
+            name="accessKey"
+            defaultValue={target?.accessKey ?? ""}
+            placeholder="access key"
+            className="h-9 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+          />
+          <input
+            name="secretKey"
+            type="password"
+            placeholder={target ? "secret key (blank keeps current)" : "secret key"}
+            className="h-9 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+          />
+          <input
+            name="prefix"
+            defaultValue={target?.prefix ?? "octavo"}
+            placeholder="key prefix"
+            className="h-9 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+          />
+          <div className="flex items-center gap-2">
+            <input
+              name="intervalMinutes"
+              type="number"
+              defaultValue={target?.intervalMinutes ?? 5}
+              min={1}
+              aria-label="Minutes between snapshots"
+              className="h-9 w-20 rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+            />
+            <span className="text-xs text-faint">min between snapshots</span>
+          </div>
+          <button className="h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink sm:col-span-2 sm:justify-self-start">
+            Save target
+          </button>
+        </form>
+        {target && (
+          <form action={shipNowAction} className="mt-3">
+            <button className="h-9 rounded-lg border border-line px-3 text-sm text-muted hover:border-line-strong hover:text-ink">
+              Ship a snapshot now
+            </button>
+            {last && (
+              <span className="ml-3 text-xs text-faint">
+                Last: {last.ok ? `ok, ${Math.round((last.bytes ?? 0) / 1024)}KB` : last.error}
+                {" · "}
+                {new Date(last.at).toLocaleTimeString()}
+              </span>
+            )}
+          </form>
+        )}
       </section>
     </AdminShell>
   );

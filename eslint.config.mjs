@@ -18,6 +18,9 @@ const eslintConfig = defineConfig([
     // Vendored third-party assets: minified, not ours to fix, and large
     // enough that parsing them exhausts the linter's heap.
     "public/drawio/**",
+    // Headless-Chrome profiles the browser test suites leave behind.
+    ".uitest-profile/**",
+    ".airgap-profile/**",
     "public/**/*.min.js",
   ]),
 ]);

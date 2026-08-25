@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { canReadSpace, canEditSpace } from "@/lib/roles";
+import { canReadSpace, canReadSpaceAsVisitor, canEditSpace } from "@/lib/roles";
 import { currentUser } from "@/lib/auth";
 import { flattenTree, getPage, getSpaceBySlug, pageTree } from "@/lib/data";
 import { parseBlocks } from "@/lib/blocks";
@@ -34,7 +34,8 @@ export default async function SpacePrint({
   const user = await currentUser();
   // Private means private from other members too, not merely from people
   // who are signed out: otherwise one account is the whole library.
-  if (!canReadSpace(user, space)) redirect(user ? "/" : "/login");
+  if (!(await canReadSpaceAsVisitor(user, space)))
+    redirect(user ? "/" : "/login");
 
   const editing = canEditSpace(user, space.id);
   const pages = flattenTree(pageTree(space.id, !editing)).filter(

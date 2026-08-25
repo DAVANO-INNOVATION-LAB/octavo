@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSession, upsertOidcUser } from "@/lib/auth";
+import { syncClaimGroups } from "@/lib/groups";
 import { discover, oidc, oidcSettings } from "@/lib/oidc";
 
 export async function GET(req: NextRequest) {
@@ -54,6 +55,13 @@ export async function GET(req: NextRequest) {
       name: typeof claims.name === "string" ? claims.name : "",
       role,
     });
+    // Groups ride the token. Only claim-derived memberships move; anything
+    // an operator granted by hand inside Octavo stays theirs to manage.
+    const claimed = Array.isArray(claims.groups)
+      ? claims.groups.map((g) => String(g))
+      : [];
+    syncClaimGroups(user.id, claimed);
+
     await createSession(user.id);
 
     const res = NextResponse.redirect(new URL("/", settings.baseUrl), {

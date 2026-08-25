@@ -17,6 +17,8 @@ import {
 } from "@/lib/auth";
 import { verifyTotp } from "@/lib/totp";
 import { recordAudit } from "@/lib/audit";
+import { asSpaceRole } from "@/lib/capabilities";
+import { passwordProblem } from "@/lib/policy";
 import { saveForwardConfig } from "@/lib/audit-forward";
 import { saveAskConfig } from "@/lib/ask";
 import { applySync } from "@/lib/sync-io";
@@ -31,10 +33,24 @@ import {
   reviewChangeRequest,
   setChangeRequestStatus,
 } from "@/lib/change-requests";
-import { deleteUser, findUserByEmail, setUserRole } from "@/lib/auth";
+import { findUserByEmail, setUserRole } from "@/lib/auth";
 import type { User } from "@/lib/auth";
 import { setSetting } from "@/lib/settings";
 import { forgetAllReading, pruneReading } from "@/lib/reading";
+import { createVisitorToken, revokeVisitorToken } from "@/lib/visitors";
+import {
+  addGroupMember,
+  createGroup,
+  deleteGroup,
+  getGroup,
+  removeGroupMember,
+  setGroupClaim,
+  setGroupGrant,
+} from "@/lib/groups";
+import { clampPolicy, pruneAudit } from "@/lib/policy";
+import { eraseSubject } from "@/lib/subject";
+import { issueScimToken, revokeScimToken } from "@/lib/scim";
+import { replicaTarget, scheduleReplication, shipSnapshot } from "@/lib/replicate";
 import { discover, oidcSettings } from "@/lib/oidc";
 import {
   connectorsForSpace,
@@ -81,7 +97,7 @@ export async function setupAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  if (!name || !email.includes("@") || password.length < 8) {
+  if (!name || !email.includes("@") || passwordProblem(password)) {
     redirect("/setup?error=1");
   }
   const id = createUser(email, name, password);
@@ -92,8 +108,8 @@ export async function setupAction(formData: FormData) {
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const user = authenticate(email, password);
-  if (!user) {
+  const result = authenticate(email, password);
+  if (!result.ok) {
     // The address is recorded; the string typed into the password field is
     // never written down, since it is frequently a password typed one box up.
     recordAudit({
@@ -101,9 +117,11 @@ export async function loginAction(formData: FormData) {
       action: "auth.signin_failed",
       objectType: "session",
       objectLabel: email.slice(0, 120),
+      detail: result.reason === "locked" ? { locked: true } : undefined,
     });
-    redirect("/login?error=1");
+    redirect(result.reason === "locked" ? "/login?error=locked" : "/login?error=1");
   }
+  const user = result.user;
   if (getTotpSecret(user.id)) {
     const jar = await cookies();
     jar.set("octavo_pending_2fa", issuePendingToken(user.id), {
@@ -424,14 +442,19 @@ export async function deleteUserAction(formData: FormData) {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (id === admin.id) redirect("/admin/users?error=self");
+  // Deleting an account is the erasure path: sessions, memberships, group
+  // seats, comments and notifications go with it. What stays is shared page
+  // content and the audit record — see lib/subject for why the chain keeps
+  // the name.
+  const erased = eraseSubject(id);
   recordAudit({
     actor: admin,
     action: "user.deleted",
     objectType: "user",
     objectId: id,
     objectLabel: id,
+    detail: erased,
   });
-  deleteUser(id);
   redirect("/admin/users");
 }
 
@@ -521,7 +544,10 @@ export async function setSpaceMemberAction(formData: FormData) {
   const slug = String(formData.get("space") ?? "");
   const { space } = await requireSpaceAdmin(slug);
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
-  const role = String(formData.get("role") ?? "editor") === "admin" ? "admin" : "editor";
+  // Every role the form offers must survive the trip. This used to coerce
+  // everything that was not "admin" into "editor", which made the Reader and
+  // AI Agent options silently grant write access.
+  const role = asSpaceRole(formData.get("role"));
   const target = findUserByEmail(email);
   if (!target) redirect(`/${space.slug}/members?error=nouser`);
   setSpaceMember(space.id, target.id, role);
@@ -786,6 +812,245 @@ export async function saveReadingAction(formData: FormData) {
     detail: forgotten ? { rowsDeleted: forgotten } : undefined,
   });
   redirect("/admin/reading?saved=1");
+}
+
+// ---- visitor links ----
+
+export async function createVisitorTokenAction(formData: FormData) {
+  const slug = String(formData.get("space") ?? "");
+  const { user, space } = await requireSpaceAdmin(slug);
+  const label = String(formData.get("label") ?? "");
+  const days = Number(formData.get("days") ?? 7);
+
+  const { token } = createVisitorToken({
+    spaceId: space.id,
+    label,
+    days,
+    createdBy: user.id,
+  });
+  recordAudit({
+    actor: user,
+    action: "visit.token_created",
+    objectType: "space",
+    objectId: space.id,
+    objectLabel: label || "visitor link",
+    spaceId: space.id,
+  });
+
+  // Shown exactly once, carried in an httpOnly cookie rather than the URL so
+  // the secret never lands in a server log or a referrer header. It expires
+  // in a minute whether or not anyone copies it.
+  const jar = await cookies();
+  jar.set("octavo_new_visit", JSON.stringify({ token, space: space.slug }), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: `/`,
+    maxAge: 60,
+  });
+  redirect(`/${space.slug}/members`);
+}
+
+export async function revokeVisitorTokenAction(formData: FormData) {
+  const slug = String(formData.get("space") ?? "");
+  const { user, space } = await requireSpaceAdmin(slug);
+  revokeVisitorToken(String(formData.get("id") ?? ""));
+  recordAudit({
+    actor: user,
+    action: "visit.token_revoked",
+    objectType: "space",
+    objectId: space.id,
+    objectLabel: space.name,
+    spaceId: space.id,
+  });
+  redirect(`/${space.slug}/members`);
+}
+
+// ---- groups ----
+
+export async function createGroupAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const g = createGroup(
+    String(formData.get("name") ?? ""),
+    String(formData.get("claim") ?? "")
+  );
+  if (g)
+    recordAudit({
+      actor: admin,
+      action: "group.created",
+      objectType: "group",
+      objectId: g.id,
+      objectLabel: g.name,
+    });
+  redirect("/admin/groups");
+}
+
+export async function deleteGroupAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const g = getGroup(id);
+  if (g) {
+    deleteGroup(id);
+    recordAudit({
+      actor: admin,
+      action: "group.deleted",
+      objectType: "group",
+      objectId: id,
+      objectLabel: g.name,
+    });
+  }
+  redirect("/admin/groups");
+}
+
+export async function groupMemberAction(formData: FormData) {
+  await requireAdmin();
+  const groupId = String(formData.get("group") ?? "");
+  const remove = String(formData.get("remove") ?? "");
+  if (remove) {
+    removeGroupMember(groupId, remove);
+  } else {
+    const target = findUserByEmail(String(formData.get("email") ?? ""));
+    if (!target) redirect(`/admin/groups?error=nouser`);
+    addGroupMember(groupId, target.id);
+  }
+  redirect("/admin/groups");
+}
+
+export async function groupGrantAction(formData: FormData) {
+  await requireAdmin();
+  const groupId = String(formData.get("group") ?? "");
+  const spaceSlug = String(formData.get("space") ?? "");
+  const role = String(formData.get("role") ?? "");
+  const space = getSpaceBySlug(spaceSlug);
+  if (space) setGroupGrant(groupId, space.id, role === "none" ? null : role);
+  redirect("/admin/groups");
+}
+
+export async function groupClaimAction(formData: FormData) {
+  await requireAdmin();
+  setGroupClaim(
+    String(formData.get("group") ?? ""),
+    String(formData.get("claim") ?? "")
+  );
+  redirect("/admin/groups");
+}
+
+// ---- instance policy ----
+
+export async function savePolicyAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const next = clampPolicy({
+    sessionDays: formData.get("sessionDays"),
+    lockoutThreshold: formData.get("lockoutThreshold"),
+    lockoutMinutes: formData.get("lockoutMinutes"),
+    lockoutWindowMinutes: formData.get("lockoutWindowMinutes"),
+    minPasswordLength: formData.get("minPasswordLength"),
+    auditRetentionDays: formData.get("auditRetentionDays"),
+  });
+  setSetting("policy", JSON.stringify(next));
+  const pruned = pruneAudit();
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "policy",
+    objectLabel: "instance policy",
+    detail: { ...next, ...(pruned ? { auditRowsPruned: pruned } : {}) },
+  });
+  redirect("/admin/policy?saved=1");
+}
+
+// ---- SCIM provisioning ----
+
+export async function scimTokenAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const off = String(formData.get("revoke") ?? "");
+  if (off) {
+    revokeScimToken();
+    recordAudit({
+      actor: admin,
+      action: "admin.settings_changed",
+      objectType: "setting",
+      objectId: "scim",
+      objectLabel: "SCIM provisioning disabled",
+    });
+    redirect("/admin/sso?scim=off");
+  }
+  const token = issueScimToken();
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "scim",
+    objectLabel: "SCIM token issued",
+  });
+  const jar = await cookies();
+  jar.set("octavo_new_scim", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60,
+  });
+  redirect("/admin/sso?scim=on");
+}
+
+// ---- replication ----
+
+export async function saveReplicaAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const endpoint = String(formData.get("endpoint") ?? "").trim();
+  if (!endpoint) {
+    setSetting("replica_target", null);
+    scheduleReplication();
+    recordAudit({
+      actor: admin,
+      action: "admin.settings_changed",
+      objectType: "setting",
+      objectId: "replica",
+      objectLabel: "replication disabled",
+    });
+    redirect("/admin/backups?replica=off");
+  }
+  setSetting(
+    "replica_target",
+    JSON.stringify({
+      endpoint,
+      region: String(formData.get("region") ?? "us-east-1").trim(),
+      bucket: String(formData.get("bucket") ?? "").trim(),
+      accessKey: String(formData.get("accessKey") ?? "").trim(),
+      // An empty secret on save means "keep the one you have" so the form
+      // never needs to display it back.
+      secretKey:
+        String(formData.get("secretKey") ?? "").trim() ||
+        (replicaTarget()?.secretKey ?? ""),
+      prefix: String(formData.get("prefix") ?? "octavo").trim(),
+      intervalMinutes: Number(formData.get("intervalMinutes") ?? 5),
+      keepDays: Number(formData.get("keepDays") ?? 14),
+    })
+  );
+  scheduleReplication();
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "replica",
+    objectLabel: "replication target saved",
+  });
+  redirect("/admin/backups?replica=saved");
+}
+
+export async function shipNowAction() {
+  const admin = await requireAdmin();
+  const result = await shipSnapshot();
+  recordAudit({
+    actor: admin,
+    action: "admin.backup_created",
+    objectType: "replica",
+    objectLabel: result.ok ? `shipped ${result.key}` : `ship failed: ${result.error}`,
+    detail: { ok: result.ok, bytes: result.bytes ?? 0 },
+  });
+  redirect(result.ok ? "/admin/backups?replica=shipped" : "/admin/backups?replica=failed");
 }
 
 // ---- markdown sync ----

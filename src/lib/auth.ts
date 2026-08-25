@@ -3,9 +3,16 @@ import { cookies } from "next/headers";
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { getDb } from "./db";
 import { newId, now } from "./util";
+import { isDeactivated } from "./scim";
+import {
+  clearSigninFailures,
+  lockoutState,
+  recordSigninFailure,
+  sessionTtlMs,
+} from "./policy";
 
 const SESSION_COOKIE = "octavo_session";
-const SESSION_TTL = 1000 * 60 * 60 * 24 * 30; // 30 days
+// Session length comes from the instance policy; see ./policy.
 
 export type User = {
   id: string;
@@ -49,16 +56,17 @@ export function createUser(email: string, name: string, password: string) {
 
 export async function createSession(userId: string) {
   const id = randomBytes(32).toString("hex");
+  const ttl = sessionTtlMs();
   getDb()
     .prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)")
-    .run(id, userId, now() + SESSION_TTL);
+    .run(id, userId, now() + ttl);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, id, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: SESSION_TTL / 1000,
+    maxAge: ttl / 1000,
   });
 }
 
@@ -85,18 +93,41 @@ export async function currentUser(): Promise<User | null> {
     getDb().prepare("DELETE FROM sessions WHERE id = ?").run(id);
     return null;
   }
+  // An account a provisioner has deactivated is a person who left. Their
+  // sessions were killed at deactivation; this covers a race where one
+  // survived.
+  if (isDeactivated(row.id)) {
+    getDb().prepare("DELETE FROM sessions WHERE id = ?").run(id);
+    return null;
+  }
   return { id: row.id, email: row.email, name: row.name, role: row.role };
 }
 
-export function authenticate(email: string, password: string): User | null {
+export type AuthResult =
+  | { ok: true; user: User }
+  | { ok: false; reason: "bad-credentials" }
+  | { ok: false; reason: "locked"; until: number };
+
+export function authenticate(email: string, password: string): AuthResult {
+  // The lockout is checked before the password so a locked account leaks
+  // nothing about whether the guess was right.
+  const lock = lockoutState(email);
+  if (lock.locked) return { ok: false, reason: "locked", until: lock.until };
+
   const row = getDb()
     .prepare("SELECT id, email, name, role, password_hash FROM users WHERE email = ?")
     .get(email.toLowerCase().trim()) as
     | (User & { password_hash: string })
     | undefined;
-  if (!row) return null;
-  if (!verifyPassword(password, row.password_hash)) return null;
-  return { id: row.id, email: row.email, name: row.name, role: row.role };
+  if (!row || !verifyPassword(password, row.password_hash)) {
+    recordSigninFailure(email);
+    return { ok: false, reason: "bad-credentials" };
+  }
+  clearSigninFailures(email);
+  return {
+    ok: true,
+    user: { id: row.id, email: row.email, name: row.name, role: row.role },
+  };
 }
 
 /**

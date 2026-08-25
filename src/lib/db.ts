@@ -194,6 +194,59 @@ CREATE INDEX IF NOT EXISTS page_links_to ON page_links(to_page);
 -- counters summed per passage per day. That is not a policy we promise to
 -- keep, it is the only thing the table is able to hold. A writer learns which
 -- sentences fail; nobody learns who failed at them.
+-- Groups: a set of people granted a role in a space all at once.
+--
+-- A group can be maintained by hand or carried by an OIDC claim. When the
+-- identity provider owns it, membership is replaced on every sign-in rather
+-- than merged — an account removed from a group upstream must lose the
+-- access here too, and a merge would silently keep it.
+CREATE TABLE IF NOT EXISTS groups (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  claim_value TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS group_members (
+  group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  from_claim INTEGER NOT NULL DEFAULT 0,
+  added_at INTEGER NOT NULL,
+  PRIMARY KEY (group_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS group_space_roles (
+  group_id TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'reader',
+  PRIMARY KEY (group_id, space_id)
+);
+
+-- Visitor tokens: a link that opens one private space to someone outside the
+-- library, for a while, revocably.
+--
+-- Only the hash is stored. A stolen database yields no working links, and an
+-- operator who loses the link cannot recover it — they issue another, which
+-- is the correct trade for a credential.
+CREATE TABLE IF NOT EXISTS visitor_tokens (
+  id TEXT PRIMARY KEY,
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL DEFAULT '',
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  revoked_at INTEGER,
+  last_used_at INTEGER,
+  uses INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS visitor_space ON visitor_tokens(space_id);
+
+-- Failed sign-ins, for lockout. Pruned as they age out of the window.
+CREATE TABLE IF NOT EXISTS signin_failures (
+  email TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS signin_failures_email ON signin_failures(email, at);
+
 CREATE TABLE IF NOT EXISTS reading_signals (
   page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
   block_id TEXT NOT NULL,

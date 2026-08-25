@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.8.0 — 2026-08-24
+
+### Added
+
+- **Visitor links.** A private space can be opened to someone outside the
+  library — read only, that one space only, until the link expires or is
+  revoked. The link is shown once at creation; only its hash is stored, so a
+  copy of the database yields no working links, and revocation takes effect
+  on the visitor's next click.
+- **Groups.** Grant a role in one or more spaces to a set of people at once,
+  by hand or carried by the identity provider's `groups` claim — accounts
+  are added and removed on sign-in as the claim changes, while grants made
+  by hand inside Octavo stay put. A group never takes away what a direct
+  membership grants, and the AI-agent ceiling still cannot be escaped
+  through one.
+- **SCIM provisioning.** The identity provider can create accounts and
+  deactivate leavers at `/api/scim/v2`, authenticated with a rotatable
+  bearer token. Deactivation ends the person's sessions immediately and
+  keeps the account, so someone who returns gets their history back.
+- **Instance policy.** Session length, lockout threshold and window,
+  minimum password length, and audit-log retention are now settings.
+  Lockout counts failures per account inside a sliding window and pauses
+  the account rather than the address.
+- **Personal data export and erasure.** One click downloads everything the
+  instance holds about a person as JSON; deleting an account now also
+  removes their sessions, memberships, group seats, comments and
+  notifications. The export states plainly what remains and why: audit
+  entries keep their recorded actor name because rewriting them would break
+  the hash chain for every later entry.
+- **Replication.** A verified snapshot of the database ships to
+  S3-compatible object storage on a cadence — AWS, MinIO or R2, including
+  an air-gapped MinIO. Every snapshot is opened and integrity-checked
+  before upload; restore is fetching one file. SigV4 is implemented in the
+  codebase itself, keeping the dependency count where it was.
+- **Imports.** Word documents (`.docx`) and Jupyter notebooks (`.ipynb`)
+  import directly — notebooks keep cell order, code, text outputs and
+  figures. Markdown zips already covered MkDocs, Wiki.js and BookStack
+  exports.
+- **Lab notebook and protocol templates**, for benches rather than
+  engineers: dated entries with conditions and results, and procedures
+  written to be followed with review carrying the version of record. The
+  SSO page documents signing in with ORCID.
+- **Social preview cards.** Links to public pages unfurl with a rendered
+  card, produced by the instance itself with no external service. Private
+  spaces deliberately get a plain wordmark card that names nothing.
+- Links into a collapsed section now open it on arrival, so anchors,
+  comment threads and reading-report links always land somewhere visible.
+- The accessibility audit runs as checks in the browser suite on every
+  release: alt text, labelled controls, heading order, and icon-only
+  buttons carrying names.
+
+### Fixed
+
+- Adding someone to a space as a Reader or AI Agent actually adds them with
+  that role. The form offered four roles and the server kept two, silently
+  granting write access to the other two choices.
+
 ## v0.7.0 — 2026-08-23
 
 ### Added

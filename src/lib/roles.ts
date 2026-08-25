@@ -1,7 +1,10 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { getDb } from "./db";
+import { spaceForVisitorToken, VISITOR_COOKIE } from "./visitors";
 import { now } from "./util";
 import type { User } from "./auth";
+import { groupRoleFor, groupSpaceIds } from "./groups";
 import {
   asSpaceRole,
   capabilities,
@@ -44,7 +47,10 @@ function instanceRoleOf(user: User | null): InstanceRole | null {
 /** Everything a principal may do in one space. */
 export function capsFor(user: User | null, spaceId: string): Capability[] {
   if (!user) return [];
-  const role = spaceRole(user.id, spaceId);
+  // A direct membership and a group grant are unioned, stronger winning.
+  // A group must never take access away: someone added to a reader group
+  // while holding an editor seat stays an editor.
+  const role = strongest(spaceRole(user.id, spaceId), groupRoleFor(user.id, spaceId));
   // Being signed in is not membership. Without this, the instance-wide
   // read/comment/propose that a signed-in non-member gets would apply to
   // private spaces too, and one account would open the whole library.
@@ -52,6 +58,17 @@ export function capsFor(user: User | null, spaceId: string): Capability[] {
     return [];
   }
   return capabilities(instanceRoleOf(user), role);
+}
+
+const ROLE_STRENGTH: SpaceRole[] = ["agent", "reader", "editor", "admin"];
+
+function strongest(a: SpaceRole | null, b: SpaceRole | null): SpaceRole | null {
+  if (!a) return b;
+  if (!b) return a;
+  // An agent grant is a ceiling, not a rung — it never loses to a stronger
+  // one, because that is the whole point of it.
+  if (a === "agent" || b === "agent") return "agent";
+  return ROLE_STRENGTH.indexOf(a) >= ROLE_STRENGTH.indexOf(b) ? a : b;
 }
 
 /** Cheap enough to call per check; SQLite reads this from the page cache. */
@@ -177,14 +194,34 @@ export function reviewersFor(spaceId: string): string[] {
 export function readablePrivateSpaceIds(user: User | null): "all" | string[] {
   if (!user) return [];
   if (user.role === "admin") return "all";
-  return (
+  const direct = (
     getDb()
       .prepare("SELECT space_id FROM space_members WHERE user_id = ?")
       .all(user.id) as { space_id: string }[]
   ).map((r) => r.space_id);
+  return [...new Set([...direct, ...groupSpaceIds(user.id)])];
 }
 
 /** May this principal read this space at all? */
+/**
+ * canReadSpace, plus the visitor door.
+ *
+ * A visitor token grants exactly one thing: reading this one space while the
+ * token lives. It is checked only after the membership check fails, adds no
+ * capability, and is re-validated against the stored hash on every request —
+ * revoking a token ends access on the next click, cookie or no cookie.
+ */
+export async function canReadSpaceAsVisitor(
+  user: User | null,
+  space: { id: string; visibility?: string }
+): Promise<boolean> {
+  if (canReadSpace(user, space)) return true;
+  const jar = await cookies();
+  const token = jar.get(VISITOR_COOKIE)?.value;
+  if (!token) return false;
+  return spaceForVisitorToken(token) === space.id;
+}
+
 export function canReadSpace(
   user: User | null,
   space: { id: string; visibility?: string }

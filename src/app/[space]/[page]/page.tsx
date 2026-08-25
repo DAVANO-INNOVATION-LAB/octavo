@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
-import { may , readablePrivateSpaceIds , canReadSpace, canEditSpace } from "@/lib/roles";
+import { may , readablePrivateSpaceIds , canReadSpaceAsVisitor, canEditSpace } from "@/lib/roles";
 import { variantSiblings } from "@/lib/data";
 import { resolveVariants } from "@/lib/variants";
 import { VariantSwitcher } from "@/components/VariantSwitcher";
@@ -23,6 +23,7 @@ import Link2 from "next/link";
 import { extractHeadings, parseBlocks } from "@/lib/blocks";
 import { readingEnabled } from "@/lib/reading";
 import { ReadingObserver } from "@/components/render/ReadingObserver";
+import { AutoExpand } from "@/components/render/AutoExpand";
 import { connectorsForSpace, runsForPage } from "@/lib/connectors";
 import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
@@ -83,7 +84,8 @@ export default async function ReaderPage({
   const mayPropose = may(user, space.id, "propose");
   // Private means private from other members too, not merely from people
   // who are signed out: otherwise one account is the whole library.
-  if (!canReadSpace(user, space)) redirect(user ? "/" : "/login");
+  if (!(await canReadSpaceAsVisitor(user, space)))
+    redirect(user ? "/" : "/login");
   if (page.published === 0 && !editing) notFound();
 
   const tree = pageTree(space.id, !editing);
@@ -247,6 +249,7 @@ export default async function ReaderPage({
           </p>
         </header>
 
+        <AutoExpand />
         {/* Passive and aggregate — see ReadingObserver for what leaves. */}
         {readingOn && page.published === 1 && (
           <ReadingObserver pageId={page.id} />

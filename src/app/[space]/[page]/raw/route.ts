@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { canReadSpace, canEditSpace } from "@/lib/roles";
+import { canEditSpace, canReadSpaceAsVisitor } from "@/lib/roles";
 import { getPageBySlug, getSpaceBySlug } from "@/lib/data";
 import { pageToMarkdown } from "@/lib/transfer";
 
@@ -16,7 +16,7 @@ export async function GET(
   if (!page) return new NextResponse("not found", { status: 404 });
 
   const user = await currentUser();
-  if (!canReadSpace(user, space))
+  if (!(await canReadSpaceAsVisitor(user, space)))
     return new NextResponse("not found", { status: 404 });
   // A draft is not published content. Reading one is the writers' business,
   // not every signed-in account's.

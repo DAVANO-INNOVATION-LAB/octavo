@@ -111,6 +111,86 @@ export const TEMPLATES: SpaceTemplate[] = [
     pages: [{ title: "Introduction", blocks: [] }],
   },
   {
+    id: "lab-notebook",
+    name: "Lab notebook",
+    tagline: "Dated entries with conditions, observations, and results.",
+    audience: "Research groups",
+    kind: "notebook",
+    group: "simple",
+    pages: [
+      {
+        title: "About this notebook",
+        blocks: [
+          p(t("Whose bench this is, what the line of work is, and where the protocols live. One entry per session, newest first, titled by date.")),
+          h(2, "Conventions"),
+          li(t("An entry is written during the session, not reconstructed after.")),
+          li(t("Negative results are entries. A run that failed is a fact.")),
+          li(t("Anything that surprised you gets its own sentence, marked so it can be found.")),
+        ],
+      },
+      {
+        title: "Entry — YYYY-MM-DD",
+        blocks: [
+          h(2, "Aim"),
+          p(t("What this session is trying to establish, in one sentence.")),
+          h(2, "Materials and instruments"),
+          table([
+            ["Item", "Identifier / lot", "Notes"],
+            ["", "", ""],
+            ["", "", ""],
+          ]),
+          h(2, "Conditions"),
+          table([
+            ["Parameter", "Value"],
+            ["Temperature", ""],
+            ["Duration", ""],
+          ]),
+          h(2, "Procedure and observations"),
+          p(t("What was done and what happened, in order, with times. Deviations from the protocol are recorded here, not smoothed over.")),
+          h(2, "Results"),
+          p(t("Figures and measurements. Attach files rather than describing them.")),
+          h(2, "Next"),
+          li(t("The one thing this session decided about the next one.")),
+        ],
+      },
+    ],
+  },
+  {
+    id: "protocol",
+    name: "Protocols",
+    tagline: "Procedures written to be followed, versioned when they change.",
+    audience: "Research groups",
+    kind: "cookbook",
+    group: "simple",
+    pages: [
+      {
+        title: "How protocols work here",
+        blocks: [
+          p(t("A protocol is the version of record. Changing one goes through review like any edit, so the history shows what was done when — which is what a methods section needs.")),
+          li(t("Steps say what to do; notes say why, separately.")),
+          li(t("Safety notes come before the step they apply to, never after.")),
+        ],
+      },
+      {
+        title: "Protocol — name it after the method",
+        blocks: [
+          h(2, "Purpose and scope"),
+          p(t("What this produces and when to use it. What it does not cover.")),
+          h(2, "Materials"),
+          table([
+            ["Reagent / equipment", "Spec", "Amount"],
+            ["", "", ""],
+          ]),
+          h(2, "Steps"),
+          li(t("Each step one action, with the duration on the step.")),
+          li(t("A step with a wait in it says what to do while waiting.")),
+          h(2, "Expected outcome"),
+          p(t("What success looks like, and the two most common ways it fails.")),
+        ],
+      },
+    ],
+  },
+  {
     id: "wiki",
     name: "Wiki",
     tagline: "A shared knowledge base for any team.",

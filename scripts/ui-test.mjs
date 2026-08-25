@@ -344,6 +344,46 @@ const insightsWork = await evaluate(
 if (!insightsWork) fail("insights", "sections missing");
 console.log(`  ${insightsWork ? "✓" : "✗"} insights render`);
 
+/* ————— accessibility: audited every release, as checks, not intentions ————— */
+console.log("\nAccessibility\n");
+{
+  const A11Y_ROUTES = ["/", "/login", "/field-guide", "/field-guide/welcome", "/graph", "/ask"];
+  for (const route of A11Y_ROUTES) {
+    await visit(route, 1500);
+    checks++;
+    const audit = await evaluate(`(() => {
+      const problems = [];
+      // Every image carries alt text (empty alt is a decision, absent is not).
+      for (const img of document.querySelectorAll("img"))
+        if (!img.hasAttribute("alt")) problems.push("img without alt: " + (img.src || "").slice(-40));
+      // Every form control is labelled one way or another.
+      for (const el of document.querySelectorAll("input:not([type=hidden]), select, textarea")) {
+        const labelled = el.labels?.length > 0 ||
+          el.hasAttribute("aria-label") || el.hasAttribute("aria-labelledby") ||
+          el.hasAttribute("placeholder") || el.hasAttribute("title");
+        if (!labelled) problems.push("unlabelled " + el.tagName.toLowerCase() + " name=" + (el.name || "?"));
+      }
+      // One h1, and heading levels never skip downward.
+      const h1s = document.querySelectorAll("h1").length;
+      if (h1s > 1) problems.push(h1s + " h1 elements");
+      let prev = 0;
+      for (const h of document.querySelectorAll("h1,h2,h3,h4,h5,h6")) {
+        const level = Number(h.tagName[1]);
+        if (prev && level > prev + 1) problems.push("heading skips h" + prev + " to h" + level);
+        prev = level;
+      }
+      // Buttons and links say something.
+      for (const b of document.querySelectorAll("button, a"))
+        if (!b.textContent.trim() && !b.getAttribute("aria-label") && !b.getAttribute("title") && b.querySelector("svg"))
+          problems.push("icon-only " + b.tagName.toLowerCase() + " without a label");
+      return problems.slice(0, 5);
+    })()`);
+    const bad = Array.isArray(audit) ? audit : ["audit did not run"];
+    if (bad.length) fail(`a11y ${route}`, bad.join(" · "));
+    console.log(`  ${bad.length ? "✗" : "✓"} ${route}`);
+  }
+}
+
 /* ————— reading signals: a real read produces a real signal ————— */
 //
 // The only check that proves the observer end to end. Scoring is unit-tested

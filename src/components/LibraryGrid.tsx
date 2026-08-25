@@ -74,11 +74,16 @@ export function LibraryGrid({
     <div className="space-y-10">
       {groups.map((g) => (
         <section key={g.shelf || "·"}>
-          {g.shelf && (
+          {g.shelf ? (
             <h2 className="mb-4 flex items-baseline gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
               {g.shelf}
               <span className="h-px flex-1 bg-line" aria-hidden />
             </h2>
+          ) : (
+            // The unshelved group has no visible heading, but its cards are
+            // h3s — without this, the outline runs h1 straight to h3 and a
+            // screen reader's heading navigation loses a level.
+            <h2 className="sr-only">Shelf</h2>
           )}
           <div className="grid auto-rows-fr grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {g.items.map((s, i) => (

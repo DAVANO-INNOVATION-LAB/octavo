@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { KeyRound, ShieldCheck, Trash2 } from "lucide-react";
+import { KeyRound, ShieldCheck, Trash2, FileDown } from "lucide-react";
 import { currentUser, listUsers } from "@/lib/auth";
 import {
   deleteUserAction,
@@ -86,10 +86,17 @@ export default async function AdminUsers({
                     </button>
                   </form>
                 )}
+                <a
+                  href={`/api/users/${u.id}/export`}
+                  title="Download everything the instance holds about this person"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface-2 hover:text-ink"
+                >
+                  <FileDown size={14} />
+                </a>
                 <form action={deleteUserAction}>
                   <input type="hidden" name="id" value={u.id} />
                   <button
-                    title="Delete this account"
+                    title="Delete this account — removes their sessions, memberships, comments and notifications"
                     className="flex h-8 w-8 items-center justify-center rounded-md text-faint transition-colors hover:bg-accent-soft hover:text-accent"
                   >
                     <Trash2 size={14} />

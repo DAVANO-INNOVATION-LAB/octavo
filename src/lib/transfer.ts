@@ -16,7 +16,10 @@ import {
   splitFrontmatter,
 } from "./markdown";
 import { zip, unzip, ZipEntry } from "./zip";
-import { slugify } from "./util";
+import fs from "node:fs";
+import path from "node:path";
+import { UPLOADS_DIR } from "./db";
+import { newId, slugify } from "./util";
 
 /* ————— export ————— */
 
@@ -309,6 +312,12 @@ export function importUpload(
     }
     throw new Error("not an Octavo export");
   }
+  if (lower.endsWith(".ipynb")) {
+    return importNotebook(fileName, data, nameOverride);
+  }
+  if (lower.endsWith(".docx")) {
+    return importDocx(fileName, data, nameOverride);
+  }
   if (lower.endsWith(".md") || lower.endsWith(".markdown") || lower.endsWith(".txt")) {
     const base = cleanSegment(fileName.replace(/\.(markdown|txt)$/i, ".md"));
     return importMarkdownEntries(
@@ -316,5 +325,168 @@ export function importUpload(
       nameOverride || base.replace(/[-_]/g, " ")
     );
   }
-  throw new Error("unsupported file type — use .zip, .md, or an octavo.json");
+  throw new Error("unsupported file type — use .zip, .md, .ipynb, .docx, or an octavo.json");
+}
+
+// ---- Jupyter notebooks ----
+
+type NotebookCell = {
+  cell_type?: string;
+  source?: string | string[];
+  outputs?: {
+    output_type?: string;
+    text?: string | string[];
+    data?: Record<string, string | string[]>;
+  }[];
+};
+
+const joinSource = (src: string | string[] | undefined): string =>
+  Array.isArray(src) ? src.join("") : (src ?? "");
+
+/**
+ * .ipynb → a page, keeping cell order, code, and outputs.
+ *
+ * Markdown cells go through the same converter as any markdown import; code
+ * cells become code blocks; text outputs follow their cell as a plain code
+ * block, and image outputs are written into uploads and embedded. Execution
+ * counts are dropped — they describe one session on someone else's machine.
+ */
+export function importNotebook(
+  fileName: string,
+  data: Buffer,
+  nameOverride?: string
+): ImportResult {
+  let nb: {
+    cells?: NotebookCell[];
+    metadata?: { language_info?: { name?: string } };
+  };
+  try {
+    nb = JSON.parse(data.toString("utf8"));
+  } catch {
+    throw new Error("not a Jupyter notebook — the file is not valid JSON");
+  }
+  if (!Array.isArray(nb.cells)) throw new Error("not a Jupyter notebook — no cells");
+
+  const language = nb.metadata?.language_info?.name ?? "python";
+  const blocks: ReturnType<typeof markdownToBlocks> = [];
+
+  for (const cell of nb.cells) {
+    const source = joinSource(cell.source);
+    if (cell.cell_type === "markdown" && source.trim()) {
+      blocks.push(...markdownToBlocks(source));
+      continue;
+    }
+    if (cell.cell_type !== "code") continue;
+    if (source.trim()) {
+      blocks.push({
+        id: newId(),
+        type: "codeBlock",
+        props: { language },
+        content: [{ type: "text", text: source, styles: {} }],
+        children: [],
+      });
+    }
+    for (const out of cell.outputs ?? []) {
+      const textOut =
+        joinSource(out.text) ||
+        joinSource(out.data?.["text/plain"] as string | string[] | undefined);
+      const png = out.data?.["image/png"];
+      if (png) {
+        const bytes = Buffer.from(joinSource(png), "base64");
+        const name = `${newId()}.png`;
+        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+        fs.writeFileSync(path.join(UPLOADS_DIR, name), bytes);
+        blocks.push({
+          id: newId(),
+          type: "image",
+          props: { url: `/api/files/${name}`, caption: "" },
+          content: [],
+          children: [],
+        });
+      } else if (textOut.trim()) {
+        blocks.push({
+          id: newId(),
+          type: "codeBlock",
+          props: { language: "text" },
+          content: [{ type: "text", text: textOut.trimEnd(), styles: {} }],
+          children: [],
+        });
+      }
+    }
+  }
+
+  const title =
+    nameOverride?.trim() ||
+    cleanSegment(fileName.replace(/\.ipynb$/i, "")).replace(/[-_]/g, " ");
+  return importSinglePage(title, blocks);
+}
+
+// ---- Word documents ----
+
+/**
+ * .docx → a page. Paragraphs, headings and list items survive; the rest of
+ * Word's vocabulary is deliberately flattened to text rather than half-kept.
+ * A docx is a zip of XML, and the one file that matters is word/document.xml.
+ */
+export function importDocx(
+  fileName: string,
+  data: Buffer,
+  nameOverride?: string
+): ImportResult {
+  const entries = unzip(data);
+  const doc = entries.find((e) => e.name === "word/document.xml");
+  if (!doc) throw new Error("not a Word document — word/document.xml missing");
+  const xml = doc.data.toString("utf8");
+
+  const decode = (t: string) =>
+    t
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+
+  const blocks: ReturnType<typeof markdownToBlocks> = [];
+  // Paragraph by paragraph; inside each, concatenate every text run.
+  for (const [, para] of xml.matchAll(/<w:p[ >]([\s\S]*?)<\/w:p>/g)) {
+    const runs = [...para.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)]
+      .map((m) => decode(m[1]))
+      .join("");
+    const textContent = runs.trim();
+    if (!textContent) continue;
+
+    const styleMatch = para.match(/<w:pStyle w:val="([^"]+)"/);
+    const style = styleMatch?.[1] ?? "";
+    const headingLevel = /^Heading([1-6])$/.exec(style)?.[1];
+    const isListItem = /<w:numPr>/.test(para);
+
+    blocks.push({
+      id: newId(),
+      type: headingLevel ? "heading" : isListItem ? "bulletListItem" : "paragraph",
+      props: headingLevel ? { level: Math.min(3, Number(headingLevel)) } : {},
+      content: [{ type: "text", text: textContent, styles: {} }],
+      children: [],
+    });
+  }
+  if (blocks.length === 0) throw new Error("the document contains no readable text");
+
+  const title =
+    nameOverride?.trim() ||
+    cleanSegment(fileName.replace(/\.docx$/i, "")).replace(/[-_]/g, " ");
+  return importSinglePage(title, blocks);
+}
+
+/** One page in one new space — the shape single-file imports share. */
+function importSinglePage(
+  title: string,
+  blocks: ReturnType<typeof markdownToBlocks>
+): ImportResult {
+  const space = createSpace({ name: title, kind: "doc" });
+  const page = createPage({
+    spaceId: space.id,
+    title,
+    content: JSON.stringify(blocks),
+  });
+  savePage(page.id, { published: true });
+  return { spaceSlug: space.slug, pages: 1 };
 }

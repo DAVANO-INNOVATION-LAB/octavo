@@ -65,9 +65,17 @@ export type AuditAction =
   // moderation
   | "comment.deleted_by_moderator"
   | "comment.thread_resolved"
+  // groups
+  | "group.created"
+  | "group.deleted"
+  // visitors
+  | "visit.opened"
+  | "visit.token_created"
+  | "visit.token_revoked"
   // egress
   | "export.space"
   | "export.audit_log"
+  | "export.subject"
   // the log about the log
   | "audit.pruned";
 

@@ -4,6 +4,9 @@ import { getSetting } from "@/lib/settings";
 import { oidcFromEnv, oidcSettings } from "@/lib/oidc";
 import { saveOidcAction, testOidcAction } from "@/app/actions";
 import { AdminShell } from "@/components/AdminShell";
+import { cookies } from "next/headers";
+import { scimEnabled } from "@/lib/scim";
+import { scimTokenAction } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +53,8 @@ export default async function AdminSso({
   if (!user) redirect("/login");
   if (user.role !== "admin") redirect("/");
   const { saved, test } = await searchParams;
+  const scimOn = scimEnabled();
+  const freshScim = (await cookies()).get("octavo_new_scim")?.value ?? null;
   const fromEnv = oidcFromEnv();
   const active = oidcSettings();
 
@@ -142,6 +147,51 @@ export default async function AdminSso({
           Test discovery against the issuer
         </button>
       </form>
+      <p className="mt-4 max-w-2xl text-xs leading-relaxed text-faint">
+        Works with any OpenID Connect provider — including ORCID for research
+        groups: issuer <code>https://orcid.org</code>, with the client id and
+        secret from their developer tools. Members then sign in with their
+        ORCID iD.
+      </p>
+
+      <section className="mt-10 max-w-2xl rounded-2xl border border-line bg-surface p-6 shadow-card">
+        <h3 className="text-sm font-semibold text-ink">SCIM provisioning</h3>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Lets the identity provider create accounts and deactivate leavers
+          automatically at <code className="text-xs">/api/scim/v2</code>,
+          authenticated with a bearer token. Provisioned accounts have no
+          password and sign in through SSO. Deactivation ends their sessions
+          immediately and keeps the account, so a returning person gets their
+          history back.
+        </p>
+        {freshScim && (
+          <p className="mt-3 rounded-lg bg-accent-soft px-3 py-3 text-sm text-accent">
+            The bearer token — copy it now, it will not be shown again:
+            <code className="mt-1 block break-all font-mono text-xs">{freshScim}</code>
+          </p>
+        )}
+        <form action={scimTokenAction} className="mt-4 flex items-center gap-3">
+          {scimOn ? (
+            <>
+              <span className="text-sm text-muted">Enabled.</span>
+              <button
+                name="revoke"
+                value="1"
+                className="h-9 rounded-lg border border-line px-3 text-sm text-muted hover:border-line-strong hover:text-ink"
+              >
+                Disable and revoke the token
+              </button>
+              <button className="h-9 rounded-lg border border-line px-3 text-sm text-muted hover:border-line-strong hover:text-ink">
+                Rotate token
+              </button>
+            </>
+          ) : (
+            <button className="h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink">
+              Enable and issue a token
+            </button>
+          )}
+        </form>
+      </section>
     </AdminShell>
   );
 }

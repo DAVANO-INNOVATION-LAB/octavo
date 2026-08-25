@@ -30,7 +30,9 @@ export default async function LoginPage({
             <p className="mt-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
               {error === "sso"
                 ? "Single sign-on failed — check the identity provider, or use a local account."
-                : "That email and password don’t match."}
+                : error === "locked"
+                  ? "Too many failed attempts. This account is paused for a few minutes — wait, then try again."
+                  : "That email and password don’t match."}
             </p>
           )}
           {sso && (
