@@ -187,6 +187,25 @@ CREATE TABLE IF NOT EXISTS page_links (
 );
 CREATE INDEX IF NOT EXISTS page_links_to ON page_links(to_page);
 
+-- Highlights: a reader's own marks on the text, kept for that reader.
+--
+-- Unlike reading signals these are deliberately personal — you made the
+-- mark, you get it back, on every visit, and nobody else sees it. Anchored
+-- the same way comments are: the block plus the exact passage of text, so a
+-- highlight survives edits elsewhere on the page and reports itself as
+-- orphaned rather than drifting when its own passage is rewritten.
+CREATE TABLE IF NOT EXISTS highlights (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  block_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS highlights_user ON highlights(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS highlights_page ON highlights(page_id, user_id);
+
 -- Reading signals: where readers slow down, double back, and give up.
 --
 -- Deliberately shaped so it CANNOT answer "did this person read this page".
@@ -320,6 +339,13 @@ function open(): Database.Database {
   const db = new Database(path.join(DATA_DIR, "octavo.db"));
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
+  // A replica never writes — enforced by SQLite itself rather than by every
+  // route remembering to check. Writes throw, reads are untouched, and
+  // promotion is restarting the process without the flag.
+  if (process.env.OCTAVO_REPLICA === "1") {
+    db.pragma("query_only = ON");
+    return db;
+  }
   db.exec(SCHEMA);
   migrate(db);
   return db;
@@ -385,4 +411,28 @@ function migrate(db: Database.Database) {
 export function getDb(): Database.Database {
   if (!globalThis.__octavoDb) globalThis.__octavoDb = open();
   return globalThis.__octavoDb;
+}
+
+/** Whether this process is a read replica. See lib/replica. */
+export function isReplica(): boolean {
+  return process.env.OCTAVO_REPLICA === "1";
+}
+
+/**
+ * Swap the live database for a newly arrived file, atomically enough:
+ * close the handle, move the file into place, reopen. Statements are
+ * prepared per call throughout the codebase, so nothing holds a pointer
+ * into the old handle across requests.
+ */
+export function swapDb(newDbPath: string): void {
+  const target = path.join(DATA_DIR, "octavo.db");
+  globalThis.__octavoDb?.close();
+  globalThis.__octavoDb = undefined;
+  // Remove the sidecar files from the previous generation; the incoming
+  // snapshot is a complete, checkpointed database.
+  for (const suffix of ["-wal", "-shm"]) {
+    fs.rmSync(target + suffix, { force: true });
+  }
+  fs.renameSync(newDbPath, target);
+  getDb();
 }

@@ -20,6 +20,8 @@ const eslintConfig = defineConfig([
     "public/drawio/**",
     // Headless-Chrome profiles the browser test suites leave behind.
     ".uitest-profile/**",
+    // The frozen demo copy contains a full build; nothing in it is source.
+    ".demo/**",
     ".airgap-profile/**",
     "public/**/*.min.js",
   ]),

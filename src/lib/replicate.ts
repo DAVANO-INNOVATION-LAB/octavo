@@ -69,14 +69,18 @@ const sha256hex = (data: Buffer | string) =>
 const hmac = (key: Buffer | string, data: string) =>
   createHmac("sha256", key).update(data).digest();
 
-function sigv4Headers(
+export function sigv4Headers(
   t: ReplicaTarget,
   method: string,
   key: string,
-  body: Buffer
+  body: Buffer,
+  /** Injectable for the known-answer test; production always uses now. */
+  dateOverride?: string
 ): Record<string, string> {
   const url = new URL(`${t.endpoint}/${t.bucket}/${key}`);
-  const amzDate = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const amzDate =
+    dateOverride ??
+    new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const date = amzDate.slice(0, 8);
   const payloadHash = sha256hex(body);
 
@@ -118,6 +122,17 @@ function sigv4Headers(
       `AWS4-HMAC-SHA256 Credential=${t.accessKey}/${scope}, ` +
       `SignedHeaders=${signedHeaders}, Signature=${signature}`,
   };
+}
+
+/** A signed request against any S3-compatible endpoint. Shared with the
+ *  replica side, which pulls what this module ships. */
+export async function sigv4Fetch(
+  t: ReplicaTarget,
+  method: string,
+  key: string,
+  body: Buffer = Buffer.alloc(0)
+): Promise<Response> {
+  return s3Request(t, method, key, body);
 }
 
 async function s3Request(

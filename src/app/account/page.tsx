@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { currentUser, getTotpSecret } from "@/lib/auth";
@@ -25,6 +26,12 @@ export default async function AccountPage({
       <SiteHeader />
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
         <h1 className="wordmark text-2xl text-ink">Account</h1>
+        <p className="mt-3 text-sm">
+          <Link href="/highlights" className="text-accent underline">
+            My highlights
+          </Link>{" "}
+          <span className="text-faint">— every passage you marked while reading.</span>
+        </p>
         <p className="mt-1 text-sm text-muted">
           {user.name} · {user.email} · {user.role}
         </p>

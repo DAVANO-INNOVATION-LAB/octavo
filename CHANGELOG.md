@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.9.0 — 2026-08-25
+
+### Added
+
+- **Highlights.** Select any passage while reading and press Highlight; it
+  stays painted for you on every visit, and "My highlights" collects
+  everything you marked across the library, linking back to each passage.
+  Highlights are the reader's alone: every query is scoped to the signed-in
+  account, and there is no route, parameter, or role that returns anyone
+  else's. Clicking a highlight removes it.
+- **Read replicas and a warm standby.** A process started with
+  `OCTAVO_REPLICA=1` follows the snapshots the primary ships, serves the
+  library read-only, and refuses writes at the database connection itself —
+  not by every route remembering to check. Any number of replicas can sit
+  behind a load balancer; promotion is restarting one without the flag.
+  One writer, always: SQLite has a single writer and pretending otherwise
+  is how systems get quietly corrupted. Every pulled snapshot is
+  integrity-checked before it is swapped in, and the whole loop — signing,
+  ship, pull, verify, refusal of a corrupted object — runs as its own test
+  suite against a local stub, with the signature checked against an
+  independent derivation.
+- **A demo instance nothing can break.** `npm run demo` stages a frozen
+  copy of the build and data on its own port, prunes scratch and internal
+  spaces from the copy, and is untouchable by rebuilds, test suites, and
+  other sessions. `npm run demo:stop` ends it.
+- **Error pages in the product's own dress.** A route that throws now shows
+  a calm page with a retry button rather than a bare "Application error"
+  screen, and even a failure in the root layout falls back to a styled
+  last-resort page.
+
 ## v0.8.0 — 2026-08-24
 
 ### Added

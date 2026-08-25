@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,10 @@
     "test:airgap": "node scripts/airgap-check.mjs",
     "sbom": "node scripts/sbom.mjs --prod",
     "test:integration": "node scripts/integration.mjs",
-    "preview": "OCTAVO_DATA_DIR=$PWD/data PORT=${PORT:-8545} node .next/standalone/server.js"
+    "preview": "OCTAVO_DATA_DIR=$PWD/data PORT=${PORT:-8545} node .next/standalone/server.js",
+    "demo": "node scripts/demo.mjs",
+    "demo:stop": "node scripts/demo.mjs stop",
+    "test:replication": "node scripts/replication-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

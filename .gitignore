@@ -58,3 +58,4 @@ AGENTS.md
 /docs/internal/
 /public/drawio/
 .claude/launch.json
+/.demo/

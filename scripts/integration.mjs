@@ -291,6 +291,33 @@ section("SCIM provisions and deactivates");
   db.prepare("DELETE FROM kv WHERE key = 'setting:scim_token_hash'").run();
 }
 
+section("Highlights are the reader's alone");
+{
+  const mk = await post("/api/highlights", "it_reader", {
+    pageId: page.id, blockId: "b-probe", text: "a passage it_reader marked",
+  });
+  // blockId is not validated against content here (the page paints only what
+  // it finds), so the write succeeds; what matters is who can see it.
+  check("a reader saves a highlight", mk.ok, `got ${mk.status}`);
+  const mine = await (await get(`/api/highlights?page=${page.id}`, "it_reader")).json();
+  check("they get it back", mine.highlights.length === 1);
+  const theirs = await (await get(`/api/highlights?page=${page.id}`, "it_editor")).json();
+  check("another account gets nothing", theirs.highlights.length === 0);
+  const anon = await fetch(`${BASE}/api/highlights?page=${page.id}`);
+  const anonBody = await anon.json();
+  check("signed out gets nothing", (anonBody.highlights ?? []).length === 0);
+
+  const id = mine.highlights[0]?.id;
+  if (id) {
+    await fetch(`${BASE}/api/highlights?id=${id}`, { method: "DELETE", headers: as("it_editor") });
+    const still = await (await get(`/api/highlights?page=${page.id}`, "it_reader")).json();
+    check("someone else's delete removes nothing", still.highlights.length === 1);
+    await fetch(`${BASE}/api/highlights?id=${id}`, { method: "DELETE", headers: as("it_reader") });
+    const gone = await (await get(`/api/highlights?page=${page.id}`, "it_reader")).json();
+    check("the owner's delete removes it", gone.highlights.length === 0);
+  }
+}
+
 // --- 3. change request lifecycle ---------------------------------------------
 section("A change request cannot be merged past its own rules");
 const cr = db.prepare("SELECT id, page_id, base_updated_at FROM change_requests WHERE status='open' ORDER BY created_at DESC LIMIT 1").get();

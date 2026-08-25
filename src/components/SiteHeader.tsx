@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, LogIn, LogOut, PenTool, Settings2, Share2 } from "lucide-react";
+import { Bell, LogIn, LogOut, PenTool, Settings2, Share2, Highlighter } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { unreadCount } from "@/lib/notify";
 import { logoutAction } from "@/app/actions";
@@ -37,6 +37,16 @@ export async function SiteHeader() {
           <ThemeMenu />
           {user ? (
             <span className="flex items-center gap-1">
+              {/* The header is exactly full at 375px — this icon pushed every
+                  page into horizontal scroll. On phones the entry point is the
+                  account page instead. */}
+              <Link
+                href="/highlights"
+                title="My highlights"
+                className="hidden h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:flex"
+              >
+                <Highlighter size={15} />
+              </Link>
               <Link
                 href="/inbox"
                 title={unread > 0 ? `${unread} unread` : "Inbox"}

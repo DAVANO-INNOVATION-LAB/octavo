@@ -1026,3 +1026,18 @@ mark {
   text-overflow: ellipsis;
 }
 .blk-api-editor-note { margin-left: auto; font-size: 0.7rem; color: var(--faint); }
+
+/* A reader's own highlight — warm, quiet, and clickable to remove. */
+.octavo-hl {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.octavo-hl:hover {
+  background: color-mix(in srgb, var(--accent) 34%, transparent);
+}
+@media print {
+  .octavo-hl { background: none; }
+}

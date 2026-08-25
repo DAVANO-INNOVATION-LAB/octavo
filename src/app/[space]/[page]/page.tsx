@@ -24,6 +24,7 @@ import { extractHeadings, parseBlocks } from "@/lib/blocks";
 import { readingEnabled } from "@/lib/reading";
 import { ReadingObserver } from "@/components/render/ReadingObserver";
 import { AutoExpand } from "@/components/render/AutoExpand";
+import { Highlighter } from "@/components/render/Highlighter";
 import { connectorsForSpace, runsForPage } from "@/lib/connectors";
 import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
@@ -250,6 +251,9 @@ export default async function ReaderPage({
         </header>
 
         <AutoExpand />
+        {/* Signed-in readers keep their own highlights; see the API — every
+            query is scoped to the reader, there is no path to anyone else's. */}
+        {user && page.published === 1 && <Highlighter pageId={page.id} />}
         {/* Passive and aggregate — see ReadingObserver for what leaves. */}
         {readingOn && page.published === 1 && (
           <ReadingObserver pageId={page.id} />
