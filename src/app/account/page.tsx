@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ShieldCheck, ShieldOff } from "lucide-react";
 import { currentUser, getTotpSecret } from "@/lib/auth";
 import { generateTotpSecret, otpauthUrl } from "@/lib/totp";
-import { disableTotpAction, enableTotpAction } from "@/app/actions";
+import { disableTotpAction, enableTotpAction, saveOrcidAction } from "@/app/actions";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,11 @@ export const metadata = { title: "Account" };
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; enabled?: string; disabled?: string }>;
+  searchParams: Promise<{ error?: string; enabled?: string; disabled?: string; orcid?: string }>;
 }) {
   const user = await currentUser();
   if (!user) redirect("/login");
-  const { error, enabled, disabled } = await searchParams;
+  const { error, enabled, disabled, orcid: orcidState } = await searchParams;
   const totpOn = Boolean(getTotpSecret(user.id));
   const proposedSecret = totpOn ? null : generateTotpSecret();
 
@@ -26,6 +26,29 @@ export default async function AccountPage({
       <SiteHeader />
       <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
         <h1 className="wordmark text-2xl text-ink">Account</h1>
+        <form action={saveOrcidAction} className="mt-6 max-w-md rounded-xl border border-line bg-surface p-5 shadow-card">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+              ORCID iD
+            </span>
+            <input
+              name="orcid"
+              defaultValue={user.orcid ?? ""}
+              placeholder="0000-0002-1825-0097"
+              className="h-10 w-full rounded-lg border border-line bg-bg px-3 font-mono text-sm text-ink placeholder:text-faint focus:border-accent"
+            />
+          </label>
+          <p className="mt-1.5 text-xs leading-relaxed text-faint">
+            {orcidState === "invalid"
+              ? "That iD did not pass its check digit — please re-check it."
+              : orcidState === "saved"
+                ? "Saved."
+                : "Shown beside your name on pages you wrote. Signing in through ORCID fills this in for you."}
+          </p>
+          <button className="mt-3 h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink">
+            Save iD
+          </button>
+        </form>
         <p className="mt-3 text-sm">
           <Link href="/highlights" className="text-accent underline">
             My highlights

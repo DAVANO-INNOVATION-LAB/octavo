@@ -38,7 +38,8 @@ export async function PATCH(
       return NextResponse.json({ error: "bad content" }, { status: 400 });
     fields.content = JSON.stringify(body.content);
   }
-  const saved = savePage(id, fields);
+  // Record who wrote it — the byline and the ORCID line come from this.
+  const saved = savePage(id, { ...fields, by: user.id });
   return NextResponse.json({
     ok: true,
     slug: saved?.slug,

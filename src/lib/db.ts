@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'admin',
+  orcid TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL
 );
 
@@ -53,6 +54,8 @@ CREATE TABLE IF NOT EXISTS pages (
   published INTEGER NOT NULL DEFAULT 1,
   cover TEXT NOT NULL DEFAULT '',
   icon TEXT NOT NULL DEFAULT '',
+  created_by TEXT NOT NULL DEFAULT '',
+  updated_by TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   UNIQUE(space_id, slug)
@@ -363,6 +366,14 @@ function migrate(db: Database.Database) {
     }
     if (pageCols.length && !pageCols.includes("icon")) {
       db.exec("ALTER TABLE pages ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
+    }
+    if (pageCols.length && !pageCols.includes("created_by")) {
+      db.exec("ALTER TABLE pages ADD COLUMN created_by TEXT NOT NULL DEFAULT ''");
+      db.exec("ALTER TABLE pages ADD COLUMN updated_by TEXT NOT NULL DEFAULT ''");
+    }
+    const uCols = (db.pragma("table_info(users)") as { name: string }[]).map((c) => c.name);
+    if (uCols.length && !uCols.includes("orcid")) {
+      db.exec("ALTER TABLE users ADD COLUMN orcid TEXT NOT NULL DEFAULT ''");
     }
     const spaceCols = (db.pragma("table_info(spaces)") as { name: string }[]).map((c) => c.name);
     if (spaceCols.length && !spaceCols.includes("icon")) {

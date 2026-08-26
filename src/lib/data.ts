@@ -39,6 +39,8 @@ export type Page = {
   published: number;
   cover: string;
   icon: string;
+  created_by: string;
+  updated_by: string;
   created_at: number;
   updated_at: number;
 };
@@ -358,7 +360,7 @@ export function getVersion(id: string): PageVersion | null {
 
 export function savePage(
   id: string,
-  fields: { title?: string; content?: string; published?: boolean }
+  fields: { title?: string; content?: string; published?: boolean; by?: string }
 ): Page | null {
   const db = getDb();
   const page = getPage(id);
@@ -378,8 +380,11 @@ export function savePage(
       : page.slug;
   const t = now();
   db.prepare(
-    `UPDATE pages SET title = ?, slug = ?, content = ?, content_text = ?, published = ?, updated_at = ? WHERE id = ?`
-  ).run(title, slug, content, contentText, published, t, id);
+    `UPDATE pages SET title = ?, slug = ?, content = ?, content_text = ?, published = ?, updated_at = ?,
+       updated_by = COALESCE(NULLIF(?, ''), updated_by),
+       created_by = COALESCE(NULLIF(created_by, ''), ?)
+     WHERE id = ?`
+  ).run(title, slug, content, contentText, published, t, fields.by ?? "", fields.by ?? "", id);
   db.prepare("UPDATE spaces SET updated_at = ? WHERE id = ?").run(
     t,
     page.space_id
@@ -1019,4 +1024,31 @@ export function setSpaceVariant(
       now(),
       spaceId
     );
+}
+
+export type Byline = { id: string; name: string; orcid: string };
+
+/**
+ * Who wrote a page and who last touched it. Empty when the page predates
+ * authorship tracking — an honest blank beats a guessed name.
+ */
+export function bylineFor(page: {
+  created_by?: string;
+  updated_by?: string;
+}): { author: Byline | null; editor: Byline | null } {
+  const db = getDb();
+  const get = (id?: string): Byline | null => {
+    if (!id) return null;
+    const row = db
+      .prepare("SELECT id, name, orcid FROM users WHERE id = ?")
+      .get(id) as Byline | undefined;
+    return row ?? null;
+  };
+  const author = get(page.created_by);
+  const editor = get(page.updated_by);
+  return {
+    author,
+    // Only worth naming a separate editor when it is a different person.
+    editor: editor && editor.id !== author?.id ? editor : null,
+  };
 }

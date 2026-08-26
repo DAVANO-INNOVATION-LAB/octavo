@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.14.0 — 2026-08-26
+
+### Added
+
+- **ORCID on authorship.** A page carries a byline — who wrote it, who last
+  revised it — and a researcher's ORCID iD appears beside their name, linked
+  to orcid.org. Signing in through ORCID fills the iD in automatically, since
+  the sign-in itself is the proof; anyone else can set theirs on the account
+  page.
+- iDs are validated by their **ISO 7064 check digit**, not merely by shape. A
+  mistyped iD points at a stranger, which is worse than no iD at all, so an
+  iD that does not verify is refused with a message rather than stored.
+- Pages now record who created and who last saved them. Pages that predate
+  this show no byline rather than a guessed one.
 ## v0.13.0 — 2026-08-26
 
 ### Added

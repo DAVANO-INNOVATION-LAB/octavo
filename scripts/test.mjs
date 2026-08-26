@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex", "orcid"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -35,6 +35,7 @@ const xml = await import(pathToFileURL(path.join(STAGE, "xml.ts")));
 const hb = await import(pathToFileURL(path.join(STAGE, "html-blocks.ts")));
 const compose = await import(pathToFileURL(path.join(STAGE, "page-compose.ts")));
 const bib = await import(pathToFileURL(path.join(STAGE, "bibtex.ts")));
+const orcid = await import(pathToFileURL(path.join(STAGE, "orcid.ts")));
 const policy = await import(pathToFileURL(path.join(STAGE, "policy-pure.ts")));
 
 let pass = 0;
@@ -1211,6 +1212,27 @@ test("compose: [@key] becomes a numbered link to the reference", () => {
 test("compose: text without citations is returned untouched", () => {
   const blocks = [{ id: "a", type: "paragraph", props: {}, content: [{ type: "text", text: "No citations.", styles: {} }], children: [] }];
   eq(JSON.stringify(compose.linkCitations(blocks, [])), JSON.stringify(blocks));
+});
+
+test("orcid: real iDs validate, in any format a person might paste", () => {
+  // Published ORCID example iD with a valid MOD 11-2 check digit.
+  eq(orcid.normalizeOrcid("0000-0002-1825-0097"), "0000-0002-1825-0097");
+  eq(orcid.normalizeOrcid("0000000218250097"), "0000-0002-1825-0097");
+  eq(orcid.normalizeOrcid("https://orcid.org/0000-0002-1825-0097"), "0000-0002-1825-0097");
+});
+
+test("orcid: an X check digit is accepted", () => {
+  // 0000-0002-1694-233X — the other published example.
+  eq(orcid.normalizeOrcid("0000-0002-1694-233X"), "0000-0002-1694-233X");
+});
+
+test("orcid: a mistyped iD is refused, not merely reshaped", () => {
+  // Same shape, wrong check digit — this is the case shape-only checks miss.
+  eq(orcid.normalizeOrcid("0000-0002-1825-0098"), null);
+  eq(orcid.normalizeOrcid("0000-0002-1825-009"), null);
+  eq(orcid.normalizeOrcid("not an orcid"), null);
+  eq(orcid.normalizeOrcid(""), null);
+  eq(orcid.normalizeOrcid(null), null);
 });
 
 test("newId shape", () => {

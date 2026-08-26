@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSession, upsertOidcUser } from "@/lib/auth";
 import { syncClaimGroups } from "@/lib/groups";
 import { discover, oidc, oidcSettings } from "@/lib/oidc";
+import { getDb } from "@/lib/db";
+import { normalizeOrcid } from "@/lib/orcid";
 
 export async function GET(req: NextRequest) {
   const settings = oidcSettings();
@@ -55,6 +57,14 @@ export async function GET(req: NextRequest) {
       name: typeof claims.name === "string" ? claims.name : "",
       role,
     });
+
+    // Signing in through ORCID *is* proof of the iD: their `sub` is the iD
+    // itself. Record it so authorship lines can carry it without the person
+    // typing it in — and never overwrite one they set by hand with a bad value.
+    if (/(^|\.)orcid\.org$/.test(new URL(settings.issuer).hostname)) {
+      const id = normalizeOrcid(claims.sub);
+      if (id) getDb().prepare("UPDATE users SET orcid = ? WHERE id = ?").run(id, user.id);
+    }
     // Groups ride the token. Only claim-derived memberships move; anything
     // an operator granted by hand inside Octavo stays theirs to manage.
     const claimed = Array.isArray(claims.groups)

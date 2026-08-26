@@ -19,6 +19,8 @@ export type User = {
   email: string;
   name: string;
   role: string;
+  /** The researcher's ORCID iD, empty when unset. See lib/orcid. */
+  orcid?: string;
 };
 
 export function hashPassword(password: string): string {
@@ -99,7 +101,7 @@ export async function currentUser(): Promise<User | null> {
   if (!id) return null;
   const row = getDb()
     .prepare(
-      `SELECT u.id, u.email, u.name, u.role, s.expires_at
+      `SELECT u.id, u.email, u.name, u.role, u.orcid, s.expires_at
        FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.id = ?`
     )
@@ -116,7 +118,7 @@ export async function currentUser(): Promise<User | null> {
     getDb().prepare("DELETE FROM sessions WHERE id = ?").run(id);
     return null;
   }
-  return { id: row.id, email: row.email, name: row.name, role: row.role };
+  return { id: row.id, email: row.email, name: row.name, role: row.role, orcid: row.orcid };
 }
 
 export type AuthResult =

@@ -15,6 +15,7 @@ import {
   backlinks,
   recordView,
   flattenTree,
+  bylineFor,
   getPage,
   getPageBySlug,
   getSpace,
@@ -25,6 +26,7 @@ import Link2 from "next/link";
 import { extractHeadings, parseBlocks } from "@/lib/blocks";
 import { citationsIn, composeBlocks, linkCitations, parseVars } from "@/lib/page-compose";
 import { bibliography } from "@/lib/bibliography";
+import { orcidUrl } from "@/lib/orcid";
 import { References } from "@/components/render/References";
 import { getSetting } from "@/lib/settings";
 import { readingEnabled } from "@/lib/reading";
@@ -119,6 +121,7 @@ export default async function ReaderPage({
     };
   });
   const readingOn = readingEnabled();
+  const byline = bylineFor(page);
   // Citations: collect the order first, then rewrite [@key] into numbered
   // links pointing at the References list below.
   const citedKeys = citationsIn(blocks);
@@ -284,13 +287,34 @@ export default async function ReaderPage({
               )}
             </span>
           </div>
-          <p className="mt-3 text-xs text-faint">
-            Last updated{" "}
-            {new Date(page.updated_at).toLocaleDateString(undefined, {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-faint">
+            {byline.author && (
+              <span>
+                By {byline.author.name}
+                {byline.author.orcid && (
+                  <>
+                    {" "}
+                    <a
+                      href={orcidUrl(byline.author.orcid)}
+                      rel="noopener noreferrer"
+                      title={`ORCID ${byline.author.orcid}`}
+                      className="font-mono text-[11px] text-accent no-underline hover:underline"
+                    >
+                      {byline.author.orcid}
+                    </a>
+                  </>
+                )}
+              </span>
+            )}
+            {byline.editor && <span>· revised by {byline.editor.name}</span>}
+            <span>
+              {byline.author ? "· " : ""}Last updated{" "}
+              {new Date(page.updated_at).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </span>
           </p>
         </header>
 

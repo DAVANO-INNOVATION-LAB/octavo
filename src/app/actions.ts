@@ -86,6 +86,7 @@ import {
 import { getTemplate, type TemplatePage } from "@/lib/templates";
 import { getDb } from "@/lib/db";
 import { asIconName } from "@/lib/icons";
+import { normalizeOrcid } from "@/lib/orcid";
 import { setBibliography } from "@/lib/bibliography";
 
 async function requireUser() {
@@ -779,6 +780,16 @@ export async function saveBibliographyAction(formData: FormData) {
   if (!canAdminSpace(user, space.id)) redirect(`/${space.slug}`);
   const count = setBibliography(space.id, String(formData.get("bib") ?? ""));
   redirect(`/${space.slug}/members?refs=${count}`);
+}
+
+/** A researcher's own ORCID iD, validated by its check digit. */
+export async function saveOrcidAction(formData: FormData) {
+  const user = await requireUser();
+  const raw = String(formData.get("orcid") ?? "").trim();
+  const value = raw === "" ? "" : normalizeOrcid(raw);
+  if (value === null) redirect("/account?orcid=invalid");
+  getDb().prepare("UPDATE users SET orcid = ? WHERE id = ?").run(value, user.id);
+  redirect("/account?orcid=saved");
 }
 
 // ---- page covers and space variables ----
