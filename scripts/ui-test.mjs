@@ -270,6 +270,41 @@ for (const r of EDITOR_ROUTES) {
   await sleep(400);
 }
 
+/* ————— 2c. a deep link opens the expandable it points at ————— */
+//
+// The bug this exists for: AutoExpand walked only ANCESTORS, so a link
+// pointing AT a collapsed section left it closed — the one case the feature
+// is for. Nothing else in any suite would have noticed.
+{
+  const target = db
+    .prepare(
+      `SELECT p.slug, s.slug AS space FROM pages p JOIN spaces s ON s.id = p.space_id
+        WHERE p.content LIKE '%expandable%' AND p.published = 1 AND s.visibility = 'public' LIMIT 1`
+    )
+    .get();
+  if (target) {
+    await visit(`/${target.space}/${target.slug}`, 2000);
+    const anchorId = await evaluate(
+      `document.querySelector("details[id]")?.id ?? ""`
+    );
+    checks++;
+    if (!anchorId) {
+      fail("expandable deep link", "no expandable carries an id to link to");
+      console.log("  ✗ expandable deep link");
+    } else {
+      await visit(`/${target.space}/${target.slug}#${anchorId}`, 2400);
+      const state = await evaluate(`(() => {
+        const d = document.getElementById(${JSON.stringify(anchorId)});
+        return JSON.stringify({ open: d?.open === true, link: !!d?.querySelector('a[href="#' + ${JSON.stringify(anchorId)} + '"]') });
+      })()`);
+      const got = JSON.parse(state || "{}");
+      if (!got.open) fail("expandable deep link", "the section stayed closed");
+      else if (!got.link) fail("expandable deep link", "no anchor affordance to copy");
+      console.log(`  ${got.open && got.link ? "✓" : "✗"} a deep link opens the expandable it names`);
+    }
+  }
+}
+
 /* ————— 3. layout: no horizontal overflow at any viewport ————— */
 console.log("\nLayout — horizontal overflow at three viewports\n");
 for (const v of VIEWPORTS) {

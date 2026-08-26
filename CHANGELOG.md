@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.16.0 — 2026-08-26
+
+### Added
+
+- **Expandable sections are linkable.** Each one carries an anchor derived
+  from its title, with a quiet `#` affordance to copy, and a link that names
+  a collapsed section now opens it and scrolls to it.
+- The page-link picker groups results **by space**. It always searched every
+  space the writer can read; grouping is what makes that visible, and what
+  tells two identically-titled pages apart at the moment of choosing.
+
+### Fixed
+
+- A deep link pointing *at* a collapsed section left it closed. The reveal
+  walked only a target's ancestors, so the one case the feature exists for —
+  linking directly to the section — was the case it missed. It now starts at
+  the target itself, and a browser-driven check guards it.
 ## v0.15.0 — 2026-08-26
 
 ### Added

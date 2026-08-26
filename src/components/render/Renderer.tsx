@@ -535,10 +535,29 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
         </aside>
       );
     }
-    case "expandable":
+    case "expandable": {
+      // A slug from the summary text, so the deep link survives an edit that
+      // leaves the title alone — and reads as words, not an opaque id.
+      const label = inlineText(b.content);
+      const anchor = label ? headingId(ctx, label) : `blk-${b.id}`;
       return (
-        <details className="blk-details">
-          <summary>{renderInline(b.content)}</summary>
+        <details id={anchor} className="blk-details group/exp">
+          <summary>
+            {renderInline(b.content)}
+            {/* The affordance that makes the section linkable at all.
+                AutoExpand opens whatever the hash lands inside. */}
+            {/* No click handler: the Renderer is a server component, and a
+                handler here is not serialisable. Clicking the anchor toggles
+                the section as well as linking to it, which is harmless — it
+                lands open either way once AutoExpand runs. */}
+            <a
+              href={`#${anchor}`}
+              aria-label="Link to this section"
+              className="ml-2 align-middle text-xs text-faint opacity-0 transition-opacity !no-underline group-hover/exp:opacity-100"
+            >
+              #
+            </a>
+          </summary>
           <div className="blk-details-body [&>*+*]:mt-[1.1em]">
             {b.children?.length > 0 && (
               <Blocks blocks={b.children} ctx={ctx} />
@@ -546,6 +565,7 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
           </div>
         </details>
       );
+    }
     case "model3d": {
       const kind = String(b.props?.kind ?? "architecture") as ModelKind;
       const title = String(b.props?.title ?? "");

@@ -21,7 +21,10 @@ export function AutoExpand() {
           `[data-blk="${CSS.escape(hash.replace(/^blk-/, ""))}"]`
         );
       if (!target) return;
-      let node = target.parentElement;
+      // Start at the target itself, not its parent: a deep link can point AT
+      // an expandable section, in which case the thing to open is the target.
+      // Walking only ancestors left exactly that case closed.
+      let node: Element | null = target;
       let opened = false;
       while (node) {
         if (node instanceof HTMLDetailsElement && !node.open) {

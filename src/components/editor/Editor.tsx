@@ -36,7 +36,11 @@ async function pageLinkItems(editor: OctavoEditorInstance, query: string, stripB
     title: p.title,
     subtext: p.space_name,
     icon: <FileText size={18} />,
-    group: "Link a page",
+    // Grouped by space, not one flat list: the picker searches every space
+    // the writer can read, and grouping is what makes that visible —
+    // otherwise two same-titled pages from different spaces are
+    // indistinguishable at the moment of choosing.
+    group: p.space_name,
     onItemClick: () => {
       editor.insertInlineContent([
         {
