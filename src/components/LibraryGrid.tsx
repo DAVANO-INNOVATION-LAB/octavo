@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { GripVertical, Lock } from "lucide-react";
-import { Monogram } from "./Monogram";
+import { Icon } from "./Icon";
 
 export type ShelfSpace = {
   slug: string;
@@ -12,6 +12,7 @@ export type ShelfSpace = {
   kind: string;
   visibility: string;
   shelf: string;
+  icon: string;
   kindLabel: string;
   pageCount: number;
   updatedLabel: string;
@@ -130,7 +131,7 @@ export function LibraryGrid({
                       <GripVertical size={15} />
                     </span>
                   )}
-                  <Monogram name={s.name} />
+                  <Icon icon={s.icon ?? ""} name={s.name} />
                   <h3 className="wordmark mt-3 flex items-start gap-2 text-xl leading-snug text-ink">
                     <span className="line-clamp-2 min-w-0">{s.name}</span>
                     {s.visibility === "private" && (

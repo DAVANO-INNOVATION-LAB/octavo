@@ -1,6 +1,7 @@
 import "server-only";
 import { asVariantKind, type VariantSpace } from "./variants";
 import { getDb } from "./db";
+import { asIconName } from "./icons";
 import { newId, now, slugify } from "./util";
 import { extractText } from "./blocks";
 
@@ -23,6 +24,7 @@ export type Space = {
   variant_label: string;
   variant_kind: string;
   variant_position: number;
+  icon: string;
 };
 
 export type Page = {
@@ -36,6 +38,7 @@ export type Page = {
   position: number;
   published: number;
   cover: string;
+  icon: string;
   created_at: number;
   updated_at: number;
 };
@@ -149,7 +152,7 @@ export function updateSpace(
   fields: Partial<
     Pick<
       Space,
-      "name" | "description" | "kind" | "visibility" | "shelf" | "typeface" | "corners"
+      "name" | "description" | "kind" | "visibility" | "shelf" | "typeface" | "corners" | "icon"
     >
   >
 ) {
@@ -159,7 +162,7 @@ export function updateSpace(
     | undefined;
   if (!space) return;
   db.prepare(
-    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, shelf = ?, typeface = ?, corners = ?, updated_at = ? WHERE id = ?"
+    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, shelf = ?, typeface = ?, corners = ?, icon = ?, updated_at = ? WHERE id = ?"
   ).run(
     fields.name?.trim() ?? space.name,
     fields.description?.trim() ?? space.description,
@@ -174,6 +177,8 @@ export function updateSpace(
     ["rounded", "square"].includes(fields.corners ?? "")
       ? (fields.corners as string)
       : space.corners,
+    // Narrowed to the curated set; anything else clears back to the initial.
+    fields.icon !== undefined ? (asIconName(fields.icon) ?? "") : space.icon,
     now(),
     id
   );

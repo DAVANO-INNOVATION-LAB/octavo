@@ -3,6 +3,7 @@ import { variantGroups } from "@/lib/data";
 import { currentUser } from "@/lib/auth";
 import { getSpaceBySlug, pageTree } from "@/lib/data";
 import { setSpaceVariantAction, deleteSpaceAction, updateSpaceAction } from "@/app/actions";
+import { IconPicker } from "@/components/IconPicker";
 import { SpaceShell } from "@/components/SpaceShell";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ export default async function SpaceSettings({
               className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
             />
           </label>
+            <IconPicker name="icon" initial={space.icon ?? ""} />
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
               Description

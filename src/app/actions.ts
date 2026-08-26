@@ -85,6 +85,7 @@ import {
 } from "@/lib/data";
 import { getTemplate, type TemplatePage } from "@/lib/templates";
 import { getDb } from "@/lib/db";
+import { asIconName } from "@/lib/icons";
 
 async function requireUser() {
   const user = await currentUser();
@@ -233,6 +234,7 @@ export async function updateSpaceAction(formData: FormData) {
     shelf: String(formData.get("shelf") ?? space.shelf),
     typeface: String(formData.get("typeface") ?? space.typeface),
     corners: String(formData.get("corners") ?? space.corners),
+    icon: String(formData.get("icon") ?? space.icon),
   });
   revalidatePath("/");
   revalidatePath(`/${space.slug}`);
@@ -752,6 +754,19 @@ export async function markAllReadAction() {
   markAllRead(user.id);
   revalidatePath("/inbox");
   redirect("/inbox");
+}
+
+/** A page's mark. Same shape as the cover action. */
+export async function savePageIconAction(formData: FormData) {
+  const user = await requireUser();
+  const pageId = String(formData.get("page") ?? "");
+  const page = getPage(pageId);
+  if (!page) redirect("/");
+  if (!canEditSpace(user, page.space_id)) redirect("/");
+  const icon = asIconName(formData.get("icon")) ?? "";
+  getDb().prepare("UPDATE pages SET icon = ? WHERE id = ?").run(icon, pageId);
+  const space = getSpace(page.space_id);
+  redirect(`/${space?.slug}/${page.slug}`);
 }
 
 // ---- page covers and space variables ----

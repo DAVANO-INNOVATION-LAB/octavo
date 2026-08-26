@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS spaces (
   name TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   emoji TEXT NOT NULL DEFAULT '',
+  icon TEXT NOT NULL DEFAULT '',
   kind TEXT NOT NULL DEFAULT 'docs',
   accent TEXT NOT NULL DEFAULT 'vermilion',
   position REAL NOT NULL DEFAULT 0,
@@ -51,6 +52,7 @@ CREATE TABLE IF NOT EXISTS pages (
   position REAL NOT NULL DEFAULT 0,
   published INTEGER NOT NULL DEFAULT 1,
   cover TEXT NOT NULL DEFAULT '',
+  icon TEXT NOT NULL DEFAULT '',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
   UNIQUE(space_id, slug)
@@ -358,6 +360,13 @@ function migrate(db: Database.Database) {
     const pageCols = (db.pragma("table_info(pages)") as { name: string }[]).map((c) => c.name);
     if (pageCols.length && !pageCols.includes("cover")) {
       db.exec("ALTER TABLE pages ADD COLUMN cover TEXT NOT NULL DEFAULT ''");
+    }
+    if (pageCols.length && !pageCols.includes("icon")) {
+      db.exec("ALTER TABLE pages ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
+    }
+    const spaceCols = (db.pragma("table_info(spaces)") as { name: string }[]).map((c) => c.name);
+    if (spaceCols.length && !spaceCols.includes("icon")) {
+      db.exec("ALTER TABLE spaces ADD COLUMN icon TEXT NOT NULL DEFAULT ''");
     }
   }
   const cols = (

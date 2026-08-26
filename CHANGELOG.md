@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.12.0 — 2026-08-25
+
+### Added
+
+- **The knowledge graph is navigable.** Filter it by space with chips, search
+  to locate a page — matches light up and the rest recedes, Enter opens the
+  one you meant — and switch clicking from "open" to "focus" to see a single
+  page's neighbourhood with everything else dimmed. Filtering re-lays the
+  graph out; searching and focusing deliberately do not, so the shape stays
+  put under you.
+- **An icon set for pages and spaces.** Forty line marks across five groups —
+  documents, engineering, operations, science, organisation — replacing the
+  initial-letter monogram wherever one is chosen. Not emoji: emoji render
+  differently on every platform, carry tone this product does not want, and
+  age badly in a document meant to be read for years. The set is curated and
+  closed, so a hand-edited database cannot inject an arbitrary glyph.
 ## v0.11.0 — 2026-08-25
 
 ### Fixed

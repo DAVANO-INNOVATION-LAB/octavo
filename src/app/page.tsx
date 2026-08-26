@@ -42,6 +42,7 @@ export default async function Home() {
     kind: s.kind,
     visibility: s.visibility,
     shelf: s.shelf,
+    icon: s.icon ?? "",
     kindLabel: KIND_LABEL[s.kind] ?? s.kind,
     pageCount: listPages(s.id).filter((p) => p.published === 1).length,
     updatedLabel: timeAgo(s.updated_at),

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { Monogram } from "./Monogram";
+import { Icon } from "./Icon";
 import type { Space, TreeNode } from "@/lib/data";
 import { createPageAction } from "@/app/actions";
 
@@ -88,7 +88,7 @@ export function SpaceNav({
   return (
     <nav className="flex h-full flex-col gap-4">
       <Link href={`/${space.slug}`} className="flex items-center gap-2.5 px-2">
-        <Monogram name={space.name} size="sm" />
+        <Icon icon={space.icon ?? ""} name={space.name} size="sm" />
         <span className="min-w-0">
           <span className="wordmark block truncate text-[1.05rem] leading-tight text-ink">
             {space.name}
