@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.13.0 — 2026-08-26
+
+### Added
+
+- **References.** Paste a BibTeX file into a space, cite an entry anywhere in
+  it with `[@key]`, and the page grows a numbered References section in the
+  order it cites them — linked by DOI where there is one. In-text citations
+  render as numbered links into that list. A key with no matching entry keeps
+  its number and says so in the list rather than disappearing: a missing
+  citation is a fact the author needs to see.
+- The BibTeX reader is dependency-free, like the YAML and XML readers beside
+  it. It handles what real .bib files contain — braced and quoted values,
+  nested braces protecting capitalisation, `@string` macros, `#`
+  concatenation, and LaTeX accent escapes — and a malformed file yields what
+  could be read rather than an exception.
 ## v0.12.0 — 2026-08-25
 
 ### Added

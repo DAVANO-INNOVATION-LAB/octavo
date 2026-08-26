@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -34,6 +34,7 @@ const reading = await import(pathToFileURL(path.join(STAGE, "reading-score.ts"))
 const xml = await import(pathToFileURL(path.join(STAGE, "xml.ts")));
 const hb = await import(pathToFileURL(path.join(STAGE, "html-blocks.ts")));
 const compose = await import(pathToFileURL(path.join(STAGE, "page-compose.ts")));
+const bib = await import(pathToFileURL(path.join(STAGE, "bibtex.ts")));
 const policy = await import(pathToFileURL(path.join(STAGE, "policy-pure.ts")));
 
 let pass = 0;
@@ -1095,6 +1096,121 @@ test("compose: parseVars survives damage and clamps sizes", () => {
   eq(v.ok, "yes");
   eq(v.bad, undefined);
   eq(v.long.length, 500);
+});
+
+test("bibtex: a normal entry parses to key, type and fields", () => {
+  const [r] = bib.parseBibtex(`@article{lovelace1843,
+    author = {Lovelace, Ada},
+    title = {Notes on the Analytical Engine},
+    journal = {Scientific Memoirs},
+    year = {1843},
+    pages = {666--731}
+  }`);
+  eq(r.key, "lovelace1843");
+  eq(r.type, "article");
+  eq(r.fields.title, "Notes on the Analytical Engine");
+  eq(r.fields.year, "1843");
+});
+
+test("bibtex: nested braces protect capitals and then vanish", () => {
+  const [r] = bib.parseBibtex(`@article{k, title = {The {DNA} of {RNA}}, year=2020}`);
+  eq(r.fields.title, "The DNA of RNA");
+  eq(r.fields.year, "2020");
+});
+
+test("bibtex: quoted values, concatenation and @string macros", () => {
+  const refs = bib.parseBibtex(`
+    @string{acm = "ACM Press"}
+    @inproceedings{x, title = "Half" # " and half", publisher = acm, year = 1999}
+  `);
+  eq(refs.length, 1);
+  eq(refs[0].fields.title, "Half and half");
+  eq(refs[0].fields.publisher, "ACM Press");
+});
+
+test("bibtex: LaTeX escapes become real characters", () => {
+  const [r] = bib.parseBibtex(`@book{k, author = {Erd{\\H{o}}s, P. and Sch{\\"o}n, A.}, title={Caf\\'e}}`);
+  ok(r.fields.title.startsWith("Caf"));
+  ok(!r.fields.title.includes("\\"));
+  ok(!r.fields.author.includes("{"));
+});
+
+test("bibtex: a malformed file yields what could be read, never throws", () => {
+  const refs = bib.parseBibtex(`@article{good, title={Fine}, year={2020}}
+    @article{broken, title = {unclosed
+    @book{after, title={Also fine}, year={2021}}`);
+  ok(refs.length >= 1);
+  eq(refs[0].key, "good");
+});
+
+test("bibtex: comments and preamble are skipped", () => {
+  const refs = bib.parseBibtex(`@comment{ignore me}
+    @preamble{{\\newcommand{\\x}{y}}}
+    @misc{real, title={Kept}}`);
+  eq(refs.length, 1);
+  eq(refs[0].key, "real");
+});
+
+test("bibtex: references render in a readable line", () => {
+  const [r] = bib.parseBibtex(`@article{k, author={Lovelace, Ada and Babbage, Charles},
+    title={On Engines}, journal={Memoirs}, volume={3}, pages={666--731}, year={1843}}`);
+  const line = bib.formatReference(r);
+  ok(line.includes("Lovelace, A."));
+  ok(line.includes("(1843)"));
+  ok(line.includes("On Engines"));
+  ok(line.includes("666–731"), line);
+});
+
+test("bibtex: four or more authors collapse to et al.", () => {
+  const [r] = bib.parseBibtex(`@article{k, author={A, One and B, Two and C, Three and D, Four}, year={2020}}`);
+  ok(bib.formatReference(r).includes("et al."));
+});
+
+test("bibtex: DOI beats a bare URL for the link", () => {
+  const [withDoi] = bib.parseBibtex(`@article{k, doi={10.1000/xyz}, url={http://example.com}}`);
+  eq(bib.referenceHref(withDoi), "https://doi.org/10.1000/xyz");
+  const [urlOnly] = bib.parseBibtex(`@article{k, url={https://example.com/p}}`);
+  eq(bib.referenceHref(urlOnly), "https://example.com/p");
+  const [neither] = bib.parseBibtex(`@article{k, title={x}}`);
+  eq(bib.referenceHref(neither), null);
+});
+
+test("bibtex: in-text citations are found, single and grouped", () => {
+  eq(bib.citedKeys("As shown [@lovelace1843] and also [@a; @b].").join(","), "lovelace1843,a,b");
+  eq(bib.citedKeys("no citations here").length, 0);
+});
+
+test("compose: citations are collected in order, deduped, across nesting", () => {
+  const blocks = [
+    { id: "a", type: "paragraph", props: {}, content: [{ type: "text", text: "First [@one] then [@two; @one].", styles: {} }], children: [] },
+    { id: "b", type: "callout", props: {}, content: [], children: [
+      { id: "c", type: "paragraph", props: {}, content: [{ type: "text", text: "Nested [@three].", styles: {} }], children: [] },
+    ] },
+  ];
+  eq(compose.citationsIn(blocks).join(","), "one,two,three");
+});
+
+test("compose: [@key] becomes a numbered link to the reference", () => {
+  const blocks = [{ id: "a", type: "paragraph", props: {},
+    content: [{ type: "text", text: "See [@one] and [@two; @one].", styles: {} }], children: [] }];
+  const order = compose.citationsIn(blocks);
+  const out = compose.linkCitations(blocks, order);
+  const nodes = out[0].content;
+  const links = nodes.filter((n) => n.type === "link");
+  eq(links.length, 3);
+  eq(links[0].href, "#ref-one");
+  eq(links[0].content[0].text, "1");
+  eq(links[1].href, "#ref-two");
+  eq(links[1].content[0].text, "2");
+  // the repeat of "one" keeps its original number
+  eq(links[2].content[0].text, "1");
+  // the surrounding prose survives intact
+  eq(nodes.map((n) => n.text ?? "").join("").includes("See "), true);
+});
+
+test("compose: text without citations is returned untouched", () => {
+  const blocks = [{ id: "a", type: "paragraph", props: {}, content: [{ type: "text", text: "No citations.", styles: {} }], children: [] }];
+  eq(JSON.stringify(compose.linkCitations(blocks, [])), JSON.stringify(blocks));
 });
 
 test("newId shape", () => {

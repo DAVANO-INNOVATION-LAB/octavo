@@ -86,6 +86,7 @@ import {
 import { getTemplate, type TemplatePage } from "@/lib/templates";
 import { getDb } from "@/lib/db";
 import { asIconName } from "@/lib/icons";
+import { setBibliography } from "@/lib/bibliography";
 
 async function requireUser() {
   const user = await currentUser();
@@ -767,6 +768,17 @@ export async function savePageIconAction(formData: FormData) {
   getDb().prepare("UPDATE pages SET icon = ? WHERE id = ?").run(icon, pageId);
   const space = getSpace(page.space_id);
   redirect(`/${space?.slug}/${page.slug}`);
+}
+
+/** A space's bibliography — the .bib source, kept verbatim. */
+export async function saveBibliographyAction(formData: FormData) {
+  const user = await requireUser();
+  const spaceId = String(formData.get("space") ?? "");
+  const space = getSpace(spaceId);
+  if (!space) redirect("/");
+  if (!canAdminSpace(user, space.id)) redirect(`/${space.slug}`);
+  const count = setBibliography(space.id, String(formData.get("bib") ?? ""));
+  redirect(`/${space.slug}/members?refs=${count}`);
 }
 
 // ---- page covers and space variables ----

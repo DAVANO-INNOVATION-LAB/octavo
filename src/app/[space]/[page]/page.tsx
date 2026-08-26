@@ -23,7 +23,9 @@ import {
 } from "@/lib/data";
 import Link2 from "next/link";
 import { extractHeadings, parseBlocks } from "@/lib/blocks";
-import { composeBlocks, parseVars } from "@/lib/page-compose";
+import { citationsIn, composeBlocks, linkCitations, parseVars } from "@/lib/page-compose";
+import { bibliography } from "@/lib/bibliography";
+import { References } from "@/components/render/References";
 import { getSetting } from "@/lib/settings";
 import { readingEnabled } from "@/lib/reading";
 import { ReadingObserver } from "@/components/render/ReadingObserver";
@@ -117,6 +119,10 @@ export default async function ReaderPage({
     };
   });
   const readingOn = readingEnabled();
+  // Citations: collect the order first, then rewrite [@key] into numbered
+  // links pointing at the References list below.
+  const citedKeys = citationsIn(blocks);
+  const rendered = linkCitations(blocks, citedKeys);
   const commentable = COMMENTABLE_KINDS.has(space.kind);
   const openChanges = openCrCount(page.id);
   const sib = variantSiblings(space);
@@ -298,7 +304,7 @@ export default async function ReaderPage({
         )}
 
         <Renderer
-          blocks={blocks}
+          blocks={rendered}
           threads={commentable ? blockThreadCounts(page.id) : undefined}
           dropCap
           run={
@@ -355,6 +361,10 @@ export default async function ReaderPage({
             </Link>
           )}
         </nav>
+
+        {/* Citations resolve against the space's bibliography, in the order
+            the page cites them. */}
+        <References keys={citedKeys} refs={bibliography(space.id)} />
 
         {page.published === 1 && <Feedback pageId={page.id} />}
 

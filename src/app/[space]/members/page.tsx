@@ -12,8 +12,9 @@ import {
 } from "@/app/actions";
 import { listVisitorTokens } from "@/lib/visitors";
 import { parseVars } from "@/lib/page-compose";
+import { bibliography, bibliographySource } from "@/lib/bibliography";
 import { getSetting } from "@/lib/settings";
-import { saveSpaceVarsAction } from "@/app/actions";
+import { saveSpaceVarsAction, saveBibliographyAction } from "@/app/actions";
 import { cookies } from "next/headers";
 import { Link2, Link2Off } from "lucide-react";
 import { SpaceShell } from "@/components/SpaceShell";
@@ -53,6 +54,8 @@ export default async function SpaceMembers({
   const tokens =
     space.visibility === "private" ? listVisitorTokens(space.id) : [];
   const vars = parseVars(getSetting(`vars:${space.id}`));
+  const bibSource = bibliographySource(space.id);
+  const bibCount = bibliography(space.id).size;
 
 
   return (
@@ -296,6 +299,35 @@ export default async function SpaceMembers({
             </p>
             <button className="h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink">
               Save variables
+            </button>
+          </form>
+        </section>
+
+        <section className="rounded-2xl border border-line bg-surface p-6 shadow-card">
+          <h2 className="text-[15px] font-semibold text-ink">Bibliography</h2>
+          <p className="mt-1 max-w-prose text-sm leading-relaxed text-muted">
+            Paste a BibTeX file. Cite an entry anywhere in this space with{" "}
+            <code className="rounded bg-wash px-1 text-[13px]">[@key]</code> and
+            the page grows a References section, in the order it cites them,
+            linked by DOI where there is one.
+          </p>
+          <form action={saveBibliographyAction} className="mt-4">
+            <input type="hidden" name="space" value={space.id} />
+            <textarea
+              name="bib"
+              rows={8}
+              defaultValue={bibSource}
+              spellCheck={false}
+              placeholder={"@article{lovelace1843,\n  author = {Lovelace, Ada},\n  title  = {Notes on the Analytical Engine},\n  year   = {1843}\n}"}
+              className="w-full rounded-lg border border-line bg-bg px-3 py-2 font-mono text-xs leading-relaxed text-ink placeholder:text-faint focus:border-accent"
+            />
+            <p className="mt-1 text-xs text-faint">
+              {bibCount === 0
+                ? "No entries yet."
+                : `${bibCount} ${bibCount === 1 ? "entry" : "entries"} parsed.`}
+            </p>
+            <button className="mt-3 h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink">
+              Save bibliography
             </button>
           </form>
         </section>

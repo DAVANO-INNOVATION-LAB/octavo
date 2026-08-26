@@ -148,3 +148,85 @@ function note(id: string, textContent: string): Block {
     children: [],
   };
 }
+
+/** Every [@key] cited anywhere in a document, in order of first appearance. */
+export function citationsIn(blocks: Block[]): string[] {
+  const seen: string[] = [];
+  const add = (text: string) => {
+    for (const m of text.matchAll(/\[@([^\]]+)\]/g)) {
+      for (const part of m[1].split(";")) {
+        const key = part.trim().replace(/^@/, "");
+        if (key && !seen.includes(key)) seen.push(key);
+      }
+    }
+  };
+  const walk = (list: Block[]) => {
+    for (const b of list) {
+      if (Array.isArray(b.content)) {
+        for (const c of b.content as { text?: string }[]) {
+          if (typeof c?.text === "string") add(c.text);
+        }
+      }
+      if (b.children?.length) walk(b.children);
+    }
+  };
+  walk(blocks);
+  return seen;
+}
+
+/**
+ * Turn [@key] in prose into a numbered link to the References entry.
+ *
+ * Runs after composition so it sees the final text — including anything a
+ * variable substituted in. A key the bibliography does not have still gets a
+ * number and a link: the References list says it is missing, and a silent
+ * gap in the numbering would be harder to notice than an obvious one.
+ */
+export function linkCitations(blocks: Block[], order: string[]): Block[] {
+  if (order.length === 0) return blocks;
+  const numberOf = new Map(order.map((k, i) => [k, i + 1]));
+
+  const rewriteInline = (content: unknown): unknown => {
+    if (!Array.isArray(content)) return content;
+    const out: unknown[] = [];
+    for (const node of content) {
+      const n = node as { type?: string; text?: string; styles?: unknown; content?: unknown };
+      if (n?.type === "link" && n.content) {
+        out.push({ ...n, content: rewriteInline(n.content) });
+        continue;
+      }
+      if (typeof n?.text !== "string" || !n.text.includes("[@")) {
+        out.push(node);
+        continue;
+      }
+      let last = 0;
+      const text = n.text;
+      for (const m of text.matchAll(/\[@([^\]]+)\]/g)) {
+        const at = m.index ?? 0;
+        if (at > last) out.push({ ...n, text: text.slice(last, at) });
+        const keys = m[1].split(";").map((k) => k.trim().replace(/^@/, "")).filter(Boolean);
+        out.push({ type: "text", text: "[", styles: n.styles ?? {} });
+        keys.forEach((key, i) => {
+          if (i > 0) out.push({ type: "text", text: ", ", styles: n.styles ?? {} });
+          out.push({
+            type: "link",
+            href: `#ref-${key}`,
+            content: [{ type: "text", text: String(numberOf.get(key) ?? "?"), styles: {} }],
+          });
+        });
+        out.push({ type: "text", text: "]", styles: n.styles ?? {} });
+        last = at + m[0].length;
+      }
+      if (last < text.length) out.push({ ...n, text: text.slice(last) });
+    }
+    return out;
+  };
+
+  const walk = (list: Block[]): Block[] =>
+    list.map((b) => ({
+      ...b,
+      content: rewriteInline(b.content) as Block["content"],
+      children: b.children?.length ? walk(b.children) : (b.children ?? []),
+    }));
+  return walk(blocks);
+}
