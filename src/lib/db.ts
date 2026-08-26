@@ -212,6 +212,24 @@ CREATE TABLE IF NOT EXISTS highlights (
 CREATE INDEX IF NOT EXISTS highlights_user ON highlights(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS highlights_page ON highlights(page_id, user_id);
 
+-- Minted DOIs. Append-only by design: a DOI is a permanent promise, so a
+-- row here is a record of something that happened, not a mutable setting.
+-- version_id names which revision was deposited, so "what does this DOI
+-- point at" has an answer even after the page moves on.
+CREATE TABLE IF NOT EXISTS dois (
+  id TEXT PRIMARY KEY,
+  doi TEXT NOT NULL UNIQUE,
+  target_type TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  version_id TEXT NOT NULL DEFAULT '',
+  url TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  minted_by TEXT NOT NULL DEFAULT '',
+  minted_at INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS dois_target ON dois(target_type, target_id, minted_at DESC);
+
 -- Reading signals: where readers slow down, double back, and give up.
 --
 -- Deliberately shaped so it CANNOT answer "did this person read this page".

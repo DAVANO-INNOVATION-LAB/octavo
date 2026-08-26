@@ -27,6 +27,8 @@ import { extractHeadings, parseBlocks } from "@/lib/blocks";
 import { citationsIn, composeBlocks, linkCitations, parseVars } from "@/lib/page-compose";
 import { bibliography } from "@/lib/bibliography";
 import { orcidUrl } from "@/lib/orcid";
+import { doiSettings, doisFor } from "@/lib/doi";
+import { mintDoiAction } from "@/app/actions";
 import { References } from "@/components/render/References";
 import { getSetting } from "@/lib/settings";
 import { readingEnabled } from "@/lib/reading";
@@ -93,6 +95,7 @@ export default async function ReaderPage({
   const editing = canEditSpace(user, space.id);
   const mayWrite = may(user, space.id, "write");
   const mayPropose = may(user, space.id, "propose");
+  const mayPublish = may(user, space.id, "publish");
   // Private means private from other members too, not merely from people
   // who are signed out: otherwise one account is the whole library.
   if (!(await canReadSpaceAsVisitor(user, space)))
@@ -122,6 +125,8 @@ export default async function ReaderPage({
   });
   const readingOn = readingEnabled();
   const byline = bylineFor(page);
+  const minted = doisFor("page", page.id);
+  const doiReady = doiSettings() !== null;
   // Citations: collect the order first, then rewrite [@key] into numbered
   // links pointing at the References list below.
   const citedKeys = citationsIn(blocks);
@@ -385,6 +390,43 @@ export default async function ReaderPage({
             </Link>
           )}
         </nav>
+
+        {/* A page's DOIs: what it has been cited as. Minting is offered only
+            to people who can publish, and only when a provider is set up. */}
+        {(minted.length > 0 || (doiReady && mayPublish && page.published === 1)) && (
+          <section className="mt-12 rounded-xl border border-line px-4 py-3">
+            {minted.length > 0 && (
+              <p className="text-xs text-faint">
+                Cite this page as{" "}
+                <a
+                  href={minted[0].url}
+                  rel="noopener noreferrer"
+                  className="font-mono text-accent no-underline hover:underline"
+                >
+                  {minted[0].doi}
+                </a>
+                {minted.length > 1 && (
+                  <span className="ml-2 text-faint">
+                    (+{minted.length - 1} earlier {minted.length === 2 ? "version" : "versions"})
+                  </span>
+                )}
+              </p>
+            )}
+            {doiReady && mayPublish && page.published === 1 && (
+              <form action={mintDoiAction} className="mt-2">
+                <input type="hidden" name="page" value={page.id} />
+                <button className="text-xs text-accent underline">
+                  {minted.length > 0
+                    ? "Mint a DOI for the current revision"
+                    : "Mint a DOI for this page"}
+                </button>
+                <span className="ml-2 text-xs text-faint">
+                  Permanent once minted.
+                </span>
+              </form>
+            )}
+          </section>
+        )}
 
         {/* Citations resolve against the space's bibliography, in the order
             the page cites them. */}

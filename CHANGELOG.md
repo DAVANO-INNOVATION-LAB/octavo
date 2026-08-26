@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.15.0 — 2026-08-26
+
+### Added
+
+- **Citable records.** Configure Zenodo or DataCite once, and anyone who can
+  publish in a space can mint a DOI for a published page. The page then shows
+  "Cite this page as…", and authors' ORCID iDs travel with the deposited
+  metadata as proper name identifiers.
+- The record names the **exact revision** that was deposited, so "what does
+  this DOI point at" has an answer after the page moves on. Minting is
+  append-only and audited: a DOI cannot be withdrawn, only superseded, so the
+  flow is deliberate rather than a button anyone can hit by accident.
+- Provider tokens are encrypted at rest with the same AES-256-GCM used for
+  connector credentials, and are never shown back to the browser.
+- A new suite (`npm run test:doi`) exercises both providers' real protocols
+  against a stub — Zenodo's three-step create/metadata/publish and DataCite's
+  JSON:API deposit — including every failure path, because a DOI cannot be
+  un-minted and this feature must never be tested against production.
 ## v0.14.0 — 2026-08-26
 
 ### Added

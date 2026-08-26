@@ -60,3 +60,4 @@ AGENTS.md
 .claude/launch.json
 /.demo/
 /.int-stage/
+/.doi-stage/

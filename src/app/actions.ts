@@ -87,6 +87,13 @@ import { getTemplate, type TemplatePage } from "@/lib/templates";
 import { getDb } from "@/lib/db";
 import { asIconName } from "@/lib/icons";
 import { normalizeOrcid } from "@/lib/orcid";
+import {
+  doiSettings,
+  metadataForPage,
+  mintDoi,
+  recordDoi,
+  saveDoiSettings,
+} from "@/lib/doi";
 import { setBibliography } from "@/lib/bibliography";
 
 async function requireUser() {
@@ -790,6 +797,88 @@ export async function saveOrcidAction(formData: FormData) {
   if (value === null) redirect("/account?orcid=invalid");
   getDb().prepare("UPDATE users SET orcid = ? WHERE id = ?").run(value, user.id);
   redirect("/account?orcid=saved");
+}
+
+// ---- DOI minting ----
+
+/** Configure the DOI provider. Instance-wide: a prefix belongs to the org. */
+export async function saveDoiSettingsAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const token = String(formData.get("token") ?? "").trim();
+  // An empty token means "leave it alone" — the form never shows the secret
+  // back, so a blank field must not silently erase it.
+  const existing = doiSettings();
+  saveDoiSettings({
+    provider: String(formData.get("provider") ?? "zenodo") === "datacite" ? "datacite" : "zenodo",
+    endpoint: String(formData.get("endpoint") ?? "").trim(),
+    prefix: String(formData.get("prefix") ?? "").trim(),
+    baseUrl: String(formData.get("base_url") ?? "").trim(),
+    token: token || existing?.token || "",
+  });
+  recordAudit({
+    actor: admin,
+    action: "admin.settings_changed",
+    objectType: "setting",
+    objectId: "doi",
+    objectLabel: "DOI provider configured",
+  });
+  redirect("/admin/doi?saved=1");
+}
+
+/**
+ * Mint a DOI for a page. Deliberately not idempotent-by-accident: minting
+ * twice creates two DOIs, so the UI shows what already exists and this
+ * action is only reachable from a form the author submits on purpose.
+ */
+export async function mintDoiAction(formData: FormData) {
+  const user = await requireUser();
+  const pageId = String(formData.get("page") ?? "");
+  const page = getPage(pageId);
+  if (!page) redirect("/");
+  const space = getSpace(page.space_id);
+  if (!space) redirect("/");
+  // Minting publishes an external, permanent record of this page. That is a
+  // publishing decision, so it takes publish rights in the space.
+  if (!may(user, space.id, "publish")) redirect(`/${space.slug}/${page.slug}`);
+
+  const settings = doiSettings();
+  if (!settings) redirect(`/${space.slug}/${page.slug}?doi=unconfigured`);
+  if (page.published !== 1) redirect(`/${space.slug}/${page.slug}?doi=draft`);
+
+  const meta = metadataForPage(page, space.slug, page.slug, settings.baseUrl);
+  const result = await mintDoi(meta, settings);
+  if (!result.ok) {
+    recordAudit({
+      actor: user,
+      action: "admin.settings_changed",
+      objectType: "doi",
+      objectId: page.id,
+      objectLabel: `DOI mint failed: ${result.error.slice(0, 120)}`,
+      spaceId: space.id,
+    });
+    redirect(`/${space.slug}/${page.slug}?doi=failed`);
+  }
+
+  recordDoi({
+    doi: result.doi,
+    targetType: "page",
+    targetId: page.id,
+    versionId: meta.versionId,
+    url: result.url,
+    provider: settings.provider,
+    mintedBy: user.id,
+    title: page.title,
+  });
+  recordAudit({
+    actor: user,
+    action: "page.published",
+    objectType: "doi",
+    objectId: page.id,
+    objectLabel: `DOI minted: ${result.doi}`,
+    spaceId: space.id,
+    detail: { doi: result.doi, provider: settings.provider },
+  });
+  redirect(`/${space.slug}/${page.slug}?doi=minted`);
 }
 
 // ---- page covers and space variables ----
