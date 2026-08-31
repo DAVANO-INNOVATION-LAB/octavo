@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.17.1 — 2026-08-30
+
+### Changed
+
+- Dependencies moved to their current patch releases.
+- The **image optimizer is off**. Octavo serves uploads and vendored assets
+  directly and uses no `next/image` anywhere, so the endpoint only ever sat
+  there answering requests nothing in the product makes. One less thing in
+  the surface a self-hoster has to reason about.
+
 ## v0.17.0 — 2026-08-30
 
 ### Added
