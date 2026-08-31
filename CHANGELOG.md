@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.17.2 — 2026-08-31
+
+No product changes. The release pipeline moved to the current major of every
+action it uses, which carries them off the retiring Node 20 runtime. The
+attestation steps keep the same inputs, so published images continue to carry
+the same verifiable provenance and bill of materials.
+
 ## v0.17.1 — 2026-08-30
 
 ### Changed
