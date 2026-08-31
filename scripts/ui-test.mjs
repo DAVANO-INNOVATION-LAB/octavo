@@ -210,13 +210,27 @@ for (const r of EDITOR_ROUTES) {
     schemaError: document.body.innerText.includes("Error creating document"),
   }))()`);
   const label = `${r.name} (${r.path})`;
+  // "Rendered some blocks" is not the same as "opened this document". When
+  // the collaboration socket is unreachable the editor comes up with one
+  // empty paragraph, boots cleanly, throws nothing — and passes a check that
+  // only asks for a non-zero count. Compare against what the page holds.
+  const slug = r.path.split("/").filter(Boolean).slice(-2)[0];
+  const stored = db
+    .prepare("SELECT content FROM pages WHERE slug = ? LIMIT 1")
+    .get(slug);
+  let want = 0;
+  try { want = JSON.parse(stored?.content ?? "[]").length; } catch { want = 0; }
   if (!state?.booted) fail(label, "editor did not boot");
   else if (state.schemaError) fail(label, "schema rejected the document");
   else if (!state.blocks) fail(label, "editor booted but rendered no blocks");
+  else if (want && state.blocks < want)
+    fail(label, `opened ${state.blocks} blocks but the page holds ${want} — an empty document`);
   const real = consoleErrors.filter((e) => !/favicon|DevTools/i.test(e));
   if (real.length) fail(label, `console error: ${real[0].slice(0, 120)}`);
+  const opened =
+    state?.booted && !state.schemaError && state.blocks && (!want || state.blocks >= want);
   process.stdout.write(
-    `  ${state?.booted && !state.schemaError ? "✓" : "✗"} ${r.name}${state?.blocks ? ` (${state.blocks} blocks)` : ""}\n`
+    `  ${opened ? "✓" : "✗"} ${r.name}${state?.blocks ? ` (${state.blocks} blocks)` : ""}\n`
   );
 }
 
@@ -268,6 +282,59 @@ for (const r of EDITOR_ROUTES) {
   await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" }, sessionId);
   await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" }, sessionId);
   await sleep(400);
+}
+
+/* ————— 2b-ii. a 3D block's source is selectable, and previews for real ————— */
+//
+// The block was uninsertable once because a menu entry and a schema entry are
+// two separate edits. The same trap applies to a new prop: a block can carry
+// `source` in its schema and still offer the author no way to set it. This
+// asserts the control exists, that choosing "described below" opens the
+// declaration editor, and that a space-derived block actually fetches its
+// scene rather than quietly falling back to the preset.
+{
+  await visit("/field-guide/3d-models/edit", 4200);
+  checks++;
+  const model = await evaluate(`(async () => {
+    const edit = document.querySelector(".blk-model-edit");
+    if (!edit) return { why: "no 3D block in the editor" };
+    const selects = [...edit.querySelectorAll("select")];
+    const source = selects.find((s) => [...s.options].some((o) => o.value === "space"));
+    if (!source) return { why: "no source control" };
+    const before = source.value;
+
+    // Choosing a declared source has to open somewhere to declare it.
+    const set = (el, v) => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(el, v);
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    set(source, "declared");
+    await new Promise((r) => setTimeout(r, 700));
+    const declares = !!document.querySelector(".blk-model-edit-declaration");
+
+    set(source, before);
+    await new Promise((r) => setTimeout(r, 500));
+    return { why: "", declares, sources: [...source.options].map((o) => o.value).join(",") };
+  })()`);
+  if (model?.why) fail("3D block editor", model.why);
+  else {
+    if (!model.declares) fail("3D block editor", "declared source offers nowhere to declare");
+    if (!/space/.test(model.sources) || !/preset/.test(model.sources))
+      fail("3D block editor", `sources were ${model.sources}`);
+  }
+  console.log(`  ${model && !model.why && model.declares ? "✓" : "✗"} 3D block source is selectable`);
+
+  checks++;
+  const derived = await evaluate(`(async () => {
+    const r = await fetch("/api/spaces/field-guide/model?kind=architecture");
+    if (!r.ok) return { why: "HTTP " + r.status };
+    const j = await r.json();
+    return { why: "", nodes: j.nodes?.length ?? 0, labelled: (j.nodes ?? []).filter(n => n.label).length };
+  })()`);
+  if (derived?.why) fail("3D derived scene", derived.why);
+  else if (!derived.nodes) fail("3D derived scene", "the space produced no nodes");
+  else if (derived.labelled !== derived.nodes) fail("3D derived scene", "nodes without a label");
+  console.log(`  ${derived && !derived.why && derived.nodes ? "✓" : "✗"} a space derives its own scene (${derived?.nodes ?? 0} nodes)`);
 }
 
 /* ————— 2c. a deep link opens the expandable it points at ————— */

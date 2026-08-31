@@ -83,7 +83,7 @@ import {
   snapshotNow,
   updateSpace,
 } from "@/lib/data";
-import { getTemplate, type TemplatePage } from "@/lib/templates";
+import { getTemplate, templateModelKind, type TemplatePage } from "@/lib/templates";
 import { getDb } from "@/lib/db";
 import { asIconName } from "@/lib/icons";
 import { normalizeOrcid } from "@/lib/orcid";
@@ -210,6 +210,9 @@ export async function createSpaceAction(formData: FormData) {
   const template = getTemplate(String(formData.get("template") ?? "blank"));
   if (!name) redirect("/new?error=1");
   const space = createSpace({ name, description, kind: template.kind, visibility });
+  // A space built from an engineering template starts with that discipline's
+  // model, so the first 3D block someone inserts is already the right one.
+  updateSpace(space.id, { model_kind: templateModelKind(template) });
 
   let firstSlug: string | null = null;
   const instantiate = (pages: TemplatePage[], parentId: string | null) => {
@@ -244,6 +247,7 @@ export async function updateSpaceAction(formData: FormData) {
     typeface: String(formData.get("typeface") ?? space.typeface),
     corners: String(formData.get("corners") ?? space.corners),
     icon: String(formData.get("icon") ?? space.icon),
+    model_kind: String(formData.get("model_kind") ?? space.model_kind),
   });
   revalidatePath("/");
   revalidatePath(`/${space.slug}`);

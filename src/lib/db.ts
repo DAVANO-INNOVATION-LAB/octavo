@@ -413,6 +413,12 @@ function migrate(db: Database.Database) {
     db.exec("ALTER TABLE spaces ADD COLUMN typeface TEXT NOT NULL DEFAULT 'classic'");
     db.exec("ALTER TABLE spaces ADD COLUMN corners TEXT NOT NULL DEFAULT 'rounded'");
   }
+  if (!cols.includes("model_kind")) {
+    // The discipline a space's 3D models default to. A network team inserting
+    // a model means a topology; a lab means a culture. Without this the block
+    // always opens as an architecture and everyone changes it every time.
+    db.exec("ALTER TABLE spaces ADD COLUMN model_kind TEXT NOT NULL DEFAULT 'architecture'");
+  }
   const userCols = (
     db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
   ).map((c) => c.name);

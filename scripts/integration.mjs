@@ -436,6 +436,70 @@ section("Import from a URL is fenced");
   check("an agent may not make the server fetch", agent.status === 403, `got ${agent.status}`);
 }
 
+// --- 2f. 3D models draw the space's own structure -----------------------------
+section("3D models are derived from real structure");
+{
+  // The whole point of the feature: the scene comes from this space's pages,
+  // not from a preset that looks the same in every install.
+  const scene = await get(`/api/spaces/${space.slug}/model?kind=architecture`, "it_reader");
+  check("a member gets their space's scene", scene.status === 200, `got ${scene.status}`);
+  const body = scene.status === 200 ? await scene.json() : { nodes: [], edges: [] };
+  check("the scene has a node for the space's pages",
+    Array.isArray(body.nodes) && body.nodes.length > 0, `${body.nodes?.length} nodes`);
+  const titles = db.prepare("SELECT title FROM pages WHERE space_id=? AND published=1 LIMIT 1").get(space.id);
+  check("nodes are labelled with real page titles",
+    !titles || body.nodes.some((n) => n.label === titles.title),
+    `expected ${titles?.title}`);
+  check("every node is placed, so nothing lands at the origin",
+    body.nodes.every((n) => Number.isFinite(n.x) && Number.isFinite(n.y) && Number.isFinite(n.z)));
+  check("no edge points at a node that is not in the scene", (() => {
+    const ids = new Set(body.nodes.map((n) => n.id));
+    return (body.edges ?? []).every((e) => ids.has(e.from) && ids.has(e.to));
+  })());
+
+  // Derivation reads pages, so it has to be behind the same gate as the pages.
+  if (priv) {
+    const mine = await get(`/api/spaces/${priv.slug}/model`, "it_reader");
+    check("a private space's scene opens for a member", mine.status === 200, `got ${mine.status}`);
+    const theirs = await get(`/api/spaces/${priv.slug}/model`, "it_outsider");
+    check("a private space's scene refuses a non-member", theirs.status === 401, `got ${theirs.status}`);
+    const nobody = await fetch(`${BASE}/api/spaces/${priv.slug}/model`, { redirect: "manual" });
+    check("a private space's scene refuses a stranger", nobody.status === 401, `got ${nobody.status}`);
+  }
+
+  const pipeline = await get(`/api/spaces/${space.slug}/model?kind=pipeline`, "it_reader");
+  check("a pipeline scene answers even with no connectors", pipeline.status === 200, `got ${pipeline.status}`);
+
+  const gone = await get("/api/spaces/no-such-space-here/model", "it_admin");
+  check("an unknown space is a 404, not an empty scene", gone.status === 404, `got ${gone.status}`);
+}
+
+// --- 2e. search is bounded, and the bound respects permissions -----------------
+section("Search is bounded and still scoped");
+{
+  // The bound must never cost a reader results they are entitled to. A member
+  // of a private space must still find its pages; a non-member must not.
+  const privPage = priv
+    ? db.prepare("SELECT id, title FROM pages WHERE space_id = ? AND published = 1 LIMIT 1").get(priv.id)
+    : null;
+  if (privPage) {
+    const term = String(privPage.title).split(/\s+/).find((w) => w.length > 4) ?? privPage.title;
+    const member = await (await get(`/api/search?q=${encodeURIComponent(term)}`, "it_reader")).json();
+    const outsider = await (await get(`/api/search?q=${encodeURIComponent(term)}`, "it_outsider")).json();
+    const inMember = JSON.stringify(member).includes(priv.slug);
+    const inOutsider = JSON.stringify(outsider).includes(priv.slug);
+    check("a member still finds private pages after the bound", inMember, `term "${term}"`);
+    check("a non-member still finds none", !inOutsider);
+  }
+
+  // A term matching many pages must return promptly rather than scoring the
+  // whole corpus — the defect the bound exists for.
+  const t0 = Date.now();
+  const broad = await get("/api/search?q=the", "it_reader");
+  const took = Date.now() - t0;
+  check("a very common term answers quickly", broad.ok && took < 3000, `${took}ms`);
+}
+
 // --- 3. change request lifecycle ---------------------------------------------
 section("A change request cannot be merged past its own rules");
 const cr = db.prepare("SELECT id, page_id, base_updated_at FROM change_requests WHERE status='open' ORDER BY created_at DESC LIMIT 1").get();

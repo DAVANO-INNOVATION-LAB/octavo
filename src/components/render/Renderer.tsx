@@ -17,6 +17,7 @@ import {
 import { CodeBlock } from "./CodeBlock";
 import { RunButton } from "./RunButton";
 import { Model3D, type ModelKind } from "./Model3D";
+import type { ModelScene } from "@/lib/model-data";
 import { MarginNote } from "./MarginNote";
 import { Mermaid } from "./Mermaid";
 import { TableCsv } from "./TableCsv";
@@ -90,6 +91,8 @@ type Ctx = {
   run?: RunContext;
   /** Blocks carrying comment threads, so the reader can mark them. */
   threads?: Map<string, { open: number; resolved: number }>;
+  /** Scenes resolved on the server for 3D blocks that draw real structure. */
+  scenes?: Map<string, ModelScene>;
 };
 
 function headingId(ctx: Ctx, text: string): string {
@@ -569,7 +572,13 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
     case "model3d": {
       const kind = String(b.props?.kind ?? "architecture") as ModelKind;
       const title = String(b.props?.title ?? "");
-      return <Model3D kind={kind} title={title || undefined} />;
+      return (
+        <Model3D
+          kind={kind}
+          title={title || undefined}
+          scene={ctx.scenes?.get(b.id) ?? null}
+        />
+      );
     }
     case "sketch": {
       const src = String(b.props?.svg ?? "");
@@ -660,13 +669,15 @@ export function Renderer({
   dropCap = false,
   run,
   threads,
+  scenes,
 }: {
   blocks: Block[];
   dropCap?: boolean;
   run?: RunContext;
   threads?: Map<string, { open: number; resolved: number }>;
+  scenes?: Map<string, ModelScene>;
 }) {
-  const ctx: Ctx = { headingSeen: new Map(), run, threads };
+  const ctx: Ctx = { headingSeen: new Map(), run, threads, scenes };
   return (
     <div className={`reader${dropCap ? " reader-dropcap" : ""}`}>
       <Blocks blocks={blocks} ctx={ctx} />

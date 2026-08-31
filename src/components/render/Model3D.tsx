@@ -2,11 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
+import type { ModelScene } from "@/lib/model-data";
 
 // A dependency-free 3D model block. Same projection engine as the knowledge
-// graph: nodes in space, perspective projection, orbit by dragging. Each
-// discipline supplies its own scene, so a template can show what the space
-// is for the moment someone opens it.
+// graph: nodes in space, perspective projection, orbit by dragging.
+//
+// The scene can come from three places. A preset draws the discipline's
+// generic shape, which is decoration and says so. A declared model is written
+// on the page for the things Octavo cannot know — a network, an electrode
+// array, a set of embedding points. A space-derived model is built from the
+// space's own pages, links, connectors and runs, and needs no authoring at
+// all: a space of design notes already contains its architecture diagram, it
+// has simply never been drawn.
 
 export type ModelKind =
   | "architecture"
@@ -155,18 +162,74 @@ function buildScene(kind: ModelKind): Scene {
   }
 }
 
+/**
+ * Turn a real scene into drawable nodes. Weight becomes size so the things
+ * that matter are the things you notice, and state becomes tone so a failing
+ * stage is visible without reading a label.
+ */
+function fromScene(model: ModelScene): Scene {
+  const index = new Map(model.nodes.map((n, i) => [n.id, i]));
+  const weights = model.nodes.map((n) => n.weight ?? 0);
+  const top = Math.max(1, ...weights);
+  const nodes: Node[] = model.nodes.map((n) => ({
+    x: n.x ?? 0,
+    y: n.y ?? 0,
+    z: n.z ?? 0,
+    label: n.label,
+    size: 5 + Math.round(((n.weight ?? 0) / top) * 7),
+    tone:
+      n.state === "fail" || n.state === "warn"
+        ? "accent"
+        : n.state === "idle"
+          ? "muted"
+          : (n.weight ?? 0) >= top * 0.6
+            ? "accent"
+            : "ink",
+  }));
+  const edges: Edge[] = [];
+  for (const e of model.edges) {
+    const a = index.get(e.from);
+    const b = index.get(e.to);
+    if (a === undefined || b === undefined) continue;
+    edges.push({ a, b, dashed: e.dashed });
+  }
+  return { nodes, edges, caption: model.caption || "Drag to orbit" };
+}
+
 export function Model3D({
   kind,
   title,
   height = 340,
+  scene: given,
+  /** Where to fetch a space-derived scene, for the editor's live preview. */
+  fetchFrom,
 }: {
   kind: ModelKind;
   title?: string;
   height?: number;
+  scene?: ModelScene | null;
+  fetchFrom?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hint, setHint] = useState("");
+  const [fetched, setFetched] = useState<{ url: string; scene: ModelScene } | null>(null);
   const resetRef = useRef<() => void>(() => {});
+
+  // A space-derived scene is resolved on the server, so the editor asks for
+  // it rather than deriving it — the client never learns about pages that
+  // the person editing may not read.
+  useEffect(() => {
+    if (!fetchFrom) return;
+    let live = true;
+    fetch(fetchFrom)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (live) setFetched(j && j.nodes ? { url: fetchFrom, scene: j as ModelScene } : null); })
+      .catch(() => { if (live) setFetched(null); });
+    return () => { live = false; };
+  }, [fetchFrom]);
+  // Keyed by the URL it came from, so a stale scene is never drawn against a
+  // block that has since changed where it reads from.
+  const derived = fetchFrom && fetched?.url === fetchFrom ? fetched.scene : null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -174,22 +237,70 @@ export function Model3D({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const scene = buildScene(kind);
+    const model = given ?? derived;
+    // An empty derived scene falls back to the preset: a space with no links
+    // yet should show what the block is for, not an empty box.
+    const scene = model && model.nodes.length > 0 ? fromScene(model) : buildScene(kind);
     setHint(scene.caption);
 
     const dpr = window.devicePixelRatio || 1;
-    let W = 0, H = 0;
+    let W = 0, H = 0, fit = 1;
+
+    const FOCAL = 820, CAM = 640;
+
+    /**
+     * Scale the scene so it stays inside the stage.
+     *
+     * The presets were drawn to fit a 340px box. A derived scene has no such
+     * courtesy — a space with forty pages spreads much wider than one with
+     * four — and without this its outer nodes simply leave the frame while
+     * their edges run off the corner. Because perspective magnifies whatever
+     * is nearest the camera, the fit cannot be computed in closed form, so it
+     * is measured: project the scene as it will actually be drawn, at several
+     * points in its own rotation, and shrink until the widest of them lands
+     * inside. Three passes is enough to converge.
+     */
+    const measureFit = () => {
+      if (!W || !H) return 1;
+      // Room for a label, which sits above its node and runs wider than it.
+      // A label sits above its node and runs wider than it, so the margins
+      // are the label's, not the dot's.
+      const halfW = W / 2 - 26, halfH = H / 2 - 28;
+      if (halfW <= 0 || halfH <= 0) return 1;
+      let f = 1;
+      for (let pass = 0; pass < 3; pass++) {
+        let worst = 0;
+        for (let a = 0; a < 8; a++) {
+          const yy = (a / 8) * Math.PI * 2;
+          const cy2 = Math.cos(yy), sy2 = Math.sin(yy);
+          const cp2 = Math.cos(-0.2), sp2 = Math.sin(-0.2);
+          for (const n of scene.nodes) {
+            const nx = n.x * f, ny = n.y * f, nz = n.z * f;
+            const x1 = nx * cy2 - nz * sy2;
+            const z1 = nx * sy2 + nz * cy2;
+            const y2 = ny * cp2 - z1 * sp2;
+            const z2 = ny * sp2 + z1 * cp2;
+            const sc = FOCAL / Math.max(120, CAM + z2);
+            worst = Math.max(worst, Math.abs(x1 * sc) / halfW, Math.abs(y2 * sc) / halfH);
+          }
+        }
+        if (worst <= 1.001) break;
+        f /= worst;
+      }
+      return f;
+    };
+
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       W = rect.width; H = rect.height;
       canvas.width = W * dpr; canvas.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      fit = measureFit();
     };
     resize();
     window.addEventListener("resize", resize);
 
     let yaw = 0.5, pitch = -0.2;
-    const FOCAL = 820, CAM = 640;
     let spin = 0.0022;
     let dragging = false;
     let last = { x: 0, y: 0 };
@@ -203,10 +314,11 @@ export function Model3D({
       const cy = Math.cos(yaw), sy = Math.sin(yaw);
       const cp = Math.cos(pitch), sp = Math.sin(pitch);
       const proj = scene.nodes.map((n) => {
-        const x1 = n.x * cy - n.z * sy;
-        const z1 = n.x * sy + n.z * cy;
-        const y2 = n.y * cp - z1 * sp;
-        const z2 = n.y * sp + z1 * cp;
+        const nx = n.x * fit, ny = n.y * fit, nz = n.z * fit;
+        const x1 = nx * cy - nz * sy;
+        const z1 = nx * sy + nz * cy;
+        const y2 = ny * cp - z1 * sp;
+        const z2 = ny * sp + z1 * cp;
         const scale = FOCAL / (CAM + z2);
         return { sx: W / 2 + x1 * scale, sy: H / 2 + y2 * scale, scale, depth: z2, n };
       });
@@ -232,20 +344,38 @@ export function Model3D({
       }
       ctx.setLineDash([]);
 
-      for (const p of [...proj].sort((x, y) => y.depth - x.depth)) {
+      const byDepth = [...proj].sort((x, y) => y.depth - x.depth);
+      for (const p of byDepth) {
         const t = Math.max(0, Math.min(1, (CAM * 0.5 - p.depth) / (CAM * 0.9)));
         ctx.beginPath();
         ctx.arc(p.sx, p.sy, Math.max(1.5, p.n.size * p.scale), 0, Math.PI * 2);
         ctx.fillStyle = p.n.tone === "accent" ? accent : p.n.tone === "muted" ? muted : ink;
         ctx.globalAlpha = 0.3 + t * 0.6;
         ctx.fill();
-        if (p.n.label) {
-          ctx.globalAlpha = 0.35 + t * 0.55;
-          ctx.fillStyle = p.n.tone === "accent" ? accent : ink;
-          ctx.font = `500 ${Math.max(9, 11 * p.scale)}px ui-sans-serif, system-ui, sans-serif`;
-          ctx.textAlign = "center";
-          ctx.fillText(p.n.label, p.sx, p.sy - p.n.size * p.scale - 9);
-        }
+      }
+
+      // Labels last, nearest first, and a label that would land on one
+      // already drawn is dropped. A derived model has as many labels as the
+      // space has pages; printed all at once they overlap into a smear, and
+      // the reader loses the few they could otherwise have read. Nearest wins
+      // because that is the node the reader is looking at.
+      ctx.textAlign = "center";
+      const placed: { x1: number; y1: number; x2: number; y2: number }[] = [];
+      for (const p of byDepth.slice().reverse()) {
+        if (!p.n.label) continue;
+        const t = Math.max(0, Math.min(1, (CAM * 0.5 - p.depth) / (CAM * 0.9)));
+        const size = Math.max(9, 11 * p.scale);
+        ctx.font = `500 ${size}px ui-sans-serif, system-ui, sans-serif`;
+        const w = ctx.measureText(p.n.label).width;
+        const cx = p.sx;
+        const cy = p.sy - p.n.size * p.scale - 9;
+        const box = { x1: cx - w / 2 - 3, y1: cy - size, x2: cx + w / 2 + 3, y2: cy + 3 };
+        if (placed.some((q) => box.x1 < q.x2 && box.x2 > q.x1 && box.y1 < q.y2 && box.y2 > q.y1))
+          continue;
+        placed.push(box);
+        ctx.globalAlpha = 0.35 + t * 0.55;
+        ctx.fillStyle = p.n.tone === "accent" ? accent : ink;
+        ctx.fillText(p.n.label, cx, cy);
       }
       ctx.globalAlpha = 1;
       raf = requestAnimationFrame(frame);
@@ -280,7 +410,7 @@ export function Model3D({
       canvas.removeEventListener("pointerup", up);
       canvas.removeEventListener("pointerleave", up);
     };
-  }, [kind]);
+  }, [kind, given, derived]);
 
   return (
     <figure className="blk-model">

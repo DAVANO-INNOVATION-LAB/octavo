@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex", "orcid"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex", "orcid", "model-data"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -36,6 +36,7 @@ const hb = await import(pathToFileURL(path.join(STAGE, "html-blocks.ts")));
 const compose = await import(pathToFileURL(path.join(STAGE, "page-compose.ts")));
 const bib = await import(pathToFileURL(path.join(STAGE, "bibtex.ts")));
 const orcid = await import(pathToFileURL(path.join(STAGE, "orcid.ts")));
+const model = await import(pathToFileURL(path.join(STAGE, "model-data.ts")));
 const policy = await import(pathToFileURL(path.join(STAGE, "policy-pure.ts")));
 
 let pass = 0;
@@ -1233,6 +1234,120 @@ test("orcid: a mistyped iD is refused, not merely reshaped", () => {
   eq(orcid.normalizeOrcid("not an orcid"), null);
   eq(orcid.normalizeOrcid(""), null);
   eq(orcid.normalizeOrcid(null), null);
+});
+
+test("model: a declared topology parses into nodes, edges and zones", () => {
+  const s = model.parseDeclaredModel(`
+caption: Production topology
+nodes:
+  - id: gw
+    label: Gateway
+    zone: edge
+  - id: api
+    label: API
+    zone: app
+  - id: db
+    label: Postgres
+    zone: data
+    state: warn
+edges:
+  - from: gw
+    to: api
+  - from: api
+    to: db
+    async: true
+`);
+  eq(s.nodes.length, 3);
+  eq(s.edges.length, 2);
+  eq(s.groups.join(","), "edge,app,data");
+  eq(s.caption, "Production topology");
+  eq(s.nodes.find((n) => n.id === "db").state, "warn");
+  eq(s.edges[1].dashed, true);
+});
+
+test("model: edges to undeclared nodes are dropped, not drawn into nothing", () => {
+  const s = model.parseDeclaredModel(`
+nodes:
+  - id: a
+edges:
+  - from: a
+    to: ghost
+  - from: a
+    to: a
+`);
+  eq(s.edges.length, 0);
+});
+
+test("model: damaged or empty declarations return null rather than throwing", () => {
+  eq(model.parseDeclaredModel("not: [valid"), null);
+  eq(model.parseDeclaredModel(""), null);
+  eq(model.parseDeclaredModel("nodes: []"), null);
+  eq(model.parseDeclaredModel("something: else"), null);
+});
+
+test("model: layout is deterministic — same input, same coordinates", () => {
+  const src = `nodes:\n  - id: a\n    group: g\n  - id: b\n    group: g\n`;
+  const one = model.parseDeclaredModel(src);
+  const two = model.parseDeclaredModel(src);
+  eq(JSON.stringify(one.nodes.map((n) => [n.x, n.y, n.z])),
+     JSON.stringify(two.nodes.map((n) => [n.x, n.y, n.z])));
+});
+
+test("model: explicit coordinates are respected, not overwritten", () => {
+  const s = model.parseDeclaredModel(`nodes:\n  - id: a\n    x: 5\n    y: 6\n    z: 7\n`);
+  eq(s.nodes[0].x, 5);
+  eq(s.nodes[0].y, 6);
+  eq(s.nodes[0].z, 7);
+});
+
+test("model: architecture derives from a space's pages and links", () => {
+  const s = model.architectureFromPages({
+    pages: [
+      { id: "p1", title: "Gateway", parentTitle: "Edge" },
+      { id: "p2", title: "API", parentTitle: "Services" },
+      { id: "p3", title: "Store", parentTitle: "Services" },
+    ],
+    links: [{ from: "p1", to: "p2" }, { from: "p2", to: "p3" }, { from: "p2", to: "gone" }],
+  });
+  eq(s.nodes.length, 3);
+  eq(s.edges.length, 2);                        // the link to a missing page is dropped
+  eq(s.nodes.find((n) => n.id === "p2").weight, 2); // degree drives size
+  eq(s.groups.includes("Services"), true);
+});
+
+test("model: a pipeline takes its state from the most recent run", () => {
+  const s = model.pipelineFromRuns({
+    connectors: [
+      { id: "c1", name: "Build", type: "github_actions" },
+      { id: "c2", name: "Deploy", type: "webhook" },
+    ],
+    runs: [
+      { connectorId: "c1", status: "failed", at: 100 },
+      { connectorId: "c1", status: "success", at: 200 },   // newer wins
+      { connectorId: "c2", status: "failed", at: 150 },
+    ],
+  });
+  eq(s.nodes.find((n) => n.id === "c1").state, "ok");
+  eq(s.nodes.find((n) => n.id === "c2").state, "fail");
+  eq(s.nodes.find((n) => n.id === "c1").weight, 2);
+  ok(s.caption.includes("1 failing"), s.caption);
+});
+
+test("model: a connector that never ran is idle, not failed", () => {
+  const s = model.pipelineFromRuns({
+    connectors: [{ id: "c1", name: "Never", type: "webhook" }],
+    runs: [],
+  });
+  eq(s.nodes[0].state, "idle");
+});
+
+test("model: a template's own models set the space's default kind", () => {
+  const bio = tpl.TEMPLATES.find((t) => tpl.templateModelKind(t) === "culture");
+  ok(bio, "no template declares a culture model");
+  const net = tpl.TEMPLATES.find((t) => tpl.templateModelKind(t) === "network");
+  ok(net, "no template declares a network model");
+  // A template with no model at all must not invent one.
+  eq(tpl.templateModelKind({ pages: [{ title: "x", blocks: [] }] }), "architecture");
 });
 
 test("newId shape", () => {

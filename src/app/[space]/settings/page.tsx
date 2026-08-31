@@ -113,6 +113,29 @@ export default async function SpaceSettings({
           </div>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+              3D models
+            </span>
+            <select
+              name="model_kind"
+              defaultValue={space.model_kind}
+              className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+            >
+              <option value="architecture">Architecture — derived from this space</option>
+              <option value="pipeline">Pipeline — derived from this space&rsquo;s connectors</option>
+              <option value="network">Network topology — described on the page</option>
+              <option value="culture">Culture over an electrode array — described on the page</option>
+              <option value="molecule">Molecule — described on the page</option>
+              <option value="embedding">Embedding space — described on the page</option>
+            </select>
+            <span className="mt-1 block text-xs text-faint">
+              What a new 3D model block starts as here. Architecture and
+              pipeline are read from this space&rsquo;s own pages, links and
+              runs, so they need nothing written; the rest are described in the
+              block itself.
+            </span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
               Visibility
             </span>
             <select

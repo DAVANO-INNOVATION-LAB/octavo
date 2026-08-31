@@ -136,6 +136,7 @@ export default function Editor({
   onChange,
   pageId,
   collab,
+  modelKind,
 }: {
   initialContent: string;
   onChange: (blocks: unknown[]) => void;
@@ -143,6 +144,8 @@ export default function Editor({
   pageId?: string;
   /** When present, the document is shared and this editor joins it. */
   collab?: CollabSession | null;
+  /** What a new 3D model block starts as here; set per space in settings. */
+  modelKind?: string;
 }) {
   const parsed = useMemo(() => {
     try {
@@ -222,7 +225,7 @@ export default function Editor({
             filterSuggestionItems(
               [
                 ...getDefaultReactSlashMenuItems(editor),
-                ...customSlashItems(editor),
+                ...customSlashItems(editor, modelKind),
               ],
               query
             )

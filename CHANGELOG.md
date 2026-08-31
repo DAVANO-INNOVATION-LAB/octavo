@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.17.0 — 2026-08-30
+
+### Added
+
+- **3D models draw your own structure.** A model block can now take its shape
+  from the space it sits in: architecture from the space's pages and the links
+  between them, a pipeline from its connectors and what their runs actually
+  did. Neither needs anyone to write anything — a space of design notes has
+  contained its architecture diagram all along, it has simply never been
+  drawn. State comes from the latest run, so a failing stage is visible
+  without reading a label.
+- For the disciplines Octavo cannot infer — a network topology, an electrode
+  array, a set of embedding points — the model is **described in the block**
+  in a few lines of YAML, and the reader gets the same rotatable scene.
+- Each space chooses **which discipline its models start as**, in space
+  settings. A space created from a template adopts the template's own.
+- The view now **fits itself to the scene**: models are scaled to the space
+  they are given, and a label that would land on top of another is dropped
+  rather than printed into a smear.
+
+### Changed
+
+- **Search scores a bounded candidate set.** Matching is unchanged; only the
+  number of rows ranked is capped, and the permission filter stays inside the
+  bound, so a reader with access to few spaces still sees everything they may
+  see. On a 2.5GB, 256,000-page corpus this answers a common term 12–15×
+  faster with a 0.8% difference in ranking.
+
 ## v0.16.0 — 2026-08-26
 
 ### Added

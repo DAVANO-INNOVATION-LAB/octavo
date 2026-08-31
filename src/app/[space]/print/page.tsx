@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/auth";
 import { flattenTree, getPage, getSpaceBySlug, pageTree } from "@/lib/data";
 import { parseBlocks } from "@/lib/blocks";
 import { Renderer } from "@/components/render/Renderer";
+import { scenesForBlocks } from "@/lib/model-source";
 import { PrintButton } from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -117,7 +118,11 @@ export default async function SpacePrint({
             >
               {page.title}
             </h2>
-            <Renderer blocks={parseBlocks(page.content)} dropCap />
+            <Renderer
+              blocks={parseBlocks(page.content)}
+              scenes={scenesForBlocks(parseBlocks(page.content), space.id)}
+              dropCap
+            />
           </article>
         );
       })}

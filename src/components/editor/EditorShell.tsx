@@ -26,12 +26,14 @@ export function EditorShell({
   pageSlug,
   initialTitle,
   initialContent,
+  modelKind,
 }: {
   pageId: string;
   spaceSlug: string;
   pageSlug: string;
   initialTitle: string;
   initialContent: string;
+  modelKind?: string;
 }) {
   const [title, setTitle] = useState(initialTitle);
   const [status, setStatus] = useState<Status>("saved");
@@ -159,6 +161,7 @@ export function EditorShell({
       <Editor
         pageId={pageId}
         collab={session}
+        modelKind={modelKind}
         initialContent={initialContent}
         onChange={(blocks) => queue({ content: blocks })}
       />

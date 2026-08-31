@@ -40,6 +40,7 @@ import { saveCoverAction } from "@/app/actions";
 import { connectorsForSpace, runsForPage } from "@/lib/connectors";
 import { SpaceShell } from "@/components/SpaceShell";
 import { Renderer } from "@/components/render/Renderer";
+import { scenesForBlocks } from "@/lib/model-source";
 import { Toc } from "@/components/Toc";
 import { PrintButton } from "@/components/PrintButton";
 import { Discussion } from "@/components/Discussion";
@@ -334,6 +335,7 @@ export default async function ReaderPage({
 
         <Renderer
           blocks={rendered}
+          scenes={scenesForBlocks(rendered, space.id)}
           threads={commentable ? blockThreadCounts(page.id) : undefined}
           dropCap
           run={

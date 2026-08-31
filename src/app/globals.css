@@ -953,6 +953,22 @@ mark {
 }
 .octavo-editor .blk-model-edit-bar input { flex: 1; min-width: 0; }
 
+.octavo-editor .blk-model-edit-declaration {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-soft, var(--bg));
+  color: var(--ink);
+  padding: 0.6rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.octavo-editor .blk-model-edit-declaration:focus { outline: none; }
+
 /* ————— Anchored comment threads ————— */
 /* Only blocks carrying a thread are wrapped, so the wrapper has to take on
    the spacing the block would have had as a direct child of .reader. */

@@ -91,6 +91,7 @@ export default async function EditPage({
           pageSlug={page.slug}
           initialTitle={page.title}
           initialContent={page.content}
+          modelKind={space.model_kind}
         />
       </div>
     </SpaceShell>

@@ -67,10 +67,23 @@ const code = (language: string, src: string): Blk => ({
   content: [t(src)],
   children: [],
 });
-const model = (kind: string, title: string): Blk => ({
+/**
+ * A 3D model in a template.
+ *
+ * Architecture and pipeline models are derived from the space itself, so a
+ * seeded space draws its own real shape the moment anyone adds a page. The
+ * disciplines Octavo cannot infer ship a small declaration the author edits
+ * into their own system rather than an example they have to recognise as one.
+ */
+const model = (kind: string, title: string, declaration = ""): Blk => ({
   id: bid(),
   type: "model3d",
-  props: { kind, title },
+  props: {
+    kind,
+    title,
+    source: declaration ? "declared" : kind === "architecture" || kind === "pipeline" ? "space" : "preset",
+    declaration,
+  },
   children: [],
 });
 const table = (rows: string[][]): Blk => ({
@@ -493,7 +506,33 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "Project charter",
         blocks: [
-          model("embedding", "Embedding space"),
+          model("embedding", "Embedding space", `caption: Three clusters, one outlier
+nodes:
+  - id: a
+    label: Cluster A
+    group: a
+    weight: 4
+  - id: b
+    label: Cluster B
+    group: b
+    weight: 3
+  - id: c
+    label: Cluster C
+    group: c
+    weight: 3
+  - id: out
+    label: Outlier
+    group: c
+edges:
+  - from: a
+    to: b
+    dashed: true
+  - from: b
+    to: c
+    dashed: true
+  - from: c
+    to: out
+`),
           p(t("Drag to orbit. Useful for showing what separates — and what does not — before the metrics arrive.")),
           h(2, "Question"),
           p(t("The decision this analysis informs — not the dataset, the decision.")),
@@ -551,7 +590,33 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "Topology",
         blocks: [
-          model("network", "The network, in three dimensions"),
+          model("network", "The network, in three dimensions", `caption: Core, distribution, access
+nodes:
+  - id: wan
+    label: WAN
+    zone: edge
+  - id: fw
+    label: Firewall
+    zone: edge
+  - id: core
+    label: Core switch
+    zone: core
+  - id: v10
+    label: VLAN 10
+    zone: access
+  - id: v20
+    label: VLAN 20
+    zone: access
+edges:
+  - from: wan
+    to: fw
+  - from: fw
+    to: core
+  - from: core
+    to: v10
+  - from: core
+    to: v20
+`),
           p(t("Drag to orbit. A flat diagram of the same network follows — keep whichever reads better for your team.")),
           code("mermaid", "flowchart TB\n  WAN((WAN)) --> FW[Firewall]\n  FW --> CORE[Core switch]\n  CORE --> A[Access switch A]\n  CORE --> B[Access switch B]\n  CORE --> SRV[Server VLAN]"),
           h(2, "Addressing plan"),
@@ -657,7 +722,36 @@ export const TEMPLATES: SpaceTemplate[] = [
       {
         title: "Study overview",
         blocks: [
-          model("culture", "Culture over the electrode array"),
+          model("culture", "Culture over the electrode array", `caption: Culture over the electrode array
+nodes:
+  - id: e1
+    label: Electrode 1
+    group: array
+  - id: e2
+    label: Electrode 2
+    group: array
+  - id: e3
+    label: Electrode 3
+    group: array
+  - id: c1
+    label: Cluster A
+    group: culture
+    weight: 3
+  - id: c2
+    label: Cluster B
+    group: culture
+    weight: 2
+edges:
+  - from: e1
+    to: c1
+  - from: e2
+    to: c1
+  - from: e3
+    to: c2
+  - from: c1
+    to: c2
+    async: true
+`),
           p(t("Drag to orbit the culture. Swap in your own array geometry, or add a molecular model beside it.")),
           h(2, "Hypothesis"),
           p(t("The claim this study can actually falsify.")),
@@ -757,4 +851,24 @@ export const TEMPLATES: SpaceTemplate[] = [
 
 export function getTemplate(id: string): SpaceTemplate {
   return TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
+}
+
+/**
+ * The discipline a template's own models use, so a space created from it
+ * starts with the right kind rather than defaulting to architecture. Read
+ * from the template's pages rather than declared separately, because a second
+ * declaration is a second thing to keep in sync.
+ */
+export function templateModelKind(t: SpaceTemplate): string {
+  const walk = (pages: TemplatePage[]): string | null => {
+    for (const p of pages) {
+      for (const b of p.blocks) {
+        if (b.type === "model3d" && typeof b.props?.kind === "string") return b.props.kind;
+      }
+      const inChild = p.children ? walk(p.children) : null;
+      if (inChild) return inChild;
+    }
+    return null;
+  };
+  return walk(t.pages) ?? "architecture";
 }

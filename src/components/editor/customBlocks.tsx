@@ -13,6 +13,7 @@ import {
 } from "@blocknote/react";
 import katex from "katex";
 import { Model3D, type ModelKind } from "@/components/render/Model3D";
+import { parseDeclaredModel } from "@/lib/model-data";
 import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -416,6 +417,32 @@ const MODEL_KINDS = [
   ["embedding", "Embedding space"],
 ] as const;
 
+/**
+ * Where a model's shape comes from.
+ *
+ *   space     derived from this space's own pages, links, connectors and
+ *             runs. Nothing to write; it changes as the space does.
+ *   declared  written on the page, for the disciplines Octavo cannot infer.
+ *   preset    the discipline's generic shape — decoration, and honest that
+ *             it is decoration.
+ */
+const MODEL_SOURCES = [
+  ["space", "From this space"],
+  ["declared", "Described below"],
+  ["preset", "Example shape"],
+] as const;
+
+const DECLARATION_PLACEHOLDER = `nodes:
+  - id: gw
+    label: Gateway
+    group: edge
+  - id: api
+    label: API
+    group: services
+edges:
+  - from: gw
+    to: api`;
+
 /** A 3D model scene chosen per discipline. */
 export const Model3DBlock = createReactBlockSpec(
   {
@@ -423,6 +450,8 @@ export const Model3DBlock = createReactBlockSpec(
     propSchema: {
       kind: { default: "architecture" as string },
       title: { default: "" as string },
+      source: { default: "preset" as string },
+      declaration: { default: "" as string },
     },
     content: "none",
   },
@@ -430,10 +459,32 @@ export const Model3DBlock = createReactBlockSpec(
     render: (props) => {
       const kind = String(props.block.props.kind ?? "architecture");
       const title = String(props.block.props.title ?? "");
+      const source = String(props.block.props.source ?? "preset");
+      const declaration = String(props.block.props.declaration ?? "");
+      // The space slug is on the editor page's own URL.
+      const spaceSlug =
+        typeof window === "undefined"
+          ? ""
+          : (window.location.pathname.split("/").filter(Boolean)[0] ?? "");
+      const scene = source === "declared" ? parseDeclaredModel(declaration) : null;
       return (
         <div className="blk-model-edit">
           <div className="blk-model-edit-bar">
             <Boxes size={14} className="shrink-0" />
+            <select
+              value={source}
+              onChange={(e) =>
+                props.editor.updateBlock(props.block, {
+                  props: { source: e.target.value },
+                })
+              }
+            >
+              {MODEL_SOURCES.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
             <select
               value={kind}
               onChange={(e) =>
@@ -458,7 +509,30 @@ export const Model3DBlock = createReactBlockSpec(
               }
             />
           </div>
-          <Model3D kind={kind as ModelKind} height={220} />
+          {source === "declared" && (
+            <textarea
+              className="blk-model-edit-declaration"
+              value={declaration}
+              spellCheck={false}
+              rows={8}
+              placeholder={DECLARATION_PLACEHOLDER}
+              onChange={(e) =>
+                props.editor.updateBlock(props.block, {
+                  props: { declaration: e.target.value },
+                })
+              }
+            />
+          )}
+          <Model3D
+            kind={kind as ModelKind}
+            height={220}
+            scene={scene}
+            fetchFrom={
+              source === "space" && spaceSlug
+                ? `/api/spaces/${encodeURIComponent(spaceSlug)}/model?kind=${encodeURIComponent(kind)}`
+                : undefined
+            }
+          />
         </div>
       );
     },
@@ -620,7 +694,9 @@ export const octavoSchema = BlockNoteSchema.create({
 export type OctavoEditor = typeof octavoSchema.BlockNoteEditor;
 
 export function customSlashItems(
-  editor: OctavoEditor
+  editor: OctavoEditor,
+  /** The discipline this space's models default to; see space settings. */
+  modelKind = "architecture"
 ): DefaultReactSuggestionItem[] {
   // The schema-specific generics fight the helper's signature; the runtime
   // contract is identical, so erase them at this one boundary.
@@ -652,7 +728,18 @@ export function customSlashItems(
     make("Math", "Display formula (KaTeX)", <Sigma size={18} />, "math"),
     make("Draw.io diagram", "A diagram saved in this page", <PenTool size={18} />, "drawio"),
     make("Theme-aware image", "A different image in light and dark", <ImageIcon size={18} />, "themeImage"),
-    make("3D model", "A rotatable scene for this discipline", <Boxes size={18} />, "model3d", { kind: "architecture" }),
+    make(
+      "3D model",
+      modelKind === "architecture" || modelKind === "pipeline"
+        ? "A rotatable scene built from this space"
+        : "A rotatable scene you describe below",
+      <Boxes size={18} />,
+      "model3d",
+      {
+        kind: modelKind,
+        source: modelKind === "architecture" || modelKind === "pipeline" ? "space" : "declared",
+      }
+    ),
     make("Sketch", "Draw here; readers get an image", <Shapes size={18} />, "sketch"),
     make("Embed a page", "Another page's content, always current", <FileInput size={18} />, "syncedPage"),
     make("Audience block", "Shown only when a space variable matches", <SlidersHorizontal size={18} />, "ifvar"),
