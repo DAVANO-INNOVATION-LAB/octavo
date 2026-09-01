@@ -474,6 +474,27 @@ section("3D models are derived from real structure");
   check("an unknown space is a 404, not an empty scene", gone.status === 404, `got ${gone.status}`);
 }
 
+// --- 2g. a connected repository is an admin's business alone -----------------
+section("Repository settings are gated, and hold a credential");
+{
+  // The page holds a token that can write to someone's repository. Every
+  // principal who is not a space admin has to be turned away, including a
+  // member who can otherwise edit every page in it.
+  const admin = await get(`/${space.slug}/repository`, "it_admin");
+  check("a space admin can open repository settings", admin.status === 200, `got ${admin.status}`);
+  for (const who of ["it_editor", "it_reader", "it_agent", "it_outsider"]) {
+    const r = await get(`/${space.slug}/repository`, who);
+    check(`${who}: repository settings refused`, [302, 307, 308].includes(r.status), `got ${r.status}`);
+  }
+  const anon2 = await fetch(`${BASE}/${space.slug}/repository`, { redirect: "manual" });
+  check("signed out: repository settings refused", [302, 307, 308].includes(anon2.status), `got ${anon2.status}`);
+
+  // A stored token must never come back out of the server.
+  const body = admin.status === 200 ? await admin.text() : "";
+  check("the page never renders a stored token",
+    !/name="token"[^>]*value="[^"]+"/.test(body), "a token value was rendered");
+}
+
 // --- 2e. search is bounded, and the bound respects permissions -----------------
 section("Search is bounded and still scoped");
 {

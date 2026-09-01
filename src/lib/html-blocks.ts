@@ -233,7 +233,16 @@ function blocksOf(
     }
     case "img": {
       const src = node.attrs.src ?? "";
-      if (src) out.push(block("image", { url: src, caption: node.attrs.alt ?? "" }));
+      if (!src) return;
+      // A relative src points inside whatever this markup came packaged in —
+      // an export's attachments directory. Left verbatim every image in an
+      // imported export is a broken link, and the import looks like it worked.
+      // Absolute and data URLs are already resolvable and are left alone.
+      const local =
+        resolve && !/^([a-z]+:)?\/\//i.test(src) && !src.startsWith("data:")
+          ? resolve(src)
+          : null;
+      out.push(block("image", { url: local ?? src, caption: node.attrs.alt ?? "" }));
       return;
     }
     case "ac:image": {

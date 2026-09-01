@@ -62,6 +62,9 @@ export type AuditAction =
   | "cr.reopened"
   // sync
   | "sync.run"
+  | "repo.connected"
+  | "repo.disconnected"
+  | "repo.sync"
   // moderation
   | "comment.deleted_by_moderator"
   | "comment.thread_resolved"

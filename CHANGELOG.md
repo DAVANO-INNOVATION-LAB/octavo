@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.19.0 — 2026-09-01
+
+### Added
+
+- **Connect a space to a GitHub or GitLab repository.** Pages push as one
+  commit; changes made in the repository come back as pages. Octavo talks to
+  the host's own API — it does not clone, run Git, or need anything installed
+  beside it, so this works from the same container as everything else, against
+  github.com, gitlab.com, or a self-hosted instance of either. Tokens are
+  encrypted at rest, checked against the branch the moment they are saved, and
+  never rendered back.
+- **Notion exports import properly.** They landed before as markdown, with a
+  32-character id welded onto every title and every internal link pointing at
+  an export filename — which is worse than no support, because it looks like
+  it worked. Titles and the page tree now arrive clean, internal links point
+  at the imported pages, and database properties are kept as a table instead
+  of reading as a broken paragraph.
+- **Confluence HTML exports import.** The XML export is the better one, but
+  producing it needs space-admin rights and Cloud often does not offer it at
+  all. The HTML export now works too: the page tree comes from `index.html`,
+  and attachments become real uploads.
+
+### Fixed
+
+- A relative image in any imported HTML landed as a broken link, because only
+  Confluence's own attachment markup was resolved. Every importer that carries
+  its own files now resolves them.
+
+### Changed
+
+- When both a space and its repository changed the same page, neither is
+  touched and the pair is reported. Nothing in repository sync deletes a page
+  or a file.
 ## v0.18.0 — 2026-09-01
 
 ### Added

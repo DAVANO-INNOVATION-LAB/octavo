@@ -1,5 +1,13 @@
 import "server-only";
 import { looksLikeConfluence, readConfluenceExport } from "./confluence";
+import { looksLikeConfluenceHtml, readConfluenceHtmlExport } from "./confluence-html";
+import {
+  cleanNotionPath,
+  looksLikeNotion,
+  notionId,
+  rewriteNotionLinks,
+  splitNotionPage,
+} from "./notion";
 import {
   Space,
   TreeNode,
@@ -206,8 +214,21 @@ export function importMarkdownEntries(
     .filter((e) => !e.name.split("/").some((seg) => seg.startsWith(".")));
   if (!mdFiles.length) throw new Error("no markdown files found");
 
+  // A Notion export is markdown, so it lands here — but with a 32-hex id
+  // welded onto every name and every internal link pointing at those names.
+  // Imported as-is it arrives with unreadable titles and broken links, which
+  // is worse than refusing it, because it looks like it worked.
+  const notion = looksLikeNotion(entries.map((e) => e.name));
+  const notionIdByPath = new Map<string, string>();
+  if (notion) {
+    for (const e of mdFiles) {
+      const id = notionId(e.name);
+      if (id) notionIdByPath.set(e.name, id);
+    }
+  }
+
   // Strip a common root directory if every file shares one.
-  const parts = mdFiles.map((e) => e.name.split("/"));
+  const parts = mdFiles.map((e) => (notion ? cleanNotionPath(e.name) : e.name).split("/"));
   let rootName = "";
   if (parts.every((p) => p.length > 1 && p[0] === parts[0][0])) {
     rootName = parts[0][0];
@@ -224,8 +245,25 @@ export function importMarkdownEntries(
 
   // Sort so folders' index.md come before their children, and files in order.
   const files = mdFiles
-    .map((e, i) => ({ path: parts[i].join("/"), data: e.data }))
+    .map((e, i) => ({
+      path: parts[i].join("/"),
+      data: e.data,
+      notionId: notionIdByPath.get(e.name) ?? "",
+    }))
     .sort((a, b) => a.path.localeCompare(b.path));
+
+  // Notion links by exported filename, so the id is the join key. The map has
+  // to be complete before any body is converted, or a page would only ever
+  // link to pages that happened to import before it.
+  const notionHref = new Map<string, string>();
+  if (notion) {
+    for (const f of files) {
+      if (!f.notionId) continue;
+      const stem = f.path.replace(/\.md$/i, "");
+      const name = stem.split("/").pop() ?? stem;
+      notionHref.set(f.notionId, `/${space.slug}/${slugify(name)}`);
+    }
+  }
 
   const dirParent = new Map<string, string | null>(); // dir path -> page id
   dirParent.set("", null);
@@ -252,7 +290,16 @@ export function importMarkdownEntries(
       acc = next;
     }
 
-    const [meta, body] = splitFrontmatter(f.data.toString("utf8"));
+    let raw = f.data.toString("utf8");
+    let notionProps: { name: string; value: string }[] = [];
+    if (notion) {
+      raw = rewriteNotionLinks(raw, notionHref);
+      const split = splitNotionPage(raw);
+      notionProps = split.properties;
+      // Notion writes the title as an H1; keep it so titleFrom still sees it.
+      raw = split.title ? `# ${split.title}\n\n${split.body}` : split.body;
+    }
+    const [meta, body] = splitFrontmatter(raw);
     const isIndex = /^(index|readme)\.md$/i.test(fileName);
     const fallback = cleanSegment(isIndex ? segs[segs.length - 1] ?? "Home" : fileName)
       .replace(/[-_]/g, " ");
@@ -262,6 +309,25 @@ export function importMarkdownEntries(
       m.slice(2).trim() === title ? "" : m
     );
     const blocks = markdownToBlocks(bodyNoH1);
+    // Database properties are real content — owner, status, dates — but read
+    // as a broken paragraph inline. A table keeps them, and keeps them apart.
+    if (notionProps.length > 0) {
+      blocks.unshift({
+        id: newId(),
+        type: "table",
+        props: {},
+        content: {
+          type: "tableContent",
+          rows: notionProps.map((pr) => ({
+            cells: [
+              [{ type: "text", text: pr.name, styles: { bold: true } }],
+              [{ type: "text", text: pr.value, styles: {} }],
+            ],
+          })),
+        },
+        children: [],
+      } as unknown as (typeof blocks)[number]);
+    }
 
     if (isIndex && dir !== "") {
       // This file IS the container page for its directory.
@@ -340,6 +406,75 @@ export function importConfluence(entries: ZipEntry[], nameOverride?: string): Im
   return { spaceSlug: space.slug, pages: byTitle.size };
 }
 
+/**
+ * A Confluence HTML export becomes one space.
+ *
+ * The tree comes from index.html and nothing else: the pages themselves carry
+ * only a breadcrumb of titles, which two pages sharing a name break silently.
+ * With no index, everything lands at the top level — a flat tree someone can
+ * fix in an afternoon, rather than a wrong one they may never notice.
+ */
+export function importConfluenceHtml(
+  entries: ZipEntry[],
+  nameOverride?: string
+): ImportResult {
+  const written = new Map<string, string>();
+  const resolve = (file: string): string | null => {
+    const want = file.split("/").pop() ?? file;
+    if (written.has(want)) return written.get(want)!;
+    const hit = entries.find((e) => (e.name.split("/").pop() ?? "") === want && !/\.html?$/i.test(e.name));
+    if (!hit) return null;
+    const ext = path.extname(want).toLowerCase();
+    const name = `${newId()}${ext}`;
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    fs.writeFileSync(path.join(UPLOADS_DIR, name), hit.data);
+    const url = `/api/files/${name}`;
+    written.set(want, url);
+    return url;
+  };
+
+  const exp = readConfluenceHtmlExport(entries, resolve);
+  if (exp.pages.length === 0) throw new Error("no pages found in this HTML export");
+  const space = createSpace({
+    name: nameOverride?.trim() || exp.name,
+    kind: "docs",
+    visibility: "private",
+  });
+
+  const byFile = new Map<string, string>();
+  let remaining = exp.pages;
+  let guard = 0;
+  while (remaining.length && guard++ < 50) {
+    const next: typeof remaining = [];
+    for (const p of remaining) {
+      const parentId = p.parentFile ? byFile.get(p.parentFile) : null;
+      if (p.parentFile && !parentId) { next.push(p); continue; }
+      const created = createPage({
+        spaceId: space.id,
+        parentId: parentId ?? null,
+        title: p.title,
+        content: JSON.stringify(p.blocks),
+      });
+      savePage(created.id, { published: true });
+      byFile.set(p.file, created.id);
+    }
+    // A cycle in the index would loop forever; land the rest at the top.
+    if (next.length === remaining.length) {
+      for (const p of next) {
+        const created = createPage({
+          spaceId: space.id, parentId: null, title: p.title,
+          content: JSON.stringify(p.blocks),
+        });
+        savePage(created.id, { published: true });
+        byFile.set(p.file, created.id);
+      }
+      break;
+    }
+    remaining = next;
+  }
+  return { spaceSlug: space.slug, pages: byFile.size };
+}
+
 export function importUpload(
   fileName: string,
   data: Buffer,
@@ -349,6 +484,7 @@ export function importUpload(
   if (lower.endsWith(".zip")) {
     const entries = unzip(data);
     if (looksLikeConfluence(entries)) return importConfluence(entries, nameOverride);
+    if (looksLikeConfluenceHtml(entries)) return importConfluenceHtml(entries, nameOverride);
     const manifestEntry = entries.find((e) => e.name.endsWith("octavo.json"));
     if (manifestEntry) {
       const manifest = JSON.parse(manifestEntry.data.toString("utf8"));

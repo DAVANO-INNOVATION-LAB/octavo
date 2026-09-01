@@ -21,6 +21,13 @@ import { passwordProblem } from "@/lib/policy";
 import { saveForwardConfig } from "@/lib/audit-forward";
 import { saveAskConfig } from "@/lib/ask";
 import { applySync } from "@/lib/sync-io";
+import {
+  forgetRepo,
+  getRepoSettings,
+  saveRepoSettings,
+  syncWithRepo,
+  verify as verifyRepo,
+} from "@/lib/repo-sync";
 import { generatePages, importInto } from "@/lib/openapi-pages";
 import { markAllRead, markRead, notify, notifyAll } from "@/lib/notify";
 import { mentionedUserIds } from "@/lib/mentions";
@@ -1236,6 +1243,75 @@ export async function shipNowAction() {
 }
 
 // ---- markdown sync ----
+
+export async function saveRepoAction(formData: FormData) {
+  const user = await requireUser();
+  const slug = String(formData.get("space") ?? "");
+  const space = getSpaceBySlug(slug);
+  if (!space) redirect("/");
+  if (!canAdminSpace(user, space.id)) redirect(`/${slug}`);
+
+  if (String(formData.get("disconnect") ?? "") === "1") {
+    forgetRepo(space.id);
+    recordAudit({
+      actor: user, action: "repo.disconnected", objectType: "space",
+      objectId: space.id, objectLabel: space.name, spaceId: space.id, detail: {},
+    });
+    redirect(`/${slug}/repository?done=1`);
+  }
+
+  const repo = String(formData.get("repo") ?? "").trim();
+  if (!repo.includes("/")) redirect(`/${slug}/repository?error=${encodeURIComponent("a repository looks like owner/name")}`);
+
+  saveRepoSettings(space.id, {
+    provider: String(formData.get("provider") ?? "github") === "gitlab" ? "gitlab" : "github",
+    endpoint: String(formData.get("endpoint") ?? "").trim(),
+    repo,
+    branch: String(formData.get("branch") ?? "main").trim() || "main",
+    path: String(formData.get("path") ?? "").trim().replace(/^\/+|\/+$/g, ""),
+    token: String(formData.get("token") ?? "").trim(),
+  });
+
+  // Verified on save, not on first push: a token missing one scope is the
+  // failure people actually hit, and finding out mid-commit is worse.
+  const saved = getRepoSettings(space.id);
+  const check = saved ? await verifyRepo(saved) : { ok: false, error: "nothing was saved" };
+  recordAudit({
+    actor: user, action: "repo.connected", objectType: "space",
+    objectId: space.id, objectLabel: space.name, spaceId: space.id,
+    detail: { repo, provider: saved?.provider ?? "", reachable: check.ok },
+  });
+  redirect(
+    check.ok
+      ? `/${slug}/repository?done=1`
+      : `/${slug}/repository?error=${encodeURIComponent(check.error ?? "could not reach it")}`
+  );
+}
+
+export async function runRepoSyncAction(formData: FormData) {
+  const user = await requireUser();
+  const slug = String(formData.get("space") ?? "");
+  const space = getSpaceBySlug(slug);
+  if (!space) redirect("/");
+  if (!canAdminSpace(user, space.id)) redirect(`/${slug}`);
+
+  const report = await syncWithRepo(space);
+  recordAudit({
+    actor: user, action: "repo.sync", objectType: "space",
+    objectId: space.id, objectLabel: space.name, spaceId: space.id,
+    detail: {
+      pushed: report.pushed, pulled: report.pulled,
+      conflicts: report.conflicts.length, commit: report.commit,
+      error: report.error ?? "",
+    },
+  });
+  revalidatePath(`/${slug}`);
+  redirect(
+    report.error
+      ? `/${slug}/repository?error=${encodeURIComponent(report.error)}`
+      : `/${slug}/repository?synced=1&p=${report.pushed}&u=${report.pulled}&c=${report.conflicts.length}`
+  );
+}
 
 export async function runSyncAction(formData: FormData) {
   const user = await requireUser();

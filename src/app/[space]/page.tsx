@@ -3,7 +3,7 @@ import { variantSiblings } from "@/lib/data";
 import { resolveVariants } from "@/lib/variants";
 import { VariantSwitcher } from "@/components/VariantSwitcher";
 import { notFound, redirect } from "next/navigation";
-import { FolderSync, ArrowRight, BookOpen, Download, Lock, Plus, Settings, Users, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, Download, FolderSync, GitBranch, Lock, Plus, Settings, Users, Zap } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { flattenTree, getSpaceBySlug, pageTree } from "@/lib/data";
 import { createPageAction } from "@/app/actions";
@@ -125,6 +125,13 @@ export default async function SpaceCover({
                     >
                       <FolderSync size={15} />
                       Sync
+                    </Link>
+                    <Link
+                      href={`/${space.slug}/repository`}
+                      className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink"
+                    >
+                      <GitBranch size={15} />
+                      Repository
                     </Link>
                     <Link
                       href={`/${space.slug}/connectors`}

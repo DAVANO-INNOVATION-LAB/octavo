@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex", "orcid", "model-data"]) {
+for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex", "orcid", "model-data", "notion", "confluence-html"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -37,6 +37,8 @@ const compose = await import(pathToFileURL(path.join(STAGE, "page-compose.ts")))
 const bib = await import(pathToFileURL(path.join(STAGE, "bibtex.ts")));
 const orcid = await import(pathToFileURL(path.join(STAGE, "orcid.ts")));
 const model = await import(pathToFileURL(path.join(STAGE, "model-data.ts")));
+const notion = await import(pathToFileURL(path.join(STAGE, "notion.ts")));
+const chtml = await import(pathToFileURL(path.join(STAGE, "confluence-html.ts")));
 const policy = await import(pathToFileURL(path.join(STAGE, "policy-pure.ts")));
 
 let pass = 0;
@@ -1441,6 +1443,141 @@ test("model: a table with no coordinates is refused rather than drawn empty", ()
 test("model: quoted CSV fields survive their commas", () => {
   const s = model.pointsFromTable('id,x,y,label\n1,0,0,"Smith, J."\n2,1,1,plain\n');
   eq(s.nodes[0].label, "Smith, J.");
+});
+
+console.log("notion:");
+
+test("notion: an export is recognised by its ids, not by being markdown", () => {
+  ok(notion.looksLikeNotion([
+    "Export/Getting Started 1a2b3c4d5e6f70819293a4b5c6d7e8f9.md",
+    "Export/Roadmap 0f1e2d3c4b5a69788796a5b4c3d2e1f0.md",
+  ]));
+  // Somebody's own docs folder must not be dragged down this path.
+  eq(notion.looksLikeNotion(["docs/intro.md", "docs/guide.md"]), false);
+  eq(notion.looksLikeNotion([]), false);
+});
+
+test("notion: the id comes off the title", () => {
+  eq(notion.notionTitle("Export/Getting Started 1a2b3c4d5e6f70819293a4b5c6d7e8f9.md"), "Getting Started");
+  eq(notion.notionTitle("Q3%20Plan%201a2b3c4d5e6f70819293a4b5c6d7e8f9.md"), "Q3 Plan");
+  eq(notion.notionTitle("plain.md"), "plain");
+});
+
+test("notion: every path segment is cleaned, and the shape is kept", () => {
+  eq(
+    notion.cleanNotionPath("Team 1a2b3c4d5e6f70819293a4b5c6d7e8f9/Notes 0f1e2d3c4b5a69788796a5b4c3d2e1f0.md"),
+    "Team/Notes.md"
+  );
+});
+
+test("notion: properties are lifted off the top of a database page", () => {
+  const r = notion.splitNotionPage(
+    "# Weekly sync\n\nStatus: Done\nOwner: Ada\nDate: 2026-01-02\n\nWe agreed the plan.\n"
+  );
+  eq(r.title, "Weekly sync");
+  eq(r.properties.length, 3);
+  eq(r.properties[0].name, "Status");
+  eq(r.properties[0].value, "Done");
+  eq(r.body, "We agreed the plan.");
+});
+
+test("notion: a page with no properties keeps its whole body", () => {
+  const r = notion.splitNotionPage("# Title\n\nJust prose, with a colon: like this.\n");
+  eq(r.properties.length, 0);
+  ok(r.body.includes("Just prose"), r.body);
+});
+
+test("notion: internal links are rewritten, and unknown ones left alone", () => {
+  const map = new Map([["1a2b3c4d5e6f70819293a4b5c6d7e8f9", "/team/roadmap"]]);
+  const out = notion.rewriteNotionLinks(
+    "See [Roadmap](Roadmap%201a2b3c4d5e6f70819293a4b5c6d7e8f9.md) and " +
+    "[Gone](Gone%20ffffffffffffffffffffffffffffffff.md) and " +
+    "[Web](https://example.org/x).",
+    map
+  );
+  ok(out.includes("[Roadmap](/team/roadmap)"), out);
+  // A link to nothing is honest; a link to the wrong page is not.
+  ok(out.includes("Gone%20ffffffffffffffffffffffffffffffff.md"), out);
+  ok(out.includes("https://example.org/x"), out);
+});
+
+test("notion: a database CSV becomes rows, quotes and commas intact", () => {
+  const rows = notion.notionCsvToRows('Name,Notes\nAda,"Analytical, engine"\nGrace,Compiler\n');
+  eq(rows.length, 3);
+  eq(rows[1][1], "Analytical, engine");
+  eq(rows[2][0], "Grace");
+});
+
+console.log("confluence html:");
+
+const B = (s) => Buffer.from(s, "utf8");
+const CONF_PAGE = (title, body) =>
+  `<html><head><title>Docs Space : ${title}</title></head><body>
+   <div id="main-content" class="wiki-content">${body}</div></body></html>`;
+
+test("confluence html: an export is recognised by its wrapper, not by being html", () => {
+  ok(chtml.looksLikeConfluenceHtml([{ name: "a.html", data: B(CONF_PAGE("A", "<p>x</p>")) }]));
+  // A saved web page or a static site must not be dragged down this path.
+  eq(chtml.looksLikeConfluenceHtml([{ name: "a.html", data: B("<html><body><p>hi</p></body></html>") }]), false);
+  eq(chtml.looksLikeConfluenceHtml([]), false);
+});
+
+test("confluence html: the tree comes from index.html", () => {
+  const parents = chtml.readHtmlIndex(`
+    <html><body><ul>
+      <li><a href="Parent_1.html">Parent</a>
+        <ul><li><a href="Child_2.html">Child</a></li></ul>
+      </li>
+      <li><a href="Other_3.html">Other</a></li>
+    </ul></body></html>`);
+  eq(parents.get("Parent_1.html"), "");
+  eq(parents.get("Child_2.html"), "Parent_1.html");
+  eq(parents.get("Other_3.html"), "");
+});
+
+test("confluence html: pages, titles and hierarchy come back together", () => {
+  const exp = chtml.readConfluenceHtmlExport([
+    { name: "index.html", data: B(`<html><head><title>Docs Space : Index</title></head><body><ul>
+        <li><a href="Parent_1.html">Parent</a><ul><li><a href="Child_2.html">Child</a></li></ul></li>
+      </ul></body></html>`) },
+    { name: "Parent_1.html", data: B(CONF_PAGE("Parent", "<p>Top level.</p>")) },
+    { name: "Child_2.html", data: B(CONF_PAGE("Child", "<h2>Sub</h2><p>Nested.</p>")) },
+  ]);
+  eq(exp.name, "Docs Space");
+  eq(exp.pages.length, 2);
+  const child = exp.pages.find((p) => p.title === "Child");
+  eq(child.parentFile, "Parent_1.html");
+  ok(child.blocks.length >= 2, JSON.stringify(child.blocks));
+});
+
+test("confluence html: with no index every page lands at the top, not in a wrong tree", () => {
+  const exp = chtml.readConfluenceHtmlExport([
+    { name: "A_1.html", data: B(CONF_PAGE("A", "<p>a</p>")) },
+    { name: "B_2.html", data: B(CONF_PAGE("B", "<p>b</p>")) },
+  ]);
+  eq(exp.pages.length, 2);
+  eq(exp.pages.every((p) => p.parentFile === ""), true);
+});
+
+test("confluence html: a parent outside the export orphans nothing", () => {
+  const exp = chtml.readConfluenceHtmlExport([
+    { name: "index.html", data: B(`<html><body><ul>
+        <li><a href="Missing_9.html">Missing</a><ul><li><a href="Kid_1.html">Kid</a></li></ul></li>
+      </ul></body></html>`) },
+    { name: "Kid_1.html", data: B(CONF_PAGE("Kid", "<p>k</p>")) },
+  ]);
+  eq(exp.pages.length, 1);
+  eq(exp.pages[0].parentFile, "");
+});
+
+test("confluence html: attachments are resolved through the caller", () => {
+  const asked = [];
+  const exp = chtml.readConfluenceHtmlExport(
+    [{ name: "A_1.html", data: B(CONF_PAGE("A", '<p><img src="attachments/1/diagram.png"></p>')) }],
+    (f) => { asked.push(f); return "/api/files/xyz.png"; }
+  );
+  ok(asked.length > 0, "resolver was never consulted");
+  eq(JSON.stringify(exp.pages[0].blocks).includes("/api/files/xyz.png"), true);
 });
 
 test("newId shape", () => {

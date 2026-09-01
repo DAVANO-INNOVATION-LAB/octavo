@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,7 +20,9 @@
     "demo:stop": "node scripts/demo.mjs stop",
     "test:replication": "node scripts/replication-test.mjs",
     "test:breaking": "node scripts/breaking-test.mjs",
-    "test:doi": "node scripts/doi-test.mjs"
+    "test:doi": "node scripts/doi-test.mjs",
+    "test:repo": "node scripts/repo-test.mjs",
+    "test:import": "node scripts/import-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

@@ -104,6 +104,30 @@ CREATE TABLE IF NOT EXISTS collab_docs (
   updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS space_repos (
+  space_id TEXT PRIMARY KEY REFERENCES spaces(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  endpoint TEXT NOT NULL DEFAULT '',
+  repo TEXT NOT NULL,
+  branch TEXT NOT NULL DEFAULT 'main',
+  path TEXT NOT NULL DEFAULT '',
+  token TEXT NOT NULL,
+  last_synced INTEGER NOT NULL DEFAULT 0,
+  last_result TEXT NOT NULL DEFAULT ''
+);
+
+-- Kept apart from sync_state on purpose: a space may sync to a directory and
+-- to a repository, and one shared table would have them overwrite each
+-- other's idea of what was last agreed.
+CREATE TABLE IF NOT EXISTS repo_state (
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  page_id TEXT NOT NULL,
+  hash TEXT NOT NULL,
+  synced_at INTEGER NOT NULL,
+  PRIMARY KEY (space_id, path)
+);
+
 CREATE TABLE IF NOT EXISTS sync_state (
   space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
   path TEXT NOT NULL,

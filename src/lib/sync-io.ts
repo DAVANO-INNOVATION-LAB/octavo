@@ -32,7 +32,7 @@ export function spaceDir(space: Space): string | null {
   return dir === root || dir.startsWith(root + path.sep) ? dir : null;
 }
 
-const sha = (s: string) => createHash("sha256").update(s).digest("hex");
+export const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 /** The Markdown Octavo would write for a page, front matter included. */
 export function pageToMarkdown(p: {
@@ -83,10 +83,14 @@ function dropState(spaceId: string, p: string) {
 }
 
 /** Both sides, described the way the planner expects them. */
-export function collect(space: Space): { pages: PageSide[]; files: FileSide[]; dir: string } {
-  const dir = spaceDir(space);
-  if (!dir) throw new Error("space slug does not resolve inside the sync root");
-
+/**
+ * The space's own side, as Markdown paths and hashes.
+ *
+ * Split out from `collect` because a repository sync needs exactly this and
+ * nothing to do with a directory. Two copies of the tree-walk would be two
+ * chances for the two syncs to disagree about where a page lives.
+ */
+export function collectPages(space: Space): PageSide[] {
   const tree = pageTree(space.id, false);
   const flat = flattenTree(tree);
   const pages: PageSide[] = [];
@@ -106,6 +110,13 @@ export function collect(space: Space): { pages: PageSide[]; files: FileSide[]; d
     const md = pageToMarkdown(full);
     pages.push({ id: full.id, path: filePathFor(trail), title: full.title, hash: sha(md) });
   }
+  return pages;
+}
+
+export function collect(space: Space): { pages: PageSide[]; files: FileSide[]; dir: string } {
+  const dir = spaceDir(space);
+  if (!dir) throw new Error("space slug does not resolve inside the sync root");
+  const pages = collectPages(space);
 
   const files: FileSide[] = walk(dir).map((rel) => {
     const raw = fs.readFileSync(path.join(dir, rel), "utf8");
