@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.20.0 — 2026-09-01
+
+### Added
+
+- **A skip link on every page.** Without it a keyboard reader tabs through the
+  whole header and sidebar to reach the article, on every page, forever.
+- **3D models work from the keyboard.** Arrow keys step between nodes, Enter
+  opens the one selected, Escape clears it, and the caption announces what is
+  selected as a live region. Opening a node was mouse-only when it shipped,
+  which made the feature unreachable for anyone who does not use one.
+- **The knowledge graph has a text alternative** — the same pages as real
+  links, read by a screen reader and reachable by Tab. A graph you can only
+  reach with a pointer is a graph most people cannot reach at all.
+- Every navigation landmark is named, so a screen reader announces "Pages in
+  this space" rather than a second, identical "navigation".
+- The accessibility audit now runs a **keyboard walkthrough** and a
+  **screen-reader structure pass** every release: focus visibility, landmarks,
+  document language, canvas alternatives, and vague link text.
+
+### Fixed
+
+- Canvases carried no accessible name, so a screen reader met them as nothing
+  at all.
 ## v0.19.0 — 2026-09-01
 
 ### Added

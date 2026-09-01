@@ -67,7 +67,7 @@ export default async function ChangeRequestPage({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full min-w-0 max-w-4xl flex-1 px-4 py-10 sm:px-6">
+      <main id="main" className="mx-auto w-full min-w-0 max-w-4xl flex-1 px-4 py-10 sm:px-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
           <Link href={`/${space.slug}/${page.slug}/changes`} className="no-underline">
             Change request

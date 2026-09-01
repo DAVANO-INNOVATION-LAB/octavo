@@ -24,7 +24,7 @@ export default async function AccountPage({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
         <h1 className="wordmark text-2xl text-ink">Account</h1>
         <form action={saveOrcidAction} className="mt-6 max-w-md rounded-xl border border-line bg-surface p-5 shadow-card">
           <label className="block">

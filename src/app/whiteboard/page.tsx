@@ -9,7 +9,7 @@ export default function WhiteboardPage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
       <WhiteboardTabs />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <BoardShell />
       </main>
     </div>

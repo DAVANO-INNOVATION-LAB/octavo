@@ -45,7 +45,7 @@ export default async function NewSpacePage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-2xl flex-1 px-4 py-12 sm:px-6">
         <h1 className="wordmark text-2xl text-ink">Bind a new space</h1>
         <p className="mt-1 text-sm text-muted">
           A space is one book on the shelf — its own pages, its own published

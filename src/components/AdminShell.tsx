@@ -29,12 +29,12 @@ export function AdminShell({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
         <h1 className="wordmark text-2xl text-ink">The binder’s office</h1>
         <p className="mt-1 text-sm text-muted">
           Instance administration — visible to admins only.
         </p>
-        <nav className="mt-6 -mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+        <nav aria-label="Admin sections" className="mt-6 -mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
           {TABS.map((t) => (
             <Link
               key={t.href}

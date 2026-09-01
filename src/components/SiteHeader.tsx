@@ -17,7 +17,7 @@ export async function SiteHeader() {
         <Link href="/" className="wordmark shrink-0 text-[1.35rem] leading-none">
           octavo<span className="text-accent">.</span>
         </Link>
-        <div className="ml-auto flex items-center gap-0.5 sm:gap-2">
+        <nav aria-label="Site" className="ml-auto flex items-center gap-0.5 sm:gap-2">
           <Link
             href="/whiteboard"
             className="flex h-8 items-center gap-1.5 rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:px-2.5"
@@ -96,7 +96,7 @@ export async function SiteHeader() {
               Sign in
             </Link>
           )}
-        </div>
+        </nav>
       </div>
     </header>
   );

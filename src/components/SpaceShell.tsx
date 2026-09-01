@@ -34,7 +34,7 @@ export function SpaceShell({
             editing={editing}
           />
         </aside>
-        <main className="min-w-0 flex-1 py-10">{children}</main>
+        <main id="main" className="min-w-0 flex-1 py-10">{children}</main>
         {rail !== undefined && (
           <aside className="sticky top-14 hidden max-h-[calc(100vh-3.5rem)] w-56 shrink-0 overflow-y-auto py-10 xl:block">
             {rail}

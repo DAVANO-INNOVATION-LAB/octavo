@@ -81,7 +81,7 @@ export default async function SpacePrint({
         </p>
       </header>
 
-      <nav className="mt-10" style={{ breakAfter: "page" }}>
+      <nav aria-label="Contents" className="mt-10" style={{ breakAfter: "page" }}>
         <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.1em] text-faint">
           Contents
         </p>

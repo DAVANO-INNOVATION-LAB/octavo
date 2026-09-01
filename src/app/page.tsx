@@ -51,7 +51,7 @@ export default async function Home() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <h1 className="wordmark text-3xl text-ink">The library</h1>

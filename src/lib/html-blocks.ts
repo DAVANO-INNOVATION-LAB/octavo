@@ -335,7 +335,7 @@ export function htmlToBlocks(
 
 /**
  * For a fetched web page: find the part that is the article, not the site.
- * <article>, then <main>, then the whole <body>. Heuristic, and says so.
+ * <article>, then <main id="main">, then the whole <body>. Heuristic, and says so.
  */
 export function pageContentToBlocks(
   html: string,

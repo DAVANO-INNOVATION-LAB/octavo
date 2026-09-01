@@ -360,7 +360,7 @@ export default async function ReaderPage({
           ⁂
         </p>
 
-        <nav className="mt-10 grid gap-3 sm:grid-cols-2">
+        <nav aria-label="Previous and next page" className="mt-10 grid gap-3 sm:grid-cols-2">
           {prev ? (
             <Link
               href={`/${space.slug}/${prev.slug}`}

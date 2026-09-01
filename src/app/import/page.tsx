@@ -19,7 +19,7 @@ export default async function ImportPage({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
         <h1 className="wordmark text-2xl text-ink">Bring a book home</h1>
         <p className="mt-1 text-sm leading-relaxed text-muted">
           Import a <strong className="font-medium text-ink">Confluence space

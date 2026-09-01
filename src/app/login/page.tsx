@@ -19,7 +19,7 @@ export default async function LoginPage({
   const sso = oidcSettings();
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
+    <main id="main" className="flex min-h-screen items-center justify-center px-4">
       <div className="rise w-full max-w-sm">
         <Link href="/" className="wordmark mb-8 block text-center text-3xl">
           octavo<span className="text-accent">.</span>

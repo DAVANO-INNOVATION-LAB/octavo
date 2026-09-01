@@ -86,7 +86,7 @@ export function SpaceNav({
 }) {
   const numbered = BOOK_KINDS.has(space.kind);
   return (
-    <nav className="flex h-full flex-col gap-4">
+    <nav aria-label="Pages in this space" className="flex h-full flex-col gap-4">
       <Link href={`/${space.slug}`} className="flex items-center gap-2.5 px-2">
         <Icon icon={space.icon ?? ""} name={space.name} size="sm" />
         <span className="min-w-0">

@@ -676,6 +676,164 @@ console.log("\nAccessibility\n");
   }
 }
 
+/* ————— keyboard only: everything reachable, nothing trapping ————— */
+//
+// The audit above is static: it reads the DOM and judges it. It cannot tell
+// whether a person who never touches a mouse can actually get anywhere. These
+// press Tab and see where focus goes.
+console.log("\nKeyboard\n");
+{
+  const KEY_ROUTES = ["/", "/field-guide", "/field-guide/welcome"];
+  for (const route of KEY_ROUTES) {
+    await visit(route, 1600);
+    checks++;
+    const walk = await evaluate(`(() => {
+      const focusable = [...document.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([type=hidden]):not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+      )].filter((el) => {
+        const r = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return s.display !== "none" && s.visibility !== "hidden" && (r.width > 0 || r.height > 0);
+      });
+      const problems = [];
+
+      // Anything pulled out of the tab order that is still an operable control
+      // is unreachable without a mouse.
+      for (const el of document.querySelectorAll('[tabindex="-1"]')) {
+        if (el.matches("a[href], button")) problems.push("tabindex=-1 on an operable " + el.tagName.toLowerCase());
+      }
+
+      // Focus has to be visible. A control whose focus style is indistinguishable
+      // from its resting style leaves a keyboard user with no cursor.
+      let invisible = 0;
+      for (const el of focusable.slice(0, 40)) {
+        const before = getComputedStyle(el);
+        const rest = before.outline + "|" + before.boxShadow + "|" + before.borderColor + "|" + before.backgroundColor;
+        el.focus();
+        const after = getComputedStyle(el);
+        const active = after.outline + "|" + after.boxShadow + "|" + after.borderColor + "|" + after.backgroundColor;
+        if (document.activeElement === el && rest === active) invisible++;
+      }
+      if (invisible > 0) problems.push(invisible + " of " + Math.min(40, focusable.length) + " controls show no focus indicator");
+
+      // A skip link, so a keyboard user is not tabbing through the whole nav
+      // on every single page.
+      const first = focusable[0];
+      const skip = first && /skip/i.test(first.textContent || "") && (first.getAttribute("href") || "").startsWith("#");
+      if (!skip) problems.push("no skip link as the first focusable element");
+
+      return { problems, count: focusable.length };
+    })()`);
+    const bad = walk?.problems ?? ["walk did not run"];
+    if (bad.length) fail(`keyboard ${route}`, bad.join(" · "));
+    console.log(`  ${bad.length ? "✗" : "✓"} ${route} (${walk?.count ?? 0} focusable)`);
+  }
+
+  // A model whose nodes open pages must open them from the keyboard too.
+  // Find a page carrying a space-derived model rather than naming one: a
+  // page's blocks are content, and content gets edited. Naming one is how
+  // this check silently stopped testing anything.
+  const derivedPage = db
+    .prepare(
+      `SELECT p.slug, s.slug AS space FROM pages p JOIN spaces s ON s.id = p.space_id
+        WHERE p.content LIKE '%"source":"space"%' AND p.published = 1 LIMIT 1`
+    )
+    .get();
+  await visit(derivedPage ? `/${derivedPage.space}/${derivedPage.slug}` : "/", 3500);
+  checks++;
+  const modelKeys = await evaluate(`(() => {
+    const c = document.querySelector(".blk-model canvas");
+    if (!c) return { skip: true };
+    const problems = [];
+    if (c.tabIndex < 0) problems.push("the model cannot be focused");
+    if (!c.getAttribute("aria-label") && !c.getAttribute("aria-labelledby"))
+      problems.push("the model has no accessible name");
+    if (c.getAttribute("role") !== "application" && c.getAttribute("role") !== "img")
+      problems.push("the model has no role");
+    return { problems };
+  })()`);
+  if (!modelKeys?.skip) {
+    const bad = modelKeys?.problems ?? ["check did not run"];
+    if (bad.length) fail("keyboard: 3D model", bad.join(" · "));
+    console.log(`  ${bad.length ? "✗" : "✓"} a 3D model is focusable and named`);
+  } else { checks--; }
+
+  // Being focusable is not being operable. Walk the nodes with the arrow keys
+  // and open one with Enter — the same thing the mouse can already do.
+  checks++;
+  const modelOpen = await evaluate(`(async () => {
+    const c = [...document.querySelectorAll(".blk-model canvas")][0];
+    if (!c) return { skip: true };
+    c.focus();
+    if (document.activeElement !== c) return { why: "the model would not take focus" };
+    const before = location.pathname;
+    const press = (key) => c.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    let announced = "";
+    for (let i = 0; i < 12; i++) {
+      press("ArrowRight");
+      await new Promise(r => setTimeout(r, 120));
+      announced = document.querySelector(".blk-model-hint")?.textContent ?? "";
+      if (/press Enter to open/i.test(announced)) break;
+    }
+    if (!/press Enter to open/i.test(announced))
+      return { why: "no node ever announced itself as openable: " + announced };
+    press("Enter");
+    await new Promise(r => setTimeout(r, 1400));
+    return { why: "", before, after: location.pathname, announced };
+  })()`);
+  if (modelOpen?.skip) { checks--; }
+  else if (modelOpen?.why) fail("keyboard: 3D model", modelOpen.why);
+  else if (modelOpen.after === modelOpen.before)
+    fail("keyboard: 3D model", "Enter on a focused node opened nothing");
+  else console.log("  ✓ a 3D model node opens from the keyboard");
+}
+
+/* ————— screen reader: structure a non-visual reader can navigate ————— */
+console.log("\nScreen reader\n");
+{
+  const SR_ROUTES = ["/", "/field-guide", "/field-guide/welcome"];
+  for (const route of SR_ROUTES) {
+    await visit(route, 1600);
+    checks++;
+    const sr = await evaluate(`(() => {
+      const problems = [];
+      // Landmarks: the regions a screen reader jumps between.
+      if (!document.querySelector("main, [role=main]")) problems.push("no main landmark");
+      if (!document.querySelector("header, [role=banner]")) problems.push("no banner landmark");
+      if (!document.querySelector("nav, [role=navigation]")) problems.push("no navigation landmark");
+
+      // The document says what language it is in, or every word is mispronounced.
+      if (!document.documentElement.getAttribute("lang")) problems.push("no lang on <html>");
+
+      // A page needs exactly one h1 to anchor the heading outline.
+      if (document.querySelectorAll("h1").length === 0) problems.push("no h1");
+
+      // Two navigations with no names are two identical "navigation" entries.
+      const navs = [...document.querySelectorAll("nav, [role=navigation]")];
+      if (navs.length > 1) {
+        const unnamed = navs.filter((n) => !n.getAttribute("aria-label") && !n.getAttribute("aria-labelledby"));
+        if (unnamed.length > 1) problems.push(unnamed.length + " unnamed navigation landmarks");
+      }
+
+      // A canvas is invisible to a screen reader unless it says what it shows.
+      for (const c of document.querySelectorAll("canvas"))
+        if (!c.getAttribute("aria-label") && !c.getAttribute("aria-labelledby") && c.getAttribute("aria-hidden") !== "true")
+          problems.push("a canvas with no accessible name and not marked decorative");
+
+      // Links that only say "here" or "read more" are useless out of context.
+      for (const a of document.querySelectorAll("a[href]")) {
+        const t = (a.textContent || "").trim().toLowerCase();
+        if (t === "here" || t === "read more" || t === "click here" || t === "more")
+          problems.push('a link labelled "' + t + '"');
+      }
+      return problems.slice(0, 6);
+    })()`);
+    const bad = Array.isArray(sr) ? sr : ["check did not run"];
+    if (bad.length) fail(`screen reader ${route}`, bad.join(" · "));
+    console.log(`  ${bad.length ? "✗" : "✓"} ${route}`);
+  }
+}
+
 /* ————— reading signals: a real read produces a real signal ————— */
 //
 // The only check that proves the observer end to end. Scoring is unit-tested
@@ -686,12 +844,18 @@ console.log("\nAccessibility\n");
 // A headless page with no window does not move for programmatic scrolling,
 // which makes a scrollIntoView-based test pass by never exercising anything.
 {
+  // Deliberately NOT a field-guide page. Other sections of this suite visit
+  // those, and a beacon from an earlier visit lands asynchronously — after
+  // the DELETE below — leaving a stray exit that looks like the observer
+  // double-counting. Pick a long page nothing else here touches.
   const target = db
     .prepare(
       `SELECT p.id, p.slug, s.slug AS space
          FROM pages p JOIN spaces s ON s.id = p.space_id
         WHERE p.published = 1 AND s.visibility = 'public'
           AND length(p.content) > 6000
+          AND s.slug <> 'field-guide'
+        ORDER BY length(p.content) DESC
         LIMIT 1`
     )
     .get();
@@ -703,6 +867,12 @@ console.log("\nAccessibility\n");
       { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false },
       sessionId
     );
+    // reading_signals accumulates across runs, so "exactly one passage
+    // recorded an exit" was really "exactly one passage has EVER recorded
+    // one" — true on a fresh database and false on the second run. Clear this
+    // page's rows so the assertion is about the read that just happened.
+    db.prepare("DELETE FROM reading_signals WHERE page_id = ?").run(target.id);
+
     await visit(`/${target.space}/${target.slug}`, 2000);
 
     const wheel = async (dy) => {

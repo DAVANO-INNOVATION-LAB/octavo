@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ModelPath, ModelScene } from "@/lib/model-data";
@@ -519,6 +519,42 @@ export function Model3D({
       canvas.style.cursor = "grab";
     };
 
+    // Keyboard equivalents. Clicking a node to open its page was mouse-only,
+    // which made the feature unreachable for anyone who does not use one:
+    // arrows step through the nodes, Enter opens the focused one, and the
+    // orbit that a drag performs is available from the keyboard too.
+    let cursorIdx = -1;
+    const openable = scene.nodes.map((n, i) => ({ n, i })).filter((x) => x.n.href || x.n.label);
+    const step = (delta: number) => {
+      if (openable.length === 0) return;
+      cursorIdx = (cursorIdx + delta + openable.length) % openable.length;
+      const pick = openable[cursorIdx];
+      focusRef.current = pick.n.id ?? "";
+      setFocused(pick.n.id ?? "");
+      setHint(
+        pick.n.href
+          ? `${pick.n.label ?? "Node"} — press Enter to open`
+          : (pick.n.label ?? scene.caption)
+      );
+    };
+    const onKey = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "ArrowRight": case "ArrowDown": e.preventDefault(); step(1); break;
+        case "ArrowLeft": case "ArrowUp": e.preventDefault(); step(-1); break;
+        case "Enter": case " ": {
+          const pick = cursorIdx >= 0 ? openable[cursorIdx] : null;
+          if (pick?.n.href) { e.preventDefault(); routerRef.current.push(pick.n.href); }
+          break;
+        }
+        case "Escape":
+          focusRef.current = ""; setFocused(""); cursorIdx = -1; setHint(scene.caption); break;
+        case "[": yaw -= 0.25; spin = 0; break;
+        case "]": yaw += 0.25; spin = 0; break;
+        default: return;
+      }
+    };
+    canvas.addEventListener("keydown", onKey);
+
     canvas.style.cursor = "grab";
     canvas.addEventListener("pointerdown", down);
     canvas.addEventListener("pointermove", move);
@@ -526,6 +562,7 @@ export function Model3D({
     canvas.addEventListener("pointerleave", up);
     return () => {
       cancelAnimationFrame(raf);
+      canvas.removeEventListener("keydown", onKey);
       ro?.disconnect();
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown", down);
@@ -568,12 +605,24 @@ export function Model3D({
   }, [given, derived]);
 
   const frameLabel = (given ?? derived)?.frames?.[frame]?.label ?? "";
+  const hintId = useId();
 
   return (
     <figure className="blk-model">
       {title && <figcaption className="blk-model-title">{title}</figcaption>}
       <div className="blk-model-stage" style={{ height }}>
-        <canvas ref={canvasRef} className="h-full w-full touch-none select-none" />
+        <canvas
+          ref={canvasRef}
+          tabIndex={0}
+          role="application"
+          aria-label={
+            title
+              ? `${title}. Interactive 3D model. Arrow keys move between nodes, Enter opens one.`
+              : "Interactive 3D model. Arrow keys move between nodes, Enter opens one."
+          }
+          aria-describedby={hintId}
+          className="h-full w-full touch-none select-none"
+        />
         <button
           onClick={() => resetRef.current()}
           className="blk-model-reset"
@@ -636,7 +685,11 @@ export function Model3D({
           )}
         </div>
       )}
-      <figcaption className="blk-model-hint">{hint}</figcaption>
+      {/* The live region is how a non-visual reader learns which node is
+          selected; the canvas itself tells them nothing. */}
+      <figcaption id={hintId} className="blk-model-hint" aria-live="polite">
+        {hint}
+      </figcaption>
     </figure>
   );
 }

@@ -19,7 +19,7 @@ export default async function ImportOpenApi({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full min-w-0 max-w-2xl flex-1 px-4 py-10 sm:px-6">
+      <main id="main" className="mx-auto w-full min-w-0 max-w-2xl flex-1 px-4 py-10 sm:px-6">
         <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
           <Braces size={13} />
           Import

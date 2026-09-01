@@ -487,8 +487,27 @@ export function GraphCanvas({ graph }: { graph: GraphData }) {
         )}
       </div>
 
+      {/* The canvas is a picture; this is the same information as content.
+          It gives a screen reader something to read and a keyboard user
+          somewhere to go — a graph you can only reach with a pointer is a
+          graph most people cannot reach at all. */}
+      <ul className="sr-only">
+        {graph.nodes.map((n) => (
+          <li key={n.id}>
+            <a href={n.href}>
+              {n.title} — in {n.space}
+            </a>
+          </li>
+        ))}
+      </ul>
+
       <div className="relative overflow-hidden rounded-xl border border-line bg-surface shadow-card">
-        <canvas ref={canvasRef} className="h-[62vh] w-full touch-none select-none" />
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label={`Knowledge graph: ${graph.nodes.length} pages and ${graph.edges.length} links between them. The same pages are listed below this figure.`}
+          className="h-[62vh] w-full touch-none select-none"
+        />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3">
           <span className="rounded-md bg-bg/85 px-2 py-1 text-xs text-muted backdrop-blur">
             {hoverTitle ??

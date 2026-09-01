@@ -23,7 +23,7 @@ export default async function ProposePage({
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <ProposeShell
           pageId={page.id}
           spaceSlug={space.slug}

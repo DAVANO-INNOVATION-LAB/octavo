@@ -64,6 +64,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* First in the tab order on every page. Without it a keyboard reader
+            tabs through the whole header and sidebar to reach the article,
+            on every single page, forever. */}
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
         {children}
         <SiteFooter />
       </body>

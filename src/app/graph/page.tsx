@@ -15,7 +15,7 @@ export default async function GraphPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
         <h1 className="wordmark text-2xl text-ink">The knowledge graph</h1>
         <p className="mt-1 text-sm text-muted">
           {graph.nodes.length === 0

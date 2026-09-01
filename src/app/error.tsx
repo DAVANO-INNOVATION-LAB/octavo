@@ -25,7 +25,7 @@ export default function RouteError({
   }, [error]);
 
   return (
-    <main className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
+    <main id="main" className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
       <p
         aria-hidden
         className="wordmark select-none text-lg tracking-[0.5em] text-line-strong"
