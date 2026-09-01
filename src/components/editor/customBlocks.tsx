@@ -429,6 +429,7 @@ const MODEL_KINDS = [
 const MODEL_SOURCES = [
   ["space", "From this space"],
   ["declared", "Described below"],
+  ["data", "From an uploaded file"],
   ["preset", "Example shape"],
 ] as const;
 
@@ -452,6 +453,8 @@ export const Model3DBlock = createReactBlockSpec(
       title: { default: "" as string },
       source: { default: "preset" as string },
       declaration: { default: "" as string },
+      /** For source "data": a CSV/TSV/JSON upload of points. */
+      dataUrl: { default: "" as string },
     },
     content: "none",
   },
@@ -461,6 +464,7 @@ export const Model3DBlock = createReactBlockSpec(
       const title = String(props.block.props.title ?? "");
       const source = String(props.block.props.source ?? "preset");
       const declaration = String(props.block.props.declaration ?? "");
+      const dataUrl = String(props.block.props.dataUrl ?? "");
       // The space slug is on the editor page's own URL.
       const spaceSlug =
         typeof window === "undefined"
@@ -509,6 +513,29 @@ export const Model3DBlock = createReactBlockSpec(
               }
             />
           </div>
+          {source === "data" && (
+            <div className="blk-model-edit-data">
+              <input
+                type="file"
+                accept=".csv,.tsv,.json,.txt"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const body = new FormData();
+                  body.append("file", file);
+                  const res = await fetch("/api/upload", { method: "POST", body });
+                  const json = (await res.json()) as { url?: string; error?: string };
+                  if (json.url)
+                    props.editor.updateBlock(props.block, { props: { dataUrl: json.url } });
+                }}
+              />
+              <span>
+                {dataUrl
+                  ? "Points are read from this file when the page is published."
+                  : "A CSV, TSV or JSON of points — columns x, y and optionally z, label, cluster."}
+              </span>
+            </div>
+          )}
           {source === "declared" && (
             <textarea
               className="blk-model-edit-declaration"
@@ -528,8 +555,10 @@ export const Model3DBlock = createReactBlockSpec(
             height={220}
             scene={scene}
             fetchFrom={
-              source === "space" && spaceSlug
-                ? `/api/spaces/${encodeURIComponent(spaceSlug)}/model?kind=${encodeURIComponent(kind)}`
+              (source === "space" || (source === "data" && dataUrl)) && spaceSlug
+                ? source === "data"
+                  ? `/api/spaces/${encodeURIComponent(spaceSlug)}/model?source=data&data=${encodeURIComponent(dataUrl)}`
+                  : `/api/spaces/${encodeURIComponent(spaceSlug)}/model?kind=${encodeURIComponent(kind)}`
                 : undefined
             }
           />

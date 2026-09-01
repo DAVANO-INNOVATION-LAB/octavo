@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RotateCcw } from "lucide-react";
-import type { ModelScene } from "@/lib/model-data";
+import { Pause, Play, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import type { ModelPath, ModelScene } from "@/lib/model-data";
 
 // A dependency-free 3D model block. Same projection engine as the knowledge
 // graph: nodes in space, perspective projection, orbit by dragging.
@@ -28,9 +29,18 @@ type Node = {
   label?: string;
   size: number;
   tone: "accent" | "ink" | "muted";
+  /** The scene node's own id, so prose and paths can name it. */
+  id?: string;
+  href?: string;
 };
 type Edge = { a: number; b: number; dashed?: boolean };
-type Scene = { nodes: Node[]; edges: Edge[]; caption: string };
+type Scene = {
+  nodes: Node[];
+  edges: Edge[];
+  caption: string;
+  paths?: ModelPath[];
+  frames?: ModelScene["frames"];
+};
 
 const N = (
   x: number, y: number, z: number,
@@ -172,6 +182,8 @@ function fromScene(model: ModelScene): Scene {
   const weights = model.nodes.map((n) => n.weight ?? 0);
   const top = Math.max(1, ...weights);
   const nodes: Node[] = model.nodes.map((n) => ({
+    id: n.id,
+    href: n.href,
     x: n.x ?? 0,
     y: n.y ?? 0,
     z: n.z ?? 0,
@@ -193,7 +205,13 @@ function fromScene(model: ModelScene): Scene {
     if (a === undefined || b === undefined) continue;
     edges.push({ a, b, dashed: e.dashed });
   }
-  return { nodes, edges, caption: model.caption || "Drag to orbit" };
+  return {
+    nodes,
+    edges,
+    caption: model.caption || "Drag to orbit",
+    paths: model.paths,
+    frames: model.frames,
+  };
 }
 
 export function Model3D({
@@ -210,10 +228,27 @@ export function Model3D({
   scene?: ModelScene | null;
   fetchFrom?: string;
 }) {
+  const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hint, setHint] = useState("");
   const [fetched, setFetched] = useState<{ url: string; scene: ModelScene } | null>(null);
+  const [paths, setPaths] = useState<ModelPath[]>([]);
+  const [activePath, setActivePath] = useState("");
+  const [frameCount, setFrameCount] = useState(0);
+  const [frame, setFrame] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [focused, setFocused] = useState("");
   const resetRef = useRef<() => void>(() => {});
+  // Read inside the animation loop, which must not re-subscribe per frame.
+  const pathRef = useRef("");
+  const frameRef = useRef(0);
+  const focusRef = useRef("");
+  const routerRef = useRef(router);
+  useEffect(() => { routerRef.current = router; }, [router]);
+  // Mirrored into refs so the animation loop can read the current choice
+  // without being torn down and rebuilt on every frame of playback.
+  useEffect(() => { pathRef.current = activePath; }, [activePath]);
+  useEffect(() => { frameRef.current = frame; }, [frame]);
 
   // A space-derived scene is resolved on the server, so the editor asks for
   // it rather than deriving it — the client never learns about pages that
@@ -242,6 +277,23 @@ export function Model3D({
     // yet should show what the block is for, not an empty box.
     const scene = model && model.nodes.length > 0 ? fromScene(model) : buildScene(kind);
     setHint(scene.caption);
+    setPaths(scene.paths ?? []);
+    setFrameCount(scene.frames?.length ?? 0);
+
+    // Which nodes and edges a chosen path runs through, so the loop can look
+    // them up per frame without rebuilding the set every time.
+    const byId = new Map<string, number>();
+    scene.nodes.forEach((n, i) => { if (n.id) byId.set(n.id, i); });
+    const pathSets = new Map<string, { nodes: Set<number>; edges: Set<string> }>();
+    for (const p of scene.paths ?? []) {
+      const idx = p.through.map((id) => byId.get(id)).filter((i): i is number => i !== undefined);
+      const edges = new Set<string>();
+      for (let i = 0; i < idx.length - 1; i++) {
+        edges.add(`${idx[i]}-${idx[i + 1]}`);
+        edges.add(`${idx[i + 1]}-${idx[i]}`);
+      }
+      pathSets.set(p.id, { nodes: new Set(idx), edges });
+    }
 
     const dpr = window.devicePixelRatio || 1;
     let W = 0, H = 0, fit = 1;
@@ -299,9 +351,28 @@ export function Model3D({
     };
     resize();
     window.addEventListener("resize", resize);
+    // The window is not the only thing that changes a canvas's size. Octavo
+    // has expandable sections, and a model inside a collapsed one mounts at
+    // zero width; with only a window listener it would stay blank after the
+    // reader opened it, because the window never resized.
+    const ro =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => resize());
+    ro?.observe(canvas);
 
     let yaw = 0.5, pitch = -0.2;
     let spin = 0.0022;
+    // The last drawn positions, so a click can ask what is under the pointer.
+    const hitRef: { current: { sx: number; sy: number; r: number; n: Node }[] } = { current: [] };
+    const at = (e: { clientX: number; clientY: number }) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      let best: { n: Node; d: number } | null = null;
+      for (const h of hitRef.current) {
+        const d = Math.hypot(h.sx - x, h.sy - y);
+        if (d <= h.r + 4 && (!best || d < best.d)) best = { n: h.n, d };
+      }
+      return best?.n ?? null;
+    };
     let dragging = false;
     let last = { x: 0, y: 0 };
     let raf = 0;
@@ -329,28 +400,58 @@ export function Model3D({
       const muted = read("--muted", "#6f6553");
       ctx.clearRect(0, 0, W, H);
 
+      const lit = pathSets.get(pathRef.current);
       ctx.lineWidth = 1;
       for (const e of scene.edges) {
         const a = proj[e.a], b = proj[e.b];
         if (!a || !b) continue;
         const t = Math.max(0, Math.min(1, (CAM * 0.5 - (a.depth + b.depth) / 2) / (CAM * 0.9)));
-        ctx.strokeStyle = line;
-        ctx.globalAlpha = 0.12 + t * 0.4;
-        ctx.setLineDash(e.dashed ? [3, 4] : []);
+        const onPath = lit?.edges.has(`${e.a}-${e.b}`) ?? false;
+        // A highlighted path has to read as a route, so the rest recedes
+        // rather than the path merely being tinted among equals.
+        ctx.strokeStyle = onPath ? accent : line;
+        ctx.lineWidth = onPath ? 2 : 1;
+        ctx.globalAlpha = lit
+          ? onPath ? 0.55 + t * 0.45 : 0.05 + t * 0.08
+          : 0.12 + t * 0.4;
+        ctx.setLineDash(e.dashed && !onPath ? [3, 4] : []);
         ctx.beginPath();
         ctx.moveTo(a.sx, a.sy);
         ctx.lineTo(b.sx, b.sy);
         ctx.stroke();
       }
       ctx.setLineDash([]);
+      ctx.lineWidth = 1;
 
+      const active = scene.frames?.[frameRef.current];
       const byDepth = [...proj].sort((x, y) => y.depth - x.depth);
-      for (const p of byDepth) {
+      for (const [i, p] of byDepth.entries()) {
+        void i;
         const t = Math.max(0, Math.min(1, (CAM * 0.5 - p.depth) / (CAM * 0.9)));
+        const idx = proj.indexOf(p);
+        const onPath = !lit || lit.nodes.has(idx);
+        // Activity swells the node and brightens it: a recording should be
+        // legible as motion, not as six identical dots changing colour.
+        const level = p.n.id && active ? (active.levels[p.n.id] ?? 0) : 0;
+        const state = p.n.id && active?.states ? active.states[p.n.id] : undefined;
+        const radius = Math.max(1.5, p.n.size * p.scale * (1 + level * 1.1));
+        const focused = focusRef.current && p.n.id === focusRef.current;
+
+        if (focused) {
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, radius + 7, 0, Math.PI * 2);
+          ctx.strokeStyle = accent;
+          ctx.globalAlpha = 0.9;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.lineWidth = 1;
+        }
         ctx.beginPath();
-        ctx.arc(p.sx, p.sy, Math.max(1.5, p.n.size * p.scale), 0, Math.PI * 2);
-        ctx.fillStyle = p.n.tone === "accent" ? accent : p.n.tone === "muted" ? muted : ink;
-        ctx.globalAlpha = 0.3 + t * 0.6;
+        ctx.arc(p.sx, p.sy, radius, 0, Math.PI * 2);
+        const tone = state === "fail" || state === "warn" ? "accent" : p.n.tone;
+        ctx.fillStyle =
+          level > 0 || tone === "accent" ? accent : tone === "muted" ? muted : ink;
+        ctx.globalAlpha = onPath ? (0.3 + t * 0.6) * (1 + level * 0.5) : 0.08 + t * 0.1;
         ctx.fill();
       }
 
@@ -363,6 +464,8 @@ export function Model3D({
       const placed: { x1: number; y1: number; x2: number; y2: number }[] = [];
       for (const p of byDepth.slice().reverse()) {
         if (!p.n.label) continue;
+        const idx = proj.indexOf(p);
+        if (lit && !lit.nodes.has(idx) && p.n.id !== focusRef.current) continue;
         const t = Math.max(0, Math.min(1, (CAM * 0.5 - p.depth) / (CAM * 0.9)));
         const size = Math.max(9, 11 * p.scale);
         ctx.font = `500 ${size}px ui-sans-serif, system-ui, sans-serif`;
@@ -378,24 +481,43 @@ export function Model3D({
         ctx.fillText(p.n.label, cx, cy);
       }
       ctx.globalAlpha = 1;
+      hitRef.current = proj.map((p) => ({
+        sx: p.sx, sy: p.sy, r: Math.max(6, p.n.size * p.scale), n: p.n,
+      }));
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
     resetRef.current = () => { yaw = 0.5; pitch = -0.2; spin = 0.0022; };
 
+    let downAt = { x: 0, y: 0 };
     const down = (e: PointerEvent) => {
       dragging = true; spin = 0; last = { x: e.clientX, y: e.clientY };
+      downAt = { x: e.clientX, y: e.clientY };
       try { canvas.setPointerCapture(e.pointerId); } catch { /* synthetic */ }
       canvas.style.cursor = "grabbing";
     };
     const move = (e: PointerEvent) => {
-      if (!dragging) return;
+      if (!dragging) {
+        const over = at(e);
+        canvas.style.cursor = over?.href ? "pointer" : "grab";
+        canvas.title = over?.href ? `Open ${over.label ?? "page"}` : "";
+        return;
+      }
       yaw += (e.clientX - last.x) * 0.007;
       pitch = Math.max(-1.2, Math.min(1.2, pitch + (e.clientY - last.y) * 0.005));
       last = { x: e.clientX, y: e.clientY };
     };
-    const up = () => { dragging = false; canvas.style.cursor = "grab"; };
+    const up = (e: PointerEvent) => {
+      // A drag that ends on a node is still a drag. Only a press that barely
+      // moved is a click, or orbiting the model would fire navigations.
+      if (dragging && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 5) {
+        const hit = at(e);
+        if (hit?.href) routerRef.current.push(hit.href);
+      }
+      dragging = false;
+      canvas.style.cursor = "grab";
+    };
 
     canvas.style.cursor = "grab";
     canvas.addEventListener("pointerdown", down);
@@ -404,6 +526,7 @@ export function Model3D({
     canvas.addEventListener("pointerleave", up);
     return () => {
       cancelAnimationFrame(raf);
+      ro?.disconnect();
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("pointerdown", down);
       canvas.removeEventListener("pointermove", move);
@@ -411,6 +534,40 @@ export function Model3D({
       canvas.removeEventListener("pointerleave", up);
     };
   }, [kind, given, derived]);
+
+  // Playback. Held here rather than in the draw loop so a reader can scrub,
+  // pause, and read one moment — a recording you can only watch is a video.
+  useEffect(() => {
+    if (!playing || frameCount < 2) return;
+    const id = setInterval(() => setFrame((f) => (f + 1) % frameCount), 700);
+    return () => clearInterval(id);
+  }, [playing, frameCount]);
+
+  // A link in the prose can name a node: [the gateway](#node:gw). The
+  // paragraph and the picture then stay in step, which is the whole reason
+  // the model sits next to the text rather than in an appendix.
+  useEffect(() => {
+    const ids = new Set(
+      ((given ?? derived)?.nodes ?? []).map((n) => n.id).filter(Boolean) as string[]
+    );
+    if (ids.size === 0) return;
+    const onClick = (e: MouseEvent) => {
+      const a = (e.target as HTMLElement | null)?.closest?.("a[href^='#node:']");
+      if (!a) return;
+      const id = decodeURIComponent(
+        (a.getAttribute("href") ?? "").slice("#node:".length)
+      );
+      if (!ids.has(id)) return; // another model on the page owns this one
+      e.preventDefault();
+      focusRef.current = id;
+      setFocused(id);
+      canvasRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, [given, derived]);
+
+  const frameLabel = (given ?? derived)?.frames?.[frame]?.label ?? "";
 
   return (
     <figure className="blk-model">
@@ -425,6 +582,60 @@ export function Model3D({
           <RotateCcw size={12} />
         </button>
       </div>
+      {(paths.length > 0 || frameCount > 1 || focused) && (
+        <div className="blk-model-controls">
+          {paths.length > 0 && (
+            <div className="blk-model-paths" role="group" aria-label="Paths">
+              <button
+                type="button"
+                className={activePath === "" ? "is-on" : ""}
+                onClick={() => setActivePath("")}
+              >
+                All
+              </button>
+              {paths.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={activePath === p.id ? "is-on" : ""}
+                  onClick={() => setActivePath(activePath === p.id ? "" : p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {frameCount > 1 && (
+            <div className="blk-model-playback">
+              <button
+                type="button"
+                onClick={() => setPlaying((p) => !p)}
+                aria-label={playing ? "Pause" : "Play"}
+              >
+                {playing ? <Pause size={12} /> : <Play size={12} />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={frameCount - 1}
+                value={frame}
+                aria-label="Frame"
+                onChange={(e) => { setPlaying(false); setFrame(Number(e.target.value)); }}
+              />
+              <span>{frameLabel || `${frame + 1} / ${frameCount}`}</span>
+            </div>
+          )}
+          {focused && (
+            <button
+              type="button"
+              className="blk-model-clear"
+              onClick={() => { focusRef.current = ""; setFocused(""); }}
+            >
+              Clear selection
+            </button>
+          )}
+        </div>
+      )}
       <figcaption className="blk-model-hint">{hint}</figcaption>
     </figure>
   );

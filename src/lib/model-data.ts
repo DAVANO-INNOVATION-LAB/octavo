@@ -35,6 +35,12 @@ export type ModelNode = {
   x?: number;
   y?: number;
   z?: number;
+  /**
+   * Where this node lives in the library. A derived architecture node *is* a
+   * page — an ADR, a design note — and showing someone a page they cannot
+   * open is a dead end nothing else in the product has.
+   */
+  href?: string;
 };
 
 export type ModelEdge = {
@@ -45,12 +51,38 @@ export type ModelEdge = {
   label?: string;
 };
 
+/**
+ * A route through the model: a request's journey, a failure path, the way
+ * traffic actually flows. Colouring nodes by state says what is broken;
+ * a path says how the trouble travels.
+ */
+export type ModelPath = {
+  id: string;
+  label: string;
+  /** Node ids in order. Edges between consecutive members light up. */
+  through: string[];
+};
+
+/**
+ * One moment in a time-varying model — a recording session played back.
+ * Only the nodes that change need naming; everything else holds its value.
+ */
+export type ModelFrame = {
+  label: string;
+  /** Node id → activity, 0..1. Drives size and brightness. */
+  levels: Record<string, number>;
+  /** Node id → state, for frames that also change health. */
+  states?: Record<string, NonNullable<ModelNode["state"]>>;
+};
+
 export type ModelScene = {
   nodes: ModelNode[];
   edges: ModelEdge[];
   caption: string;
   /** Named groups in a stable order, so colours and tiers stay put. */
   groups: string[];
+  paths?: ModelPath[];
+  frames?: ModelFrame[];
 };
 
 const MAX_NODES = 300;
@@ -149,6 +181,7 @@ export function parseDeclaredModel(source: string): ModelScene | null {
       weight: Number.isFinite(Number(o.weight)) ? Number(o.weight) : undefined,
       state: asState(o.state ?? o.status),
       x: num(o.x), y: num(o.y), z: num(o.z),
+      href: typeof o.href === "string" && o.href.startsWith("/") ? o.href : undefined,
     });
   }
   if (nodes.length === 0) return null;
@@ -176,7 +209,67 @@ export function parseDeclaredModel(source: string): ModelScene | null {
     edges,
     caption: typeof d.caption === "string" ? d.caption : "",
     groups: groups.length ? groups : [""],
+    paths: readPaths(d.paths, known),
+    frames: readFrames(d.frames, known),
   });
+}
+
+/**
+ * Named routes through the model. A path naming a node that does not exist
+ * would light up nothing, so the reference is dropped rather than drawn; a
+ * path left with fewer than two stops is not a path at all.
+ */
+function readPaths(raw: unknown, known: Set<string>): ModelPath[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: ModelPath[] = [];
+  for (const [i, r] of raw.entries()) {
+    if (!r || typeof r !== "object") continue;
+    const o = r as Record<string, unknown>;
+    const list = Array.isArray(o.through) ? o.through : Array.isArray(o.nodes) ? o.nodes : [];
+    const through = list.map((v) => String(v)).filter((v) => known.has(v));
+    if (through.length < 2) continue;
+    out.push({
+      id: String(o.id ?? `path-${i + 1}`),
+      label: String(o.label ?? o.name ?? `Path ${i + 1}`),
+      through,
+    });
+  }
+  return out.length ? out : undefined;
+}
+
+/**
+ * Frames of a recording. Levels are clamped to 0..1 because a scale that
+ * silently accepts 400 makes one frame swamp every other.
+ */
+function readFrames(raw: unknown, known: Set<string>): ModelFrame[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: ModelFrame[] = [];
+  for (const [i, r] of raw.entries()) {
+    if (!r || typeof r !== "object") continue;
+    const o = r as Record<string, unknown>;
+    const levels: Record<string, number> = {};
+    const src = o.levels ?? o.activity;
+    if (src && typeof src === "object") {
+      for (const [k, v] of Object.entries(src as Record<string, unknown>)) {
+        if (!known.has(k)) continue;
+        const n = Number(v);
+        if (Number.isFinite(n)) levels[k] = Math.max(0, Math.min(1, n));
+      }
+    }
+    const states: Record<string, NonNullable<ModelNode["state"]>> = {};
+    if (o.states && typeof o.states === "object") {
+      for (const [k, v] of Object.entries(o.states as Record<string, unknown>)) {
+        const st = asState(v);
+        if (known.has(k) && st) states[k] = st;
+      }
+    }
+    out.push({
+      label: String(o.label ?? o.t ?? `Frame ${i + 1}`),
+      levels,
+      states: Object.keys(states).length ? states : undefined,
+    });
+  }
+  return out.length > 1 ? out : undefined;
 }
 
 function num(v: unknown): number | undefined {
@@ -205,7 +298,7 @@ function asState(v: unknown): ModelNode["state"] | undefined {
  * people express "these belong together".
  */
 export function architectureFromPages(input: {
-  pages: { id: string; title: string; parentTitle?: string | null }[];
+  pages: { id: string; title: string; parentTitle?: string | null; href?: string }[];
   links: { from: string; to: string }[];
 }): ModelScene {
   const pages = input.pages.slice(0, MAX_NODES);
@@ -221,6 +314,7 @@ export function architectureFromPages(input: {
     label: p.title,
     group: p.parentTitle || "Top level",
     weight: degree.get(p.id) ?? 0,
+    href: p.href,
   }));
   const edges: ModelEdge[] = input.links
     .filter((l) => known.has(l.from) && known.has(l.to) && l.from !== l.to)
@@ -278,4 +372,132 @@ export function pipelineFromRuns(input: {
       : "No connectors in this space yet",
     groups,
   });
+}
+
+
+/* ────────────────────── points from data ────────────────────── */
+
+/**
+ * An embedding read from a file rather than typed out.
+ *
+ * Declaring points by hand is fine for five clusters and useless for five
+ * thousand, which is the size at which an embedding is worth looking at.
+ * CSV, TSV and JSON all arrive here; the column names are the ones people
+ * already use, and anything unrecognisable is skipped rather than fatal.
+ *
+ * Coordinates are normalised into the same box the layout uses, so a file in
+ * any units at all lands at a sensible size.
+ */
+export function pointsFromTable(text: string, caption = ""): ModelScene | null {
+  const rows = text.trim().startsWith("[") || text.trim().startsWith("{")
+    ? jsonRows(text)
+    : delimitedRows(text);
+  if (!rows || rows.length === 0) return null;
+
+  const raw: { id: string; label?: string; group?: string; x: number; y: number; z: number }[] = [];
+  for (const [i, r] of rows.entries()) {
+    if (raw.length >= MAX_NODES) break;
+    const x = pick(r, ["x", "x0", "dim1", "d1", "pc1", "tsne1", "umap1"]);
+    const y = pick(r, ["y", "x1", "dim2", "d2", "pc2", "tsne2", "umap2"]);
+    if (x === undefined || y === undefined) continue;
+    const z = pick(r, ["z", "x2", "dim3", "d3", "pc3", "tsne3", "umap3"]) ?? 0;
+    const label = str(r, ["label", "name", "title", "text", "token"]);
+    raw.push({
+      id: str(r, ["id"]) || label || `p${i + 1}`,
+      label,
+      group: str(r, ["group", "cluster", "class", "category", "label_id"]) || undefined,
+      x, y, z,
+    });
+  }
+  if (raw.length === 0) return null;
+
+  // Normalise into the layout's own box so any units land at a usable size.
+  const span = (get: (p: (typeof raw)[number]) => number) => {
+    const vs = raw.map(get);
+    const lo = Math.min(...vs), hi = Math.max(...vs);
+    return { lo, range: hi - lo || 1 };
+  };
+  const sx = span((p) => p.x), sy = span((p) => p.y), sz = span((p) => p.z);
+  const to = (v: number, s: { lo: number; range: number }) => ((v - s.lo) / s.range - 0.5) * 240;
+
+  const nodes: ModelNode[] = raw.map((p) => ({
+    id: p.id,
+    label: p.label,
+    group: p.group,
+    x: to(p.x, sx),
+    y: to(p.y, sy),
+    z: to(p.z, sz),
+  }));
+  const groups = [...new Set(nodes.map((n) => n.group ?? ""))].filter(Boolean);
+  const clusters = groups.length;
+  return {
+    nodes,
+    edges: [],
+    groups: groups.length ? groups : [""],
+    caption:
+      caption ||
+      `${nodes.length} points${clusters ? ` in ${clusters} cluster${clusters === 1 ? "" : "s"}` : ""}`,
+  };
+}
+
+function jsonRows(text: string): Record<string, unknown>[] | null {
+  try {
+    const v = JSON.parse(text);
+    const arr = Array.isArray(v) ? v : Array.isArray((v as { points?: unknown }).points) ? (v as { points: unknown[] }).points : null;
+    if (!arr) return null;
+    return arr.filter((r): r is Record<string, unknown> => Boolean(r) && typeof r === "object");
+  } catch {
+    return null;
+  }
+}
+
+/** CSV or TSV, delimiter inferred from the header. Quoted fields respected. */
+function delimitedRows(text: string): Record<string, unknown>[] | null {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length < 2) return null;
+  const delim = (lines[0].match(/\t/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? "\t" : ",";
+  const header = splitRow(lines[0], delim).map((h) => h.trim().toLowerCase());
+  const out: Record<string, unknown>[] = [];
+  for (const line of lines.slice(1, MAX_NODES + 1)) {
+    const cells = splitRow(line, delim);
+    const row: Record<string, unknown> = {};
+    header.forEach((h, i) => { row[h] = cells[i]; });
+    out.push(row);
+  }
+  return out;
+}
+
+function splitRow(line: string, delim: string): string[] {
+  const out: string[] = [];
+  let cur = "", quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quoted) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else cur += c;
+    } else if (c === '"') quoted = true;
+    else if (c === delim) { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
+function pick(row: Record<string, unknown>, names: string[]): number | undefined {
+  for (const n of names) {
+    if (row[n] === undefined || row[n] === "") continue;
+    const v = Number(row[n]);
+    if (Number.isFinite(v)) return v;
+  }
+  return undefined;
+}
+
+function str(row: Record<string, unknown>, names: string[]): string {
+  for (const n of names) {
+    const v = row[n];
+    if (typeof v === "string" && v.trim()) return v.trim();
+    if (typeof v === "number") return String(v);
+  }
+  return "";
 }

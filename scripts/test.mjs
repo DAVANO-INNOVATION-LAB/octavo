@@ -1350,6 +1350,99 @@ test("model: a template's own models set the space's default kind", () => {
   eq(tpl.templateModelKind({ pages: [{ title: "x", blocks: [] }] }), "architecture");
 });
 
+test("model: a derived architecture node carries a link to its page", () => {
+  const s = model.architectureFromPages({
+    pages: [{ id: "p1", title: "ADR 1", parentTitle: null, href: "/lab/adr-1" }],
+    links: [],
+  });
+  eq(s.nodes[0].href, "/lab/adr-1");
+});
+
+test("model: a declared path lights a route, and drops stops that do not exist", () => {
+  const s = model.parseDeclaredModel(`
+nodes:
+  - id: a
+  - id: b
+  - id: c
+edges:
+  - from: a
+    to: b
+  - from: b
+    to: c
+paths:
+  - id: hot
+    label: Request path
+    through: [a, b, c]
+  - label: Broken
+    through: [a, ghost]
+  - label: Too short
+    through: [a]
+`);
+  eq(s.paths.length, 1);
+  eq(s.paths[0].id, "hot");
+  eq(s.paths[0].through.join(">"), "a>b>c");
+});
+
+test("model: frames clamp activity and need more than one to be a recording", () => {
+  const s = model.parseDeclaredModel(`
+nodes:
+  - id: e1
+  - id: e2
+frames:
+  - label: t=0
+    levels:
+      e1: 0.2
+      ghost: 0.9
+  - label: t=1
+    levels:
+      e1: 400
+      e2: -3
+    states:
+      e2: fail
+`);
+  eq(s.frames.length, 2);
+  eq(s.frames[0].levels.ghost, undefined);
+  eq(s.frames[1].levels.e1, 1);
+  eq(s.frames[1].levels.e2, 0);
+  eq(s.frames[1].states.e2, "fail");
+
+  const single = model.parseDeclaredModel("nodes:\n  - id: a\nframes:\n  - label: only\n");
+  eq(single.frames, undefined);
+});
+
+test("model: points read from CSV, whatever the units", () => {
+  const s = model.pointsFromTable(
+    "id,x,y,cluster\np1,1000,2000,a\np2,1100,2100,a\np3,5000,9000,b\n"
+  );
+  eq(s.nodes.length, 3);
+  eq(s.groups.join(","), "a,b");
+  // normalised into the layout's own box, not left at raw magnitude
+  ok(Math.max(...s.nodes.map((n) => Math.abs(n.x))) <= 120, "x not normalised");
+  ok(s.caption.includes("3 points"), s.caption);
+});
+
+test("model: points read from JSON, and from the columns people actually use", () => {
+  const s = model.pointsFromTable(
+    JSON.stringify([
+      { umap1: 0.1, umap2: 0.4, label: "cat" },
+      { umap1: 0.9, umap2: 0.2, label: "dog" },
+    ])
+  );
+  eq(s.nodes.length, 2);
+  eq(s.nodes[0].label, "cat");
+});
+
+test("model: a table with no coordinates is refused rather than drawn empty", () => {
+  eq(model.pointsFromTable("name,colour\na,red\n"), null);
+  eq(model.pointsFromTable(""), null);
+  eq(model.pointsFromTable("not json {"), null);
+});
+
+test("model: quoted CSV fields survive their commas", () => {
+  const s = model.pointsFromTable('id,x,y,label\n1,0,0,"Smith, J."\n2,1,1,plain\n');
+  eq(s.nodes[0].label, "Smith, J.");
+});
+
 test("newId shape", () => {
   ok(/^[0-9a-z]{16}$/.test(util.newId()));
 });

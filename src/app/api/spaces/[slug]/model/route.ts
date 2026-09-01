@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { canReadSpace } from "@/lib/roles";
 import { getSpaceBySlug } from "@/lib/data";
-import { architectureScene, pipelineScene } from "@/lib/model-source";
+import { architectureScene, dataScene, pipelineScene } from "@/lib/model-source";
 
 /**
  * A space's own scene, so the editor can preview a derived model.
@@ -23,8 +23,18 @@ export async function GET(
   if (!canReadSpace(user, space))
     return new NextResponse("unauthorized", { status: 401 });
 
-  const kind = req.nextUrl.searchParams.get("kind") ?? "architecture";
-  const scene = kind === "pipeline" ? pipelineScene(space.id) : architectureScene(space.id);
+  const q = req.nextUrl.searchParams;
+  const kind = q.get("kind") ?? "architecture";
+  // A data-backed model previews the same file the published page will read,
+  // parsed on the server: the browser never gets a path into the uploads
+  // directory, only the points that came out of one.
+  const scene =
+    q.get("source") === "data"
+      ? dataScene(q.get("data") ?? "", "")
+      : kind === "pipeline"
+        ? pipelineScene(space.id)
+        : architectureScene(space.id);
+  if (!scene) return new NextResponse("no scene", { status: 404 });
   return NextResponse.json(scene, {
     headers: { "Cache-Control": "no-store" },
   });

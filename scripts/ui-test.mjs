@@ -337,6 +337,146 @@ for (const r of EDITOR_ROUTES) {
   console.log(`  ${derived && !derived.why && derived.nodes ? "✓" : "✗"} a space derives its own scene (${derived?.nodes ?? 0} nodes)`);
 }
 
+/* ————— 2b-iii. models are navigable, traceable and playable ————— */
+//
+// A canvas is opaque to every other check in this repo: nothing in the DOM
+// says whether a node was hit, a path lit, or a frame drawn. These drive the
+// canvas the way a reader does and read the pixels back.
+{
+  const demo = db
+    .prepare(
+      `SELECT p.slug, s.slug AS space FROM pages p JOIN spaces s ON s.id = p.space_id
+        WHERE p.content LIKE '%\"source\":\"data\"%' AND p.published = 1 LIMIT 1`
+    )
+    .get();
+  if (demo) {
+    await visit(`/${demo.space}/${demo.slug}`, 4000);
+
+    checks++;
+    const nav = await evaluate(`(async () => {
+      const c = document.querySelectorAll(".blk-model canvas")[0];
+      if (!c || !c.width) return { why: "no sized canvas" };
+      const find = () => { const r = c.getBoundingClientRect();
+        for (let y = 8; y < r.height - 8; y += 4) for (let x = 8; x < r.width - 8; x += 4) {
+          c.dispatchEvent(new PointerEvent("pointermove", {clientX:r.left+x, clientY:r.top+y, bubbles:true}));
+          if (c.title) return { x, y, r, title: c.title };
+        } return null; };
+      let hit = null;
+      for (let i = 0; i < 5 && !hit; i++) { hit = find(); if (!hit) await new Promise(r=>setTimeout(r,300)); }
+      if (!hit) return { why: "no node advertised itself as openable" };
+
+      // A drag is an orbit, not a click. This must NOT navigate.
+      const before = location.pathname;
+      const p = (t, dx=0, dy=0) => c.dispatchEvent(new PointerEvent(t, {clientX:hit.r.left+hit.x+dx, clientY:hit.r.top+hit.y+dy, bubbles:true, pointerId:1}));
+      p("pointerdown"); p("pointermove",22,12); p("pointermove",48,24); p("pointerup",48,24);
+      await new Promise(r=>setTimeout(r,700));
+      const afterDrag = location.pathname;
+
+      // A press that barely moves is a click, and must open the page.
+      let hit2 = null;
+      for (let i = 0; i < 5 && !hit2; i++) { hit2 = find(); if (!hit2) await new Promise(r=>setTimeout(r,300)); }
+      if (!hit2) return { why: "node vanished before the click" };
+      const q = (t) => c.dispatchEvent(new PointerEvent(t, {clientX:hit2.r.left+hit2.x, clientY:hit2.r.top+hit2.y, bubbles:true, pointerId:1}));
+      q("pointerdown"); q("pointerup");
+      await new Promise(r=>setTimeout(r,1400));
+      return { why: "", title: hit.title, before, afterDrag, afterClick: location.pathname };
+    })()`);
+    if (nav?.why) fail("3D navigation", nav.why);
+    else {
+      if (nav.afterDrag !== nav.before)
+        fail("3D navigation", `orbiting the model navigated away to ${nav.afterDrag}`);
+      if (nav.afterClick === nav.before)
+        fail("3D navigation", "clicking a node opened nothing");
+    }
+    console.log(`  ${nav && !nav.why && nav.afterDrag === nav.before && nav.afterClick !== nav.before ? "✓" : "✗"} a node opens its page, and a drag does not`);
+
+    // Back to the demo for the remaining checks.
+    await visit(`/${demo.space}/${demo.slug}`, 4000);
+
+    checks++;
+    const path = await evaluate(`(async () => {
+      const fig = [...document.querySelectorAll(".blk-model")].find(f => f.querySelector(".blk-model-paths"));
+      if (!fig) return { why: "no path control" };
+      const c = fig.querySelector("canvas");
+      const g = c.getContext("2d");
+      // Count only what is drawn BRIGHTLY. Dimming does not erase a node, it
+      // drops it to roughly a tenth alpha, so a threshold near zero counts the
+      // dimmed model too and reports no change.
+      const bright = () => { const d = g.getImageData(0,0,c.width,c.height).data; let n=0; for (let i=3;i<d.length;i+=40) if (d[i]>120) n++; return n; };
+      // The model spins, so average two samples rather than trusting one frame.
+      const ink = async () => { const a = bright(); await new Promise(r=>setTimeout(r,350)); return (a + bright()) / 2; };
+      const all = await ink();
+      // Measure every path, not the first one. A path that happens to cover
+      // most of the model barely dims anything, and asserting on whichever
+      // button came first would call the feature broken on that data alone.
+      const btns = [...fig.querySelectorAll(".blk-model-paths button")].filter(b => b.textContent !== "All");
+      const seen = [];
+      for (const b of btns) {
+        b.click();
+        await new Promise(r=>setTimeout(r,600));
+        seen.push({ label: b.textContent, ink: await ink(), on: b.classList.contains("is-on") });
+      }
+      const tightest = seen.reduce((m, x) => (x.ink < m.ink ? x : m), seen[0]);
+      const distinct = new Set(seen.map(x => Math.round(x.ink))).size;
+      return { why: "", all, lit: tightest.ink, label: tightest.label, on: tightest.on, distinct, count: seen.length };
+    })()`);
+    if (path?.why) fail("3D paths", path.why);
+    // Choosing a path dims everything off it, so materially less is drawn.
+    else if (!(path.lit < path.all * 0.85)) fail("3D paths", `no path narrowed the view ("${path.label}": ${path.all} → ${path.lit})`);
+    else if (!path.on) fail("3D paths", "the chosen path is not marked as chosen");
+    else if (path.count > 1 && path.distinct < 2) fail("3D paths", "every path drew the same thing");
+    console.log(`  ${path && !path.why && path.lit < path.all * 0.85 ? "✓" : "✗"} a path dims everything off it`);
+
+    checks++;
+    const play = await evaluate(`(async () => {
+      const fig = [...document.querySelectorAll(".blk-model")].find(f => f.querySelector(".blk-model-playback"));
+      if (!fig) return { why: "no playback control" };
+      const c = fig.querySelector("canvas");
+      const g = c.getContext("2d");
+      const shot = () => { const d = g.getImageData(0,0,c.width,c.height).data; let s=0; for (let i=3;i<d.length;i+=400) s+=d[i]; return s; };
+      const range = fig.querySelector("input[type=range]");
+      const frames = Number(range.max) + 1;
+      const set = (v) => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(range, String(v));
+        range.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      set(0); await new Promise(r=>setTimeout(r,600)); const a = shot();
+      set(frames - 1); await new Promise(r=>setTimeout(r,600)); const b = shot();
+      const label = fig.querySelector(".blk-model-playback span").textContent;
+      return { why: "", frames, a, b, label };
+    })()`);
+    if (play?.why) fail("3D playback", play.why);
+    else if (play.a === play.b) fail("3D playback", "scrubbing to another frame drew the same thing");
+    else if (!play.label) fail("3D playback", "the current frame is unlabelled");
+    console.log(`  ${play && !play.why && play.a !== play.b ? "✓" : "✗"} scrubbing draws a different moment (${play?.frames ?? 0} frames)`);
+
+    checks++;
+    const prose = await evaluate(`(async () => {
+      const link = document.querySelector("a[href^='#node:']");
+      if (!link) return { why: "no prose reference to a node" };
+      const before = document.querySelectorAll(".blk-model-clear").length;
+      link.click();
+      await new Promise(r=>setTimeout(r,500));
+      const after = document.querySelectorAll(".blk-model-clear").length;
+      return { why: "", before, after };
+    })()`);
+    if (prose?.why) fail("3D prose reference", prose.why);
+    // Exactly one model owns the named node; the others must ignore the click.
+    else if (prose.after !== prose.before + 1)
+      fail("3D prose reference", `expected one model to take focus, ${prose.after - prose.before} did`);
+    console.log(`  ${prose && !prose.why && prose.after === prose.before + 1 ? "✓" : "✗"} prose can select a node in exactly one model`);
+
+    checks++;
+    const points = await evaluate(`(async () => {
+      const r = await fetch("/api/spaces/${'${demo.space}'}/model?source=data&data=" + encodeURIComponent("/api/files/../../../etc/passwd"));
+      return { escaped: r.status };
+    })()`);
+    if (points?.escaped !== 404)
+      fail("3D data source", `a traversal path answered ${points?.escaped} instead of 404`);
+    console.log(`  ${points?.escaped === 404 ? "✓" : "✗"} a data model refuses to read outside the uploads directory`);
+  }
+}
+
 /* ————— 2c. a deep link opens the expandable it points at ————— */
 //
 // The bug this exists for: AutoExpand walked only ANCESTORS, so a link

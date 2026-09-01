@@ -1,9 +1,13 @@
 import "server-only";
 import { getDb } from "./db";
+import fs from "node:fs";
+import path from "node:path";
+import { UPLOADS_DIR } from "./db";
 import {
   architectureFromPages,
   parseDeclaredModel,
   pipelineFromRuns,
+  pointsFromTable,
   type ModelScene,
 } from "./model-data";
 
@@ -18,13 +22,22 @@ import {
 /** Pages in this space and the links among them — the space's own shape. */
 export function architectureScene(spaceId: string): ModelScene {
   const db = getDb();
-  const pages = db
+  const space = db.prepare("SELECT slug FROM spaces WHERE id = ?").get(spaceId) as
+    | { slug: string }
+    | undefined;
+  const rows = db
     .prepare(
-      `SELECT p.id, p.title, (SELECT title FROM pages WHERE id = p.parent_id) AS parentTitle
+      `SELECT p.id, p.title, p.slug, (SELECT title FROM pages WHERE id = p.parent_id) AS parentTitle
          FROM pages p WHERE p.space_id = ? AND p.published = 1
         ORDER BY p.position LIMIT 300`
     )
-    .all(spaceId) as { id: string; title: string; parentTitle: string | null }[];
+    .all(spaceId) as { id: string; title: string; slug: string; parentTitle: string | null }[];
+  // Each node is a page, so each node can be opened. Built here rather than
+  // in the browser: the client is handed a link, never a way to enumerate.
+  const pages = rows.map((p) => ({
+    ...p,
+    href: space ? `/${space.slug}/${p.slug}` : undefined,
+  }));
   const ids = new Set(pages.map((p) => p.id));
   const links = (
     db.prepare("SELECT from_page, to_page FROM page_links").all() as {
@@ -65,13 +78,40 @@ export function pipelineScene(spaceId: string): ModelScene {
  * used for the disciplines Octavo cannot infer — a network topology, an
  * electrode layout, a set of embedding points.
  */
+/**
+ * Points from a file someone uploaded.
+ *
+ * Only ever reads inside the uploads directory, and only a file named the way
+ * the upload route names them. A model block is authored content, so its data
+ * reference is untrusted input: "../../etc/passwd" must not be a data source.
+ */
+export function dataScene(url: string, caption: string): ModelScene | null {
+  const name = url.replace(/^\/api\/files\//, "");
+  if (!/^[A-Za-z0-9_-]+\.(csv|tsv|json|txt)$/.test(name)) return null;
+  const full = path.join(UPLOADS_DIR, name);
+  if (path.dirname(path.resolve(full)) !== path.resolve(UPLOADS_DIR)) return null;
+  let text: string;
+  try {
+    const stat = fs.statSync(full);
+    // A model is a picture, not a database import; a huge file here is a
+    // mistake, and reading it would block the process for everyone.
+    if (!stat.isFile() || stat.size > 8 * 1024 * 1024) return null;
+    text = fs.readFileSync(full, "utf8");
+  } catch {
+    return null;
+  }
+  return pointsFromTable(text, caption);
+}
+
 export function sceneFor(
   source: string,
   kind: string,
   spaceId: string,
-  declaration: string
+  declaration: string,
+  dataUrl = ""
 ): ModelScene | null {
   if (source === "declared") return parseDeclaredModel(declaration);
+  if (source === "data") return dataUrl ? dataScene(dataUrl, "") : null;
   if (source === "space") {
     if (kind === "pipeline") return pipelineScene(spaceId);
     return architectureScene(spaceId);
@@ -99,6 +139,9 @@ export function scenesForBlocks(
         const kind = String(b.props?.kind ?? "architecture");
         if (source === "declared") {
           const s = parseDeclaredModel(String(b.props?.declaration ?? ""));
+          if (s) out.set(b.id, s);
+        } else if (source === "data") {
+          const s = dataScene(String(b.props?.dataUrl ?? ""), String(b.props?.title ?? ""));
           if (s) out.set(b.id, s);
         } else if (source === "space") {
           const key = kind === "pipeline" ? "pipeline" : "architecture";

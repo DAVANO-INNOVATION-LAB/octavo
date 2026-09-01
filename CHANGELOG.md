@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.18.0 — 2026-09-01
+
+### Added
+
+- **Nodes open their page.** A derived architecture node *is* an ADR or a
+  design note, so clicking it goes there. Orbiting the model still orbits it —
+  only a press that barely moves counts as a click.
+- **Paths through a model.** Name a route in the block — an inbound request, a
+  failure path — and choosing it lights that route while the rest recedes.
+  Colouring nodes by state says what is broken; a path says how it travels.
+- **Embeddings read from a file.** Upload a CSV, TSV or JSON of points and the
+  model draws them. Declaring points by hand is fine for five clusters and
+  useless for five thousand, which is the size worth looking at. The usual
+  column names are understood, and any units are normalised.
+- **Recordings play back.** A model can carry frames — an electrode array over
+  a session — with activity swelling each node. It scrubs and pauses, because
+  a recording you can only watch is a video.
+- **Prose can select a node.** A link written as `#node:gateway` highlights
+  that node in the model that owns it, so the paragraph and the picture stay
+  in step.
+
+### Fixed
+
+- A model inside a collapsed section mounted at zero width and stayed blank
+  after the reader opened it. It watched only the window for size changes, and
+  the window never changed.
 ## v0.17.2 — 2026-08-31
 
 No product changes. The release pipeline moved to the current major of every

@@ -969,6 +969,68 @@ mark {
 }
 .octavo-editor .blk-model-edit-declaration:focus { outline: none; }
 
+.octavo-editor .blk-model-edit-data {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--faint);
+}
+
+/* ————— Model paths and playback ————— */
+.blk-model-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.1rem 0;
+}
+.blk-model-paths { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.blk-model-paths button,
+.blk-model-clear {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.32rem 0.6rem;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.blk-model-paths button:hover,
+.blk-model-clear:hover { color: var(--ink); border-color: var(--line-strong); }
+.blk-model-paths button.is-on {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.blk-model-playback {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--faint);
+  font-size: 0.72rem;
+}
+.blk-model-playback button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.blk-model-playback button:hover { color: var(--accent); border-color: var(--accent); }
+.blk-model-playback input[type="range"] { width: 9rem; accent-color: var(--accent); }
+.blk-model-playback span { font-variant-numeric: tabular-nums; min-width: 4.5rem; }
+
 /* ————— Anchored comment threads ————— */
 /* Only blocks carrying a thread are wrapped, so the wrapper has to take on
    the spacing the block would have had as a direct child of .reader. */
