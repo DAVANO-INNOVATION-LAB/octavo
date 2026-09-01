@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.21.0 — 2026-09-01
+
+### Added
+
+- **Uploads are replicated beside the database.** A snapshot without them is a
+  restore that comes back with every image, attachment and diagram missing —
+  technically a recovery, and useless. Only new files ship, so a nightly run
+  costs a manifest rather than the whole library, and a replica fetches
+  whatever it does not already hold.
+- **A restore drill runs on a schedule and records what happened.** Shipping a
+  snapshot proves the upload worked; only restoring it proves the thing in the
+  bucket is a library, and restore time is the worst moment to discover it is
+  not. The drill fetches the newest snapshot into a scratch file, opens it
+  read-only, and fails if it holds no library or has quietly shrunk to a
+  fraction of what is live. The last twenty results are kept.
+- **Automated failover, fenced by a lease.** The obvious version of this —
+  "the primary stopped answering, so I am the primary now" — produces two
+  writers, and two writers on one SQLite file corrupts it silently. Instead
+  the primary renews a lease in the same shared store both nodes already use,
+  and a standby may promote only when that lease has demonstrably lapsed and
+  it can take the lease itself. A second standby watching the same outage
+  stands down. The lease is renewed by *shipping*, so it tracks whether
+  backups are still being produced rather than whether a process is up.
+- **A health endpoint** at `/api/health` for load balancers and orchestrators:
+  role, last backup, last restore drill, and whether a standby has become
+  promotable. Unauthenticated and deliberately dull — it names no bucket,
+  endpoint, key, or page.
+
+### Changed
+
+- Promotion still ends with a restart performed by whatever supervises the
+  container. Octavo decides *whether* it is safe, and says so; the thing that
+  already knows how to start Octavo correctly does the starting.
 ## v0.20.0 — 2026-09-01
 
 ### Added

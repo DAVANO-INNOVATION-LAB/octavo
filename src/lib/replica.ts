@@ -2,7 +2,7 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { DATA_DIR, isReplica, swapDb } from "./db";
+import { DATA_DIR, UPLOADS_DIR, isReplica, swapDb } from "./db";
 
 /**
  * The reading half of replication: a process that follows the snapshots the
@@ -41,6 +41,9 @@ function env(name: string, fallback = ""): string {
 }
 
 export type PullResult = {
+  /** How many upload files this pull brought across. */
+  uploads?: number;
+  uploadsError?: string;
   ok: boolean;
   bytes?: number;
   changed?: boolean;
@@ -105,13 +108,67 @@ export async function pullSnapshot(): Promise<PullResult> {
 
     swapDb(incoming);
     lastEtag = etag;
-    return (lastPull = { ok: true, changed: true, bytes: body.length, at: Date.now() });
+    // The database is only half the library. A replica serving pages whose
+    // every image 404s has not replicated anything a reader would recognise.
+    const files = await pullUploads(target);
+    return (lastPull = {
+      ok: true,
+      changed: true,
+      bytes: body.length,
+      at: Date.now(),
+      uploads: files.fetched,
+      uploadsError: files.error,
+    });
   } catch (err) {
     return (lastPull = {
       ok: false,
       error: err instanceof Error ? err.message : "pull failed",
       at: Date.now(),
     });
+  }
+}
+
+/**
+ * Fetch any upload the primary has shipped that this replica does not hold.
+ *
+ * Listing is cheap and the names never change, so this converges without
+ * needing state of its own: whatever is in the bucket and not on disk is
+ * fetched, and nothing already here is fetched twice.
+ */
+async function pullUploads(target: Parameters<typeof sigv4Fetch>[0]): Promise<{
+  fetched: number;
+  error?: string;
+}> {
+  try {
+    const res = await sigv4Fetch(target, "GET", `${target.prefix}/uploads-manifest.json`);
+    // No manifest is not a failure: a library with no uploads never ships one.
+    if (res.status === 404) return { fetched: 0 };
+    if (!res.ok) return { fetched: 0, error: `manifest: HTTP ${res.status}` };
+    const names = JSON.parse(await res.text()) as unknown;
+    if (!Array.isArray(names)) return { fetched: 0, error: "manifest was not a list" };
+
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    const have = new Set(fs.readdirSync(UPLOADS_DIR));
+    let fetched = 0;
+    for (const raw of names) {
+      const name = String(raw);
+      // The manifest comes off the network. A name that could escape the
+      // uploads directory is refused rather than sanitised into something
+      // almost right.
+      if (!/^[A-Za-z0-9_.-]+$/.test(name) || name.startsWith(".")) continue;
+      if (have.has(name)) continue;
+      const one = await sigv4Fetch(target, "GET", `${target.prefix}/uploads/${name}`);
+      if (!one.ok) continue;
+      fs.writeFileSync(
+        path.join(UPLOADS_DIR, name),
+        Buffer.from(await one.arrayBuffer())
+      );
+      have.add(name);
+      fetched++;
+    }
+    return { fetched };
+  } catch (e) {
+    return { fetched: 0, error: e instanceof Error ? e.message : "upload pull failed" };
   }
 }
 

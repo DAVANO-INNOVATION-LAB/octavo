@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -22,6 +22,7 @@
     "test:breaking": "node scripts/breaking-test.mjs",
     "test:doi": "node scripts/doi-test.mjs",
     "test:repo": "node scripts/repo-test.mjs",
+    "test:failover": "node scripts/failover-test.mjs",
     "test:import": "node scripts/import-test.mjs"
   },
   "dependencies": {

@@ -495,6 +495,24 @@ section("Repository settings are gated, and hold a credential");
     !/name="token"[^>]*value="[^"]+"/.test(body), "a token value was rendered");
 }
 
+// --- 2h. the health endpoint says enough and no more ------------------------
+section("Health is public, and dull on purpose");
+{
+  // Load balancers and orchestrators need this without a credential, which
+  // means anyone on the network can read it. It must therefore describe the
+  // node's state and nothing about how the deployment is put together.
+  const res = await fetch(`${BASE}/api/health`, { redirect: "manual" });
+  check("health answers without a session", res.status === 200, `got ${res.status}`);
+  const body = await res.text();
+  let parsed = null;
+  try { parsed = JSON.parse(body); } catch { /* reported below */ }
+  check("health is JSON with a role", parsed?.ok === true && typeof parsed?.role === "string", body.slice(0, 120));
+  check("health never names a bucket, endpoint or key",
+    !/bucket|endpoint|secretKey|accessKey|s3|amazonaws/i.test(body), body.slice(0, 200));
+  check("health never leaks a page or space name",
+    !/field-guide|jumpman/i.test(body), body.slice(0, 200));
+}
+
 // --- 2e. search is bounded, and the bound respects permissions -----------------
 section("Search is bounded and still scoped");
 {

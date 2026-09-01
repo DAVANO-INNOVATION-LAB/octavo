@@ -3,7 +3,8 @@ import { createHash, createHmac } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { DATA_DIR, getDb } from "./db";
+import { DATA_DIR, UPLOADS_DIR, getDb } from "./db";
+import { renewLease } from "./failover";
 import { getSetting } from "./settings";
 import { now } from "./util";
 
@@ -149,6 +150,87 @@ async function s3Request(
   });
 }
 
+// ---- uploads ----
+
+/**
+ * Shipping the uploads directory beside the database.
+ *
+ * A snapshot without the uploads is a restore that comes back with every
+ * image, attachment and diagram missing — technically a recovery, and
+ * useless. Files are content-addressed by name and never rewritten, so this
+ * only ever needs to ship what is new: a manifest of what has already gone
+ * means a nightly run costs one small listing rather than the whole library.
+ */
+export type UploadShipResult = {
+  ok: boolean;
+  sent: number;
+  skipped: number;
+  bytes: number;
+  error?: string;
+};
+
+function uploadManifestPath(): string {
+  return path.join(DATA_DIR, ".replicated-uploads.json");
+}
+
+function readUploadManifest(): Record<string, number> {
+  try {
+    return JSON.parse(fs.readFileSync(uploadManifestPath(), "utf8")) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+function writeUploadManifest(m: Record<string, number>): void {
+  try {
+    fs.writeFileSync(uploadManifestPath(), JSON.stringify(m));
+  } catch {
+    // A manifest that cannot be written costs re-uploads, not correctness.
+  }
+}
+
+export async function shipUploads(): Promise<UploadShipResult> {
+  const t = replicaTarget();
+  if (!t) return { ok: false, sent: 0, skipped: 0, bytes: 0, error: "no target configured" };
+  if (!fs.existsSync(UPLOADS_DIR)) return { ok: true, sent: 0, skipped: 0, bytes: 0 };
+
+  const manifest = readUploadManifest();
+  let sent = 0, skipped = 0, bytes = 0;
+  for (const name of fs.readdirSync(UPLOADS_DIR)) {
+    if (name.startsWith(".")) continue;
+    const full = path.join(UPLOADS_DIR, name);
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(full);
+    } catch {
+      continue;
+    }
+    if (!stat.isFile()) continue;
+    // Size is the whole test: these names are generated per upload and the
+    // file behind one never changes. A hash would cost a full read of every
+    // file on every run to learn the same thing.
+    if (manifest[name] === stat.size) { skipped++; continue; }
+    const body = fs.readFileSync(full);
+    const put = await s3Request(t, "PUT", `${t.prefix}/uploads/${name}`, body);
+    if (!put.ok)
+      return { ok: false, sent, skipped, bytes, error: `${name}: HTTP ${put.status}` };
+    manifest[name] = stat.size;
+    sent++;
+    bytes += body.length;
+  }
+  writeUploadManifest(manifest);
+
+  // Ship the manifest too. A replica could list the bucket instead, but
+  // listing needs a signed query string, and one small object it can GET by
+  // name says exactly the same thing with none of that machinery.
+  const list = Buffer.from(JSON.stringify(Object.keys(manifest)), "utf8");
+  const put = await s3Request(t, "PUT", `${t.prefix}/uploads-manifest.json`, list);
+  if (!put.ok)
+    return { ok: false, sent, skipped, bytes, error: `manifest: HTTP ${put.status}` };
+
+  return { ok: true, sent, skipped, bytes };
+}
+
 // ---- the ship itself ----
 
 export type ShipResult = {
@@ -158,6 +240,9 @@ export type ShipResult = {
   verified?: boolean;
   error?: string;
   at: number;
+  uploads?: { sent: number; skipped: number };
+  /** Set when the database shipped but its files did not — a partial backup. */
+  uploadsError?: string;
 };
 
 let lastShip: ShipResult | null = null;
@@ -220,7 +305,23 @@ export async function shipSnapshot(): Promise<ShipResult> {
         at: now(),
       });
 
-    return (lastShip = { ok: true, key, bytes: body.length, verified, at: now() });
+    // The lease says "backups are still being produced by this node", which
+    // is the only claim a standby should ever act on.
+    void renewLease();
+
+    // Uploads travel with the database. A restore that comes back without
+    // them is a library of broken images.
+    const files = await shipUploads();
+
+    return (lastShip = {
+      ok: true,
+      key,
+      bytes: body.length,
+      verified,
+      at: now(),
+      uploads: files.ok ? { sent: files.sent, skipped: files.skipped } : undefined,
+      uploadsError: files.ok ? undefined : files.error,
+    });
   } catch (err) {
     return (lastShip = {
       ok: false,

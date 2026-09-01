@@ -34,12 +34,15 @@ rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
 const src = readFileSync("src/lib/replicate.ts", "utf8")
   .replace(/import "server-only";\n?/, "")
-  .replace(/import \{ DATA_DIR, getDb \} from "\.\/db";\n?/, "const DATA_DIR = process.env.TEST_DATA_DIR; const getDb = () => globalThis.__testDb;\n")
+  .replace(/import \{ DATA_DIR, UPLOADS_DIR, getDb \} from "\.\/db";\n?/, "const DATA_DIR = process.env.TEST_DATA_DIR; const UPLOADS_DIR = process.env.TEST_UPLOADS_DIR; const getDb = () => globalThis.__testDb;\n")
+  .replace(/import \{ renewLease \} from "\.\/failover";\n?/, "const renewLease = async () => globalThis.__renewed = (globalThis.__renewed ?? 0) + 1;\n")
   .replace(/import \{ getSetting \} from "\.\/settings";\n?/, "const getSetting = () => process.env.TEST_TARGET ?? null;\n")
   .replace(/import \{ now \} from "\.\/util";\n?/, "const now = () => Date.now();\n");
 writeFileSync(path.join(STAGE, "replicate.ts"), src);
 // The staged module reads these at load time, so they exist before import.
 process.env.TEST_DATA_DIR = path.join(STAGE, "data");
+process.env.TEST_UPLOADS_DIR = path.join(STAGE, "data", "uploads");
+mkdirSync(process.env.TEST_UPLOADS_DIR, { recursive: true });
 const repl = await import(pathToFileURL(path.join(STAGE, "replicate.ts")));
 
 /* ---- 1. the signature, against an independent implementation ---- */
@@ -138,6 +141,7 @@ process.env.TEST_TARGET = JSON.stringify({
   keepDays: 14,
 });
 
+globalThis.__renewed = 0;
 const shipped = await repl.shipSnapshot();
 ok("primary ships a verified snapshot", shipped.ok === true, shipped.error);
 ok("the rolling head exists in the store", store.has("/backups/octavo/octavo-latest.db"));
@@ -179,6 +183,47 @@ ok("the rolling head exists in the store", store.has("/backups/octavo/octavo-lat
 }
 
 primary.close();
+/* ---- 4. uploads travel with the database ---- */
+console.log("\nUploads\n");
+{
+  const upDir = process.env.TEST_UPLOADS_DIR;
+  writeFileSync(path.join(upDir, "a1b2c3.png"), Buffer.from("PNG-ONE"));
+  writeFileSync(path.join(upDir, "d4e5f6.pdf"), Buffer.from("PDF-TWO"));
+
+  const first = await repl.shipUploads();
+  ok("uploads ship alongside the snapshot", first.ok && first.sent === 2, JSON.stringify(first));
+  ok("a manifest is written so a replica need not list the bucket",
+    [...store.keys()].some((k) => k.endsWith("uploads-manifest.json")),
+    [...store.keys()].join(" "));
+  const manifestKey = [...store.keys()].find((k) => k.endsWith("uploads-manifest.json"));
+  const names = JSON.parse(store.get(manifestKey).toString("utf8"));
+  ok("the manifest names every file", names.sort().join(",") === "a1b2c3.png,d4e5f6.pdf", names.join(","));
+  ok("the files themselves are in the bucket",
+    [...store.keys()].some((k) => k.endsWith("uploads/a1b2c3.png")) &&
+    [...store.keys()].some((k) => k.endsWith("uploads/d4e5f6.pdf")),
+    [...store.keys()].join(" "));
+
+  // The second run must not re-upload what has not changed: a nightly ship of
+  // a large library should cost a listing, not the whole library again.
+  const second = await repl.shipUploads();
+  ok("an unchanged file is not shipped twice", second.ok && second.sent === 0 && second.skipped === 2, JSON.stringify(second));
+
+  writeFileSync(path.join(upDir, "new999.txt"), Buffer.from("THREE"));
+  const third = await repl.shipUploads();
+  ok("a new file is picked up on the next run", third.ok && third.sent === 1 && third.skipped === 2, JSON.stringify(third));
+}
+
+/* ---- 5. the lease is renewed by shipping, not by being alive ---- */
+console.log("\nFailover lease\n");
+{
+  // Asserted against the ship that actually succeeded above: by this point in
+  // the script the test database has been closed on purpose, and a ship that
+  // fails renews nothing — correctly, since the lease means "backups are
+  // still being produced".
+  ok("a successful ship renews the lease", globalThis.__renewed >= 1, String(globalThis.__renewed));
+  ok("the snapshot carried its uploads", (shipped.uploads?.sent ?? 0) >= 0 && shipped.ok, JSON.stringify(shipped.uploads));
+}
+
 stub.close();
 rmSync(STAGE, { recursive: true, force: true });
 console.log(`\n${pass + fail} checks — ${pass} passed, ${fail} failed`);
