@@ -65,6 +65,9 @@ export type AuditAction =
   | "repo.connected"
   | "repo.disconnected"
   | "repo.sync"
+  | "site.created"
+  | "site.updated"
+  | "site.deleted"
   // moderation
   | "comment.deleted_by_moderator"
   | "comment.thread_resolved"

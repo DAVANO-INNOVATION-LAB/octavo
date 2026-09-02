@@ -7,6 +7,7 @@
 //
 // Usage: node scripts/integration.mjs [baseUrl]
 import Database from "better-sqlite3";
+import http from "node:http";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -49,6 +50,26 @@ db.prepare("INSERT OR REPLACE INTO sessions (id,user_id,expires_at) VALUES (?,?,
 const page = db.prepare("SELECT id, slug FROM pages WHERE space_id=? AND published=1 LIMIT 1").get(space.id);
 
 const as = (who) => ({ cookie: `octavo_session=sess_${who}` });
+
+// undici refuses to send a Host header — it is a forbidden header name — so a
+// virtual-host check has to go out over a raw socket or it silently tests
+// nothing at all.
+function rawGet(pathname, hostHeader) {
+  const url = new URL(BASE);
+  return new Promise((resolve) => {
+    const req = http.request(
+      { host: url.hostname, port: url.port, path: pathname, method: "GET",
+        headers: { Host: hostHeader } },
+      (res) => {
+        let body = "";
+        res.on("data", (c) => (body += c));
+        res.on("end", () => resolve({ status: res.statusCode, body }));
+      }
+    );
+    req.on("error", () => resolve({ status: 0, body: "" }));
+    req.end();
+  });
+}
 const get = (p, who) => fetch(BASE + p, { headers: as(who), redirect: "manual" });
 const post = (p, who, body) =>
   fetch(BASE + p, { method: "POST", headers: { ...as(who), "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -511,6 +532,91 @@ section("Health is public, and dull on purpose");
     !/bucket|endpoint|secretKey|accessKey|s3|amazonaws/i.test(body), body.slice(0, 200));
   check("health never leaks a page or space name",
     !/field-guide|jumpman/i.test(body), body.slice(0, 200));
+}
+
+// --- 2i. a site presents; it never grants ------------------------------------
+section("A published site cannot widen what anyone may read");
+{
+  // The whole safety claim of sites in one section. A site groups and renames
+  // spaces; if it could also expose one, "add to site" would be a silent
+  // permission grant and every private space would be one click from public.
+  const now2 = Date.now();
+  db.prepare(
+    `INSERT OR REPLACE INTO sites (id, slug, name, tagline, host, accent, typeface, published, position, created_at, updated_at)
+     VALUES ('it_site','it-site','Integration Site','','','','',1,999,?,?)`
+  ).run(now2, now2);
+  db.prepare("DELETE FROM site_spaces WHERE site_id = 'it_site'").run();
+  db.prepare(
+    "INSERT INTO site_spaces (site_id, space_id, section_id, label, position) VALUES ('it_site', ?, NULL, 'Renamed Here', 1)"
+  ).run(space.id);
+  if (priv) {
+    db.prepare(
+      "INSERT INTO site_spaces (site_id, space_id, section_id, label, position) VALUES ('it_site', ?, NULL, '', 2)"
+    ).run(priv.id);
+  }
+
+  const anonSite = await fetch(`${BASE}/sites/it-site`, { redirect: "manual" });
+  check("a published site opens for a stranger", anonSite.status === 200, `got ${anonSite.status}`);
+  const anonBody = anonSite.status === 200 ? await anonSite.text() : "";
+  check("the site's own label for a space is used", anonBody.includes("Renamed Here"));
+  if (priv) {
+    check("a private space on the site is invisible to a stranger",
+      !anonBody.includes(priv.slug), "a private slug was rendered");
+  }
+
+  // A member of the private space sees it there; a signed-in non-member does not.
+  if (priv) {
+    const memberBody = await (await get("/sites/it-site", "it_reader")).text();
+    check("a member of the private space sees it on the site", memberBody.includes(priv.slug));
+    const outsiderBody = await (await get("/sites/it-site", "it_outsider")).text();
+    check("a signed-in non-member still does not", !outsiderBody.includes(priv.slug));
+  }
+
+  // Reaching a page THROUGH a site is still the page's own permission check.
+  if (priv) {
+    const privPage2 = db.prepare("SELECT slug FROM pages WHERE space_id = ? LIMIT 1").get(priv.id);
+    if (privPage2) {
+      const r = await fetch(`${BASE}/${priv.slug}/${privPage2.slug}`, { redirect: "manual" });
+      check("a private page is still refused, site or no site",
+        [302, 307, 308].includes(r.status), `got ${r.status}`);
+    }
+  }
+
+  // A draft site is not a site.
+  db.prepare("UPDATE sites SET published = 0 WHERE id = 'it_site'").run();
+  const draft = await fetch(`${BASE}/sites/it-site`, { redirect: "manual" });
+  check("an unpublished site is not reachable by a stranger", draft.status === 404, `got ${draft.status}`);
+  const draftIn = await get("/sites/it-site", "it_admin");
+  check("an unpublished site is reachable by its operators", draftIn.status === 200, `got ${draftIn.status}`);
+
+  // Only an instance admin administers sites.
+  for (const who of ["it_editor", "it_reader", "it_agent", "it_outsider"]) {
+    const r = await get("/admin/sites", who);
+    check(`${who}: site administration refused`, [302, 307, 308].includes(r.status), `got ${r.status}`);
+  }
+  const adminSites = await get("/admin/sites", "it_admin");
+  check("an instance admin can administer sites", adminSites.status === 200, `got ${adminSites.status}`);
+
+  // A site with a host answers on that host, and only that host.
+  db.prepare("UPDATE sites SET published = 1, host = 'docs.integration.test' WHERE id = 'it_site'").run();
+  const byHost = await rawGet("/", "docs.integration.test");
+  check("a request on the site's host is served the site",
+    byHost.body.includes("Integration Site"), `got ${byHost.status}`);
+  // Port and case are not part of a name; comparing them would mean
+  // "docs.Example.org:8443" is a different site from "docs.example.org".
+  const odd = await rawGet("/", "DOCS.Integration.Test:8443");
+  check("host matching ignores port and case", odd.body.includes("Integration Site"));
+  const other = await rawGet("/", "somewhere.else.test");
+  check("any other host is served the library", !other.body.includes("Integration Site"));
+
+  // An unpublished site must not answer on its host either, or "published"
+  // would only mean "hidden from one URL".
+  db.prepare("UPDATE sites SET published = 0 WHERE id = 'it_site'").run();
+  const draftHost = await rawGet("/", "docs.integration.test");
+  check("a draft site does not answer on its host", !draftHost.body.includes("Integration Site"));
+
+  db.prepare("DELETE FROM site_spaces WHERE site_id = 'it_site'").run();
+  db.prepare("DELETE FROM sites WHERE id = 'it_site'").run();
 }
 
 // --- 2e. search is bounded, and the bound respects permissions -----------------

@@ -22,6 +22,16 @@ import { saveForwardConfig } from "@/lib/audit-forward";
 import { saveAskConfig } from "@/lib/ask";
 import { applySync } from "@/lib/sync-io";
 import {
+  addSection,
+  createSite,
+  deleteSite,
+  getSite,
+  putSpace,
+  removeSection,
+  removeSpace,
+  updateSite,
+} from "@/lib/sites";
+import {
   forgetRepo,
   getRepoSettings,
   saveRepoSettings,
@@ -1243,6 +1253,97 @@ export async function shipNowAction() {
 }
 
 // ---- markdown sync ----
+
+// ---- published sites ----
+//
+// Every one of these is an instance-admin action. A site spans the library, so
+// space-level administration is not the right authority for it.
+
+async function requireInstanceAdmin() {
+  const user = await requireUser();
+  if (user.role !== "admin") redirect("/");
+  return user;
+}
+
+export async function createSiteAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) redirect("/admin/sites");
+  const site = createSite({ name });
+  recordAudit({
+    actor: user, action: "site.created", objectType: "site",
+    objectId: site.id, objectLabel: site.name, detail: {},
+  });
+  redirect(`/admin/sites?site=${site.slug}&saved=1`);
+}
+
+export async function updateSiteAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const site = getSite(id);
+  if (!site) redirect("/admin/sites");
+  updateSite(id, {
+    name: String(formData.get("name") ?? site.name),
+    tagline: String(formData.get("tagline") ?? ""),
+    host: String(formData.get("host") ?? ""),
+    accent: String(formData.get("accent") ?? ""),
+    published: formData.get("published") ? 1 : 0,
+  });
+  const after = getSite(id);
+  recordAudit({
+    actor: user, action: "site.updated", objectType: "site",
+    objectId: id, objectLabel: after?.name ?? site.name,
+    detail: { published: after?.published === 1, host: after?.host ?? "" },
+  });
+  revalidatePath("/");
+  redirect(`/admin/sites?site=${after?.slug ?? site.slug}&saved=1`);
+}
+
+export async function deleteSiteAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const site = getSite(id);
+  if (site) {
+    deleteSite(id);
+    recordAudit({
+      actor: user, action: "site.deleted", objectType: "site",
+      objectId: id, objectLabel: site.name, detail: {},
+    });
+  }
+  revalidatePath("/");
+  redirect("/admin/sites?saved=1");
+}
+
+export async function addSiteSectionAction(formData: FormData) {
+  await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  if (getSite(id) && title) addSection(id, title);
+  redirect(`/admin/sites?site=${String(formData.get("site") ?? "")}&saved=1`);
+}
+
+export async function removeSiteSectionAction(formData: FormData) {
+  await requireInstanceAdmin();
+  removeSection(String(formData.get("id") ?? ""));
+  redirect(`/admin/sites?site=${String(formData.get("site") ?? "")}&saved=1`);
+}
+
+export async function setSiteSpaceAction(formData: FormData) {
+  await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const spaceId = String(formData.get("space") ?? "");
+  if (!getSite(id)) redirect("/admin/sites");
+  if (formData.get("on")) {
+    putSpace(id, spaceId, {
+      sectionId: String(formData.get("section") ?? "") || null,
+      label: String(formData.get("label") ?? ""),
+    });
+  } else {
+    removeSpace(id, spaceId);
+  }
+  revalidatePath("/");
+  redirect(`/admin/sites?site=${String(formData.get("site") ?? "")}&saved=1`);
+}
 
 export async function saveRepoAction(formData: FormData) {
   const user = await requireUser();

@@ -104,6 +104,43 @@ CREATE TABLE IF NOT EXISTS collab_docs (
   updated_at INTEGER NOT NULL
 );
 
+-- A published site: one presentation of some of the library, with its own
+-- name, dress and grouping. Sites change how spaces are PRESENTED, never who
+-- may read them — visibility is still the only thing that decides that.
+CREATE TABLE IF NOT EXISTS sites (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  tagline TEXT NOT NULL DEFAULT '',
+  -- When set, a request arriving on this Host is served this site.
+  host TEXT NOT NULL DEFAULT '',
+  accent TEXT NOT NULL DEFAULT '',
+  typeface TEXT NOT NULL DEFAULT '',
+  published INTEGER NOT NULL DEFAULT 0,
+  position REAL NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sites_host ON sites(host);
+
+CREATE TABLE IF NOT EXISTS site_sections (
+  id TEXT PRIMARY KEY,
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  blurb TEXT NOT NULL DEFAULT '',
+  position REAL NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS site_spaces (
+  site_id TEXT NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  section_id TEXT REFERENCES site_sections(id) ON DELETE SET NULL,
+  -- What this space is called ON this site, when the audience differs.
+  label TEXT NOT NULL DEFAULT '',
+  position REAL NOT NULL DEFAULT 0,
+  PRIMARY KEY (site_id, space_id)
+);
+
 CREATE TABLE IF NOT EXISTS space_repos (
   space_id TEXT PRIMARY KEY REFERENCES spaces(id) ON DELETE CASCADE,
   provider TEXT NOT NULL,

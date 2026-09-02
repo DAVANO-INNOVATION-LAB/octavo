@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BookOpen, Plus, Upload } from "lucide-react";
+import { headers } from "next/headers";
 import { currentUser, userCount } from "@/lib/auth";
+import { siteForHost } from "@/lib/sites";
+import { SiteCover } from "@/components/SiteCover";
 import { listSpaces, listPages } from "@/lib/data";
 import { primaryOnly } from "@/lib/variants";
 import { readablePrivateSpaceIds } from "@/lib/roles";
@@ -31,6 +34,14 @@ function timeAgo(ts: number): string {
 
 export default async function Home() {
   if (userCount() === 0) redirect("/setup");
+
+  // A request arriving on a site's own host is that site, not the library.
+  // Resolved here rather than in middleware: middleware runs on the Edge
+  // runtime, which cannot reach SQLite, and a site lookup is a database read.
+  const host = (await headers()).get("host") ?? "";
+  const site = siteForHost(host);
+  if (site) return <SiteCover site={site} />;
+
   const user = await currentUser();
   // Variants of one library share a shelf entry; the rest are reached from
   // the switcher, so six translations of a handbook do not fill the shelf.

@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.22.0 — 2026-09-01
+
+### Added
+
+- **Published sites.** One library, more than one front door. The same
+  handbook can be the whole of a customer-facing site and one section of an
+  internal one, under a different name and different dress, without being
+  copied. Create sites under Admin → Sites.
+- **Site sections** group spaces under headings with their own blurb, and a
+  space can carry a different name on each site it appears on — the same
+  handbook is "Operations" internally and "Getting started" to a customer.
+- **A site can answer on its own host.** Point a name at the instance and
+  requests arriving there are served that site instead of the library. Port
+  and case are ignored; one host belongs to one site.
+- Sites are **published or draft**. A draft is reachable only by signed-in
+  people, on its slug and on its host alike.
+
+### Changed
+
+- A site decides what is **presented**, never who may read it. Every page
+  reached through a site goes through exactly the same visibility check it
+  would anywhere else, so adding a private space to a public site grants
+  nobody anything — it stays invisible to everyone who could not already open
+  it, and that is asserted in the test suite.
 ## v0.21.0 — 2026-09-01
 
 ### Added
