@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.22.1 — 2026-09-02
+
+### Fixed
+
+- **The admin sections past the first row were unreachable.** They were laid
+  out as a single scrolling row with its scrollbar hidden, so a trackpad could
+  swipe to the later settings and a mouse could not reach them — and nothing
+  on screen said they were there. They now wrap onto as many rows as they
+  need, at every width, and a check asserts every section is reachable.
 ## v0.22.0 — 2026-09-01
 
 ### Added

@@ -35,15 +35,24 @@ export function AdminShell({
         <p className="mt-1 text-sm text-muted">
           Instance administration — visible to admins only.
         </p>
-        <nav aria-label="Admin sections" className="mt-6 -mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+        {/* These wrap rather than scroll. As a single scrolling row with its
+            scrollbar hidden, the sections past the fold had no affordance at
+            all: a trackpad could swipe to them and a mouse could not reach
+            them. Fifteen sections is not a tab strip, and pretending it is
+            cost people the second half of the settings. */}
+        <nav
+          aria-label="Admin sections"
+          className="mt-6 flex flex-wrap gap-1.5 border-b border-line pb-3"
+        >
           {TABS.map((t) => (
             <Link
               key={t.href}
               href={t.href}
-              className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors ${
+              aria-current={active === t.href ? "page" : undefined}
+              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors ${
                 active === t.href
-                  ? "border-accent font-medium text-accent"
-                  : "border-transparent text-muted hover:text-ink"
+                  ? "border-accent bg-accent font-medium text-accent-ink"
+                  : "border-line text-muted hover:border-line-strong hover:text-ink"
               }`}
             >
               {t.label}

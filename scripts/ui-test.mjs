@@ -676,6 +676,47 @@ console.log("\nAccessibility\n");
   }
 }
 
+/* ————— admin: every section reachable, at every width ————— */
+//
+// This exists because the admin sections were once a single scrolling row
+// with its scrollbar hidden. A trackpad could swipe to the sections past the
+// fold; a mouse could not reach them at all, and nothing on screen said they
+// were there. The layout check below passes on a page whose content is
+// clipped inside a container, so it took a person to notice.
+console.log("\nAdmin navigation\n");
+{
+  for (const [label, width, height] of [["mobile", 375, 780], ["tablet", 768, 900], ["desktop", 1440, 900]]) {
+    await send("Emulation.setDeviceMetricsOverride",
+      { width, height, deviceScaleFactor: 1, mobile: width < 768 }, sessionId);
+    await visit("/admin", 1500);
+    checks++;
+    const nav = await evaluate(`(() => {
+      const n = document.querySelector('nav[aria-label="Admin sections"]');
+      if (!n) return { why: "no admin nav" };
+      const links = [...n.querySelectorAll("a")];
+      const box = n.getBoundingClientRect();
+      // Clipped: sitting outside the container that holds it.
+      const clipped = links.filter((a) => {
+        const r = a.getBoundingClientRect();
+        return r.right > box.right + 1 || r.left < box.left - 1;
+      }).map((a) => a.textContent.trim());
+      const style = getComputedStyle(n);
+      return {
+        why: "",
+        tabs: links.length,
+        clipped,
+        // A container that scrolls with no scrollbar is the exact trap.
+        hiddenScroll: n.scrollWidth > n.clientWidth + 1 && style.scrollbarWidth === "none",
+      };
+    })()`);
+    if (nav?.why) fail(`admin nav ${label}`, nav.why);
+    else if (nav.hiddenScroll) fail(`admin nav ${label}`, "the sections scroll with no scrollbar to show it");
+    else if (nav.clipped.length) fail(`admin nav ${label}`, `unreachable: ${nav.clipped.join(", ")}`);
+    console.log(`  ${nav && !nav.why && !nav.hiddenScroll && !nav.clipped.length ? "✓" : "✗"} ${label} — all ${nav?.tabs ?? 0} sections reachable`);
+  }
+  await send("Emulation.clearDeviceMetricsOverride", {}, sessionId);
+}
+
 /* ————— keyboard only: everything reachable, nothing trapping ————— */
 //
 // The audit above is static: it reads the DOM and judges it. It cannot tell
