@@ -32,6 +32,8 @@ export type Space = {
   icon: string;
   /** Which discipline this space's 3D models default to. */
   model_kind: string;
+  /** The tenant this space belongs to, or null for the library itself. */
+  tenant_id: string | null;
 };
 
 export type Page = {
@@ -64,7 +66,37 @@ export type TreeNode = PageMeta & { children: TreeNode[] };
  * ones. A boolean cannot express "signed in, but not a member of that", which
  * is the case that matters.
  */
-export type SpaceScope = "all" | string[];
+/**
+ * Everything a principal is allowed to see, in one value.
+ *
+ * Tenancy lives in here rather than in a second argument on purpose. A
+ * separate parameter is a thing a caller can forget, and a caller that
+ * forgets a tenancy filter shows one tenant another tenant's library. Because
+ * the scope is produced in exactly one place and every query takes the whole
+ * of it, there is nothing to forget.
+ */
+export type SpaceScope = {
+  /** Private spaces this principal may read. "all" for an instance admin. */
+  readable: "all" | string[];
+  /**
+   * Tenants whose spaces exist for this principal at all. "all" for an
+   * instance admin. Spaces belonging to no tenant are always in scope: they
+   * are the library, which predates any tenant.
+   */
+  tenants: "all" | string[];
+};
+
+/** The scope of a principal who may see the whole instance. */
+export const EVERYTHING: SpaceScope = { readable: "all", tenants: "all" };
+
+/**
+ * What a stranger sees: public spaces that belong to no tenant.
+ *
+ * Used by the feeds anyone can fetch — the sitemap, the agent text files. A
+ * tenant's spaces are public within their tenant, so listing them in a
+ * sitemap would publish exactly what the tenant exists to contain.
+ */
+export const PUBLIC_ONLY: SpaceScope = { readable: [], tenants: [] };
 
 /**
  * A condition restricting a query to the spaces in scope, with its bound
@@ -75,15 +107,37 @@ export type SpaceScope = "all" | string[];
 export function scopeClause(
   scope: SpaceScope,
   visibilityColumn = "visibility",
-  idColumn = "id"
+  idColumn = "id",
+  // Defaults suit an unaliased `FROM spaces`. Any query that joins must pass
+  // all three, or the tenancy predicate silently binds to the wrong table.
+  tenantColumn = "tenant_id"
 ): { sql: string; params: string[] } {
-  if (scope === "all") return { sql: "", params: [] };
-  if (scope.length === 0) return { sql: `${visibilityColumn} = 'public'`, params: [] };
-  const holes = scope.map(() => "?").join(",");
-  return {
-    sql: `(${visibilityColumn} = 'public' OR ${idColumn} IN (${holes}))`,
-    params: [...scope],
-  };
+  const parts: string[] = [];
+  const params: string[] = [];
+
+  // Visibility: public, or a private space this principal is a member of.
+  if (scope.readable !== "all") {
+    if (scope.readable.length === 0) parts.push(`${visibilityColumn} = 'public'`);
+    else {
+      const holes = scope.readable.map(() => "?").join(",");
+      parts.push(`(${visibilityColumn} = 'public' OR ${idColumn} IN (${holes}))`);
+      params.push(...scope.readable);
+    }
+  }
+
+  // Tenancy: applied to public spaces too. A tenant's public space is public
+  // WITHIN that tenant; leaking it to another tenant would make the whole
+  // silo decorative.
+  if (scope.tenants !== "all") {
+    if (scope.tenants.length === 0) parts.push(`${tenantColumn} IS NULL`);
+    else {
+      const holes = scope.tenants.map(() => "?").join(",");
+      parts.push(`(${tenantColumn} IS NULL OR ${tenantColumn} IN (${holes}))`);
+      params.push(...scope.tenants);
+    }
+  }
+
+  return { sql: parts.join(" AND "), params };
 }
 
 export function listSpaces(scope: SpaceScope): Space[] {
@@ -481,7 +535,7 @@ export function searchPages(
     .map((t) => `"${t}"*`)
     .join(" ");
   if (!match) return [];
-  const scoped = scopeClause(scope, "s.visibility", "s.id");
+  const scoped = scopeClause(scope, "s.visibility", "s.id", "s.tenant_id");
   try {
     const rows = getDb()
       .prepare(
@@ -735,7 +789,7 @@ export type Backlink = {
 
 /** Pages that link to this one — the "referenced by" panel. */
 export function backlinks(pageId: string, scope: SpaceScope): Backlink[] {
-  const bscope = scopeClause(scope, "s.visibility", "s.id");
+  const bscope = scopeClause(scope, "s.visibility", "s.id", "s.tenant_id");
   return getDb()
     .prepare(
       `SELECT p.id AS page_id, p.title, p.slug AS page_slug,
@@ -753,7 +807,7 @@ export function backlinks(pageId: string, scope: SpaceScope): Backlink[] {
 /** Title lookup for the editor's page-link menu. */
 export function lookupPages(q: string, scope: SpaceScope, limit = 8): Backlink[] {
   const like = `%${q.trim().replace(/[%_]/g, "")}%`;
-  const lscope = scopeClause(scope, "s.visibility", "s.id");
+  const lscope = scopeClause(scope, "s.visibility", "s.id", "s.tenant_id");
   return getDb()
     .prepare(
       `SELECT p.id AS page_id, p.title, p.slug AS page_slug,
@@ -775,7 +829,7 @@ export type GraphData = {
 
 /** The library's link graph — respects visibility like everything else. */
 export function linkGraph(scope: SpaceScope): GraphData {
-  const gscope = scopeClause(scope, "s.visibility", "s.id");
+  const gscope = scopeClause(scope, "s.visibility", "s.id", "s.tenant_id");
   const db = getDb();
   const nodes = db
     .prepare(

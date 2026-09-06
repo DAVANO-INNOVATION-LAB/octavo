@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { currentUser } from "@/lib/auth";
-import { listSpaces } from "@/lib/data";
+import { listSpaces, EVERYTHING } from "@/lib/data";
 import { listSections, listSites, siteEntries } from "@/lib/sites";
 import {
   addSiteSectionAction,
@@ -29,9 +29,9 @@ export default async function AdminSites({
 
   const sites = listSites();
   const current = sites.find((s) => s.slug === selected) ?? sites[0] ?? null;
-  const spaces = listSpaces("all");
+  const spaces = listSpaces(EVERYTHING);
   const sections = current ? listSections(current.id) : [];
-  const entries = current ? siteEntries(current.id, "all") : [];
+  const entries = current ? siteEntries(current.id, EVERYTHING) : [];
   const onSite = new Map(entries.map((e) => [e.space.id, e]));
 
   const field =

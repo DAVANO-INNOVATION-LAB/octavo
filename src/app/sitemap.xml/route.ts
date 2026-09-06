@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { flattenTree, listSpaces, pageTree } from "@/lib/data";
+import { flattenTree, listSpaces, pageTree, PUBLIC_ONLY } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ const esc = (s: string) =>
 export async function GET(req: NextRequest) {
   const origin = (process.env.OCTAVO_BASE_URL ?? req.nextUrl.origin).replace(/\/$/, "");
   const urls: string[] = [`  <url><loc>${esc(origin)}/</loc></url>`];
-  for (const space of listSpaces([])) {
+  for (const space of listSpaces(PUBLIC_ONLY)) {
     urls.push(
       `  <url><loc>${esc(`${origin}/${space.slug}`)}</loc><lastmod>${new Date(space.updated_at).toISOString()}</lastmod></url>`
     );

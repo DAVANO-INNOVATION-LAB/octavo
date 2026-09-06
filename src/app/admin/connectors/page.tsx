@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Trash2, Zap } from "lucide-react";
 import { currentUser } from "@/lib/auth";
-import { listSpaces } from "@/lib/data";
+import { listSpaces, EVERYTHING } from "@/lib/data";
 import { listConnectors } from "@/lib/connectors";
 import { createConnectorAction, deleteConnectorAction } from "@/app/actions";
 import { AdminShell } from "@/components/AdminShell";
@@ -26,7 +26,7 @@ export default async function AdminConnectors({
   if (user.role !== "admin") redirect("/");
   const { saved } = await searchParams;
   const connectors = listConnectors();
-  const spaces = listSpaces("all");
+  const spaces = listSpaces(EVERYTHING);
 
   return (
     <AdminShell active="/admin/connectors">

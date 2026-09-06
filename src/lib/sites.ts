@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb } from "./db";
 import { newId, now, slugify } from "./util";
-import type { Space } from "./data";
+import type { Space, SpaceScope } from "./data";
 
 /**
  * Published sites.
@@ -195,11 +195,7 @@ export function removeSpace(siteId: string, spaceId: string): void {
  * caller wants it and a caller that forgets it is a private space on a public
  * site. A site never widens what someone may read.
  */
-export function siteEntries(
-  siteId: string,
-  /** "all" for an instance admin, otherwise the private spaces they may read. */
-  readableIds: "all" | string[]
-): SiteEntry[] {
+export function siteEntries(siteId: string, scope: SpaceScope): SiteEntry[] {
   const db = getDb();
   const rows = db
     .prepare(
@@ -210,9 +206,13 @@ export function siteEntries(
     )
     .all(siteId) as (Space & { section_id: string | null; label: string; position: number })[];
 
-  const allowed = readableIds === "all" ? null : new Set(readableIds);
+  // Both filters, because a site is a presentation of the library and must
+  // not become a way around either of the library's own rules.
+  const allowed = scope.readable === "all" ? null : new Set(scope.readable);
+  const tenants = scope.tenants === "all" ? null : new Set(scope.tenants);
   return rows
     .filter((r) => r.visibility === "public" || allowed === null || allowed.has(r.id))
+    .filter((r) => tenants === null || !r.tenant_id || tenants.has(r.tenant_id))
     .map((r) => ({
       space: r as Space,
       sectionId: r.section_id,

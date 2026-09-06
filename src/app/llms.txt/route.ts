@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { flattenTree, listSpaces, pageTree } from "@/lib/data";
+import { flattenTree, listSpaces, pageTree, PUBLIC_ONLY } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   const origin = process.env.OCTAVO_BASE_URL ?? req.nextUrl.origin;
-  const spaces = listSpaces([]);
+  const spaces = listSpaces(PUBLIC_ONLY);
   const lines: string[] = [
     "# Octavo library",
     "",

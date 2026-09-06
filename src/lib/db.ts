@@ -107,6 +107,28 @@ CREATE TABLE IF NOT EXISTS collab_docs (
 -- A published site: one presentation of some of the library, with its own
 -- name, dress and grouping. Sites change how spaces are PRESENTED, never who
 -- may read them — visibility is still the only thing that decides that.
+-- A tenant is a silo: its own name and dress, and its own spaces. Unlike a
+-- site, which only changes how the library is PRESENTED, a tenant changes
+-- what exists as far as its members are concerned — including public spaces,
+-- which are public WITHIN a tenant and invisible outside it.
+CREATE TABLE IF NOT EXISTS tenants (
+  id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  -- An OIDC group claim that puts someone in this tenant automatically.
+  claim_value TEXT NOT NULL DEFAULT '',
+  accent TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tenant_members (
+  tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  from_claim INTEGER NOT NULL DEFAULT 0,
+  added_at INTEGER NOT NULL,
+  PRIMARY KEY (tenant_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS sites (
   id TEXT PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE,
@@ -473,6 +495,12 @@ function migrate(db: Database.Database) {
   if (!cols.includes("typeface")) {
     db.exec("ALTER TABLE spaces ADD COLUMN typeface TEXT NOT NULL DEFAULT 'classic'");
     db.exec("ALTER TABLE spaces ADD COLUMN corners TEXT NOT NULL DEFAULT 'rounded'");
+  }
+  if (!cols.includes("tenant_id")) {
+    // NULL means the space belongs to the library rather than to any one
+    // tenant — which is what every existing space is, and must stay.
+    db.exec("ALTER TABLE spaces ADD COLUMN tenant_id TEXT");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_spaces_tenant ON spaces(tenant_id)");
   }
   if (!cols.includes("model_kind")) {
     // The discipline a space's 3D models default to. A network team inserting

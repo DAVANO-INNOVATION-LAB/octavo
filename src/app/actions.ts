@@ -22,6 +22,16 @@ import { saveForwardConfig } from "@/lib/audit-forward";
 import { saveAskConfig } from "@/lib/ask";
 import { applySync } from "@/lib/sync-io";
 import {
+  addMember as addTenantMember,
+  createTenant,
+  deleteTenant,
+  getTenant,
+  getTenantBySlug,
+  removeMember as removeTenantMember,
+  setSpaceTenant,
+  updateTenant,
+} from "@/lib/tenants";
+import {
   addSection,
   createSite,
   deleteSite,
@@ -1253,6 +1263,104 @@ export async function shipNowAction() {
 }
 
 // ---- markdown sync ----
+
+// ---- tenants ----
+//
+// Instance-admin only, and deliberately so: a tenant boundary decides what
+// exists for whole groups of people, which is not a space administrator's
+// authority to change.
+
+export async function createTenantAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) redirect("/admin/tenants");
+  const t = createTenant(name);
+  recordAudit({
+    actor: user, action: "tenant.created", objectType: "tenant",
+    objectId: t.id, objectLabel: t.name, detail: {},
+  });
+  redirect(`/admin/tenants?tenant=${t.slug}&saved=1`);
+}
+
+export async function updateTenantAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const before = getTenant(id);
+  if (!before) redirect("/admin/tenants");
+  updateTenant(id, {
+    name: String(formData.get("name") ?? before.name),
+    claim_value: String(formData.get("claim_value") ?? ""),
+  });
+  const after = getTenant(id);
+  recordAudit({
+    actor: user, action: "tenant.updated", objectType: "tenant",
+    objectId: id, objectLabel: after?.name ?? before.name,
+    detail: { claim: after?.claim_value ?? "" },
+  });
+  redirect(`/admin/tenants?tenant=${after?.slug ?? before.slug}&saved=1`);
+}
+
+export async function deleteTenantAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const t = getTenant(id);
+  if (t) {
+    deleteTenant(id);
+    recordAudit({
+      actor: user, action: "tenant.deleted", objectType: "tenant",
+      objectId: id, objectLabel: t.name, detail: {},
+    });
+  }
+  revalidatePath("/");
+  redirect("/admin/tenants?saved=1");
+}
+
+export async function setSpaceTenantAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const slug = String(formData.get("tenant") ?? "");
+  const t = getTenantBySlug(slug);
+  const spaceId = String(formData.get("space") ?? "");
+  if (!t) redirect("/admin/tenants");
+  const into = formData.get("in") ? t.id : null;
+  setSpaceTenant(spaceId, into);
+  // Moving a space across a tenant boundary changes who can see it at all,
+  // which is exactly the kind of thing an audit log exists to record.
+  recordAudit({
+    actor: user, action: "tenant.space", objectType: "space",
+    objectId: spaceId, objectLabel: getSpace(spaceId)?.name ?? spaceId,
+    spaceId, detail: { tenant: into ? t.name : "the library" },
+  });
+  revalidatePath("/");
+  redirect(`/admin/tenants?tenant=${slug}&saved=1`);
+}
+
+export async function addTenantMemberAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const userId = String(formData.get("user") ?? "");
+  if (getTenant(id) && userId) {
+    addTenantMember(id, userId, false);
+    recordAudit({
+      actor: user, action: "tenant.member", objectType: "tenant",
+      objectId: id, objectLabel: getTenant(id)?.name ?? id,
+      detail: { added: userId },
+    });
+  }
+  redirect(`/admin/tenants?tenant=${String(formData.get("tenant") ?? "")}&saved=1`);
+}
+
+export async function removeTenantMemberAction(formData: FormData) {
+  const user = await requireInstanceAdmin();
+  const id = String(formData.get("id") ?? "");
+  const userId = String(formData.get("user") ?? "");
+  removeTenantMember(id, userId);
+  recordAudit({
+    actor: user, action: "tenant.member", objectType: "tenant",
+    objectId: id, objectLabel: getTenant(id)?.name ?? id,
+    detail: { removed: userId },
+  });
+  redirect(`/admin/tenants?tenant=${String(formData.get("tenant") ?? "")}&saved=1`);
+}
 
 // ---- published sites ----
 //

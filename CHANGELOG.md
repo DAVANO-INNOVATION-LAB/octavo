@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.23.0 — 2026-09-02
+
+### Added
+
+- **Tenant namespaces.** A tenant is a silo: its spaces do not exist for
+  anyone outside it, *including the public ones*, because "public" means
+  public within a tenant. This is a stronger boundary than a private space —
+  knowing the name of a tenant's space is not enough to open it. Create
+  tenants under Admin → Tenants.
+- **Membership from your directory.** A tenant can name an SSO group claim,
+  and members are reconciled from it on every sign-in. Anyone added by hand
+  stays added: a claim that stops appearing does not silently revoke access an
+  administrator granted deliberately.
+- Spaces in no tenant belong to **the library** and stay visible to everyone —
+  which is what every space is until it is moved, so turning this on changes
+  nothing until you use it. Instance admins stand outside tenancy; somebody
+  has to be able to run the instance.
+- Deleting a tenant returns its spaces to the library. No space or page is
+  deleted with it.
+
+### Changed
+
+- Tenancy is carried **inside the permission scope itself**, not passed
+  alongside it. A separate argument is a thing a caller can forget, and a
+  caller that forgets a tenancy filter shows one tenant another tenant's
+  library. The scope is built in one place and every query that reads spaces
+  takes the whole of it, so there is nothing to leave off.
 ## v0.22.1 — 2026-09-02
 
 ### Fixed

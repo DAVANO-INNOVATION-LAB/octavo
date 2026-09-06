@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Users, Trash2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
-import { listSpaces } from "@/lib/data";
+import { listSpaces, EVERYTHING } from "@/lib/data";
 import { groupGrants, groupMembers, listGroups } from "@/lib/groups";
 import { ROLE_LABEL, SPACE_ROLES } from "@/lib/capabilities";
 import {
@@ -27,7 +27,7 @@ export default async function AdminGroups({
   const { error } = await searchParams;
 
   const groups = listGroups();
-  const spaces = listSpaces("all");
+  const spaces = listSpaces(EVERYTHING);
   const bySpace = new Map(spaces.map((s) => [s.id, s]));
 
   return (

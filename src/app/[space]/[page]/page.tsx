@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
-import { may , readablePrivateSpaceIds , canReadSpaceAsVisitor, canEditSpace, canReadSpace } from "@/lib/roles";
+import { may , scopeFor , canReadSpaceAsVisitor, canEditSpace, canReadSpace } from "@/lib/roles";
 import { variantSiblings } from "@/lib/data";
 import { resolveVariants } from "@/lib/variants";
 import { VariantSwitcher } from "@/components/VariantSwitcher";
@@ -145,7 +145,7 @@ export default async function ReaderPage({
   // Count the read before rendering — published pages only, so drafts and
   // previews never inflate the numbers.
   if (page.published === 1) recordView(page.id);
-  const refs = backlinks(page.id, readablePrivateSpaceIds(user));
+  const refs = backlinks(page.id, scopeFor(user));
 
   // Runnable cookbooks: the play button appears only for signed-in members
   // on pages in a space that has connectors configured.

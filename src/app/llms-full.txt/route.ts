@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { flattenTree, listSpaces, pageTree } from "@/lib/data";
+import { flattenTree, listSpaces, pageTree, PUBLIC_ONLY } from "@/lib/data";
 import { pageToMarkdown } from "@/lib/transfer";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     "> Every published page of every public space, in reading order.",
     "",
   ];
-  for (const space of listSpaces([])) {
+  for (const space of listSpaces(PUBLIC_ONLY)) {
     out.push(`# ${space.name}`);
     if (space.description) out.push(`> ${space.description}`, "");
     for (const p of flattenTree(pageTree(space.id, true))) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSession, upsertOidcUser } from "@/lib/auth";
 import { syncClaimGroups } from "@/lib/groups";
+import { syncTenantsFromClaims } from "@/lib/tenants";
 import { discover, oidc, oidcSettings } from "@/lib/oidc";
 import { getDb } from "@/lib/db";
 import { normalizeOrcid } from "@/lib/orcid";
@@ -71,6 +72,10 @@ export async function GET(req: NextRequest) {
       ? claims.groups.map((g) => String(g))
       : [];
     syncClaimGroups(user.id, claimed);
+    // Tenancy comes from the same claim. A directory that already knows who
+    // belongs to which organisation should not need the answer entered again
+    // by hand in two places.
+    syncTenantsFromClaims(user.id, claimed);
 
     await createSession(user.id);
 

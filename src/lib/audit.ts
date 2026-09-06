@@ -68,6 +68,11 @@ export type AuditAction =
   | "site.created"
   | "site.updated"
   | "site.deleted"
+  | "tenant.created"
+  | "tenant.updated"
+  | "tenant.deleted"
+  | "tenant.space"
+  | "tenant.member"
   // moderation
   | "comment.deleted_by_moderator"
   | "comment.thread_resolved"

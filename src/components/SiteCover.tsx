@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { currentUser } from "@/lib/auth";
-import { readablePrivateSpaceIds } from "@/lib/roles";
+import { scopeFor } from "@/lib/roles";
 import { listSections, siteEntries, type Site } from "@/lib/sites";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SpaceCard } from "@/components/SpaceCard";
@@ -14,7 +14,7 @@ export async function SiteCover({ site }: { site: Site }) {
   const user = await currentUser();
   // Visibility is applied inside siteEntries. A site groups and renames; it
   // never widens what anyone may read.
-  const entries = siteEntries(site.id, readablePrivateSpaceIds(user));
+  const entries = siteEntries(site.id, scopeFor(user));
   const sections = listSections(site.id);
   const loose = entries.filter((e) => !e.sectionId);
 

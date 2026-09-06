@@ -619,6 +619,22 @@ section("A published site cannot widen what anyone may read");
   db.prepare("DELETE FROM sites WHERE id = 'it_site'").run();
 }
 
+// --- 2j. tenant administration is an instance admin's alone -----------------
+section("Tenant boundaries are not a space admin's to move");
+{
+  // A tenant boundary decides what exists for whole groups of people. A space
+  // administrator can already do anything inside their space; letting them
+  // move it across a silo would let them carry it out of one.
+  for (const who of ["it_editor", "it_reader", "it_agent", "it_outsider"]) {
+    const r = await get("/admin/tenants", who);
+    check(`${who}: tenant administration refused`, [302, 307, 308].includes(r.status), `got ${r.status}`);
+  }
+  const admin = await get("/admin/tenants", "it_admin");
+  check("an instance admin can administer tenants", admin.status === 200, `got ${admin.status}`);
+  const anonT = await fetch(`${BASE}/admin/tenants`, { redirect: "manual" });
+  check("signed out: tenant administration refused", [302, 307, 308].includes(anonT.status), `got ${anonT.status}`);
+}
+
 // --- 2e. search is bounded, and the bound respects permissions -----------------
 section("Search is bounded and still scoped");
 {

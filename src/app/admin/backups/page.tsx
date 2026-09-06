@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { AlertTriangle, Database, Download, Upload } from "lucide-react";
 import { currentUser } from "@/lib/auth";
-import { listSpaces } from "@/lib/data";
+import { listSpaces, EVERYTHING } from "@/lib/data";
 import { AdminShell } from "@/components/AdminShell";
 import { lastShipResult, replicaTarget } from "@/lib/replicate";
 import { saveReplicaAction, shipNowAction } from "@/app/actions";
@@ -21,7 +21,7 @@ export default async function AdminBackups({
   const { error, restored, replica } = await searchParams;
   const target = replicaTarget();
   const last = lastShipResult();
-  const spaces = listSpaces("all");
+  const spaces = listSpaces(EVERYTHING);
 
   return (
     <AdminShell active="/admin/backups">

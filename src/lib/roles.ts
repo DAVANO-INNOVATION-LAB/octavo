@@ -5,6 +5,8 @@ import { spaceForVisitorToken, VISITOR_COOKIE } from "./visitors";
 import { now } from "./util";
 import type { User } from "./auth";
 import { groupRoleFor, groupSpaceIds } from "./groups";
+import { tenantIdsFor } from "./tenants";
+import type { SpaceScope } from "./data";
 import {
   asSpaceRole,
   capabilities,
@@ -202,6 +204,17 @@ export function readablePrivateSpaceIds(user: User | null): "all" | string[] {
   return [...new Set([...direct, ...groupSpaceIds(user.id)])];
 }
 
+/**
+ * Everything this principal may see, as one value.
+ *
+ * This is the only place a SpaceScope is built. Every query that reads spaces
+ * takes the whole of it, so tenancy cannot be left off by a caller who did
+ * not know it existed.
+ */
+export function scopeFor(user: User | null): SpaceScope {
+  return { readable: readablePrivateSpaceIds(user), tenants: tenantIdsFor(user) };
+}
+
 /** May this principal read this space at all? */
 /**
  * canReadSpace, plus the visitor door.
@@ -224,8 +237,16 @@ export async function canReadSpaceAsVisitor(
 
 export function canReadSpace(
   user: User | null,
-  space: { id: string; visibility?: string }
+  space: { id: string; visibility?: string; tenant_id?: string | null }
 ): boolean {
+  // Tenancy is checked FIRST and applies to public spaces too. A tenant's
+  // public space is public within that tenant; anyone outside it must be
+  // refused before visibility is even considered, or knowing a slug would be
+  // enough to read across the silo.
+  if (space.tenant_id) {
+    const tenants = tenantIdsFor(user);
+    if (tenants !== "all" && !tenants.includes(space.tenant_id)) return false;
+  }
   if ((space.visibility ?? "public") !== "private") return true;
   const scope = readablePrivateSpaceIds(user);
   return scope === "all" || scope.includes(space.id);
