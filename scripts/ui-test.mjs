@@ -676,6 +676,79 @@ console.log("\nAccessibility\n");
   }
 }
 
+/* ————— text with nowhere to break ————— */
+//
+// The layout check above visits pages of ordinary prose, so it never met a
+// run of characters that cannot be broken. One pasted URL or hash is enough
+// to make a paragraph wider than its column and give the whole document a
+// horizontal scrollbar — and every page in the suite passed while a real
+// page in the library did exactly that.
+//
+// So this seeds the hard cases and looks at them directly.
+console.log("\nUnbreakable text\n");
+{
+  const space = db.prepare("SELECT id, slug FROM spaces WHERE visibility = 'public' LIMIT 1").get();
+  const blocks = [
+    { id: "ub1", type: "paragraph", props: {}, children: [], content: [
+      { type: "text", text: "s".padEnd(400, "aeiouhgfewinvbxz"), styles: {} }] },
+    { id: "ub2", type: "paragraph", props: {}, children: [], content: [
+      { type: "link", href: "https://example.org/" + "segment-".repeat(40),
+        content: [{ type: "text", text: "https://example.org/" + "segment-".repeat(40), styles: {} }] }] },
+    { id: "ub3", type: "paragraph", props: {}, children: [], content: [
+      { type: "text", text: "x".repeat(300), styles: { code: true } }] },
+    { id: "ub4", type: "heading", props: { level: 2 }, children: [], content: [
+      { type: "text", text: "H".padEnd(200, "qwertyuiop"), styles: {} }] },
+    { id: "ub5", type: "codeBlock", props: { language: "text" }, children: [], content: [
+      { type: "text", text: "const x = '" + "y".repeat(300) + "';", styles: {} }] },
+  ];
+  const t = Date.now();
+  db.prepare("DELETE FROM pages WHERE id = 'ui_unbreakable'").run();
+  db.prepare(
+    `INSERT INTO pages (id, space_id, parent_id, slug, title, content, content_text, position, published, created_at, updated_at)
+     VALUES ('ui_unbreakable', ?, NULL, 'ui-unbreakable', 'Unbreakable', ?, '', 9999, 1, ?, ?)`
+  ).run(space.id, JSON.stringify(blocks), t, t);
+
+  for (const [label, width, height] of [["mobile", 375, 780], ["tablet", 768, 900], ["desktop", 1440, 900]]) {
+    await send("Emulation.setDeviceMetricsOverride",
+      { width, height, deviceScaleFactor: 1, mobile: width < 768 }, sessionId);
+    await visit(`/${space.slug}/ui-unbreakable`, 1600);
+    checks++;
+    const r = await evaluate(`(() => {
+      const reader = document.querySelector(".reader");
+      if (!reader) return { why: "no reader" };
+      const offenders = [];
+      for (const el of reader.querySelectorAll("p, h1, h2, h3, li, td, blockquote")) {
+        if (el.scrollWidth > el.clientWidth + 1)
+          offenders.push(el.tagName + ' "' + el.textContent.slice(0, 18) + '"');
+      }
+      // Code is the deliberate exception: it scrolls rather than breaking,
+      // because a broken line of code is a wrong line of code.
+      const pre = reader.querySelector("pre");
+      return {
+        why: "",
+        offenders,
+        sideways: document.documentElement.scrollWidth > window.innerWidth + 1,
+        codeScrolls: pre ? pre.scrollWidth > pre.clientWidth + 1 || getComputedStyle(pre).overflowX !== "visible" : null,
+      };
+    })()`);
+    if (r?.why) fail(`unbreakable ${label}`, r.why);
+    else if (r.offenders.length) fail(`unbreakable ${label}`, `overflows its column: ${r.offenders.join(", ")}`);
+    else if (r.sideways) fail(`unbreakable ${label}`, "the page gained a horizontal scrollbar");
+    console.log(`  ${r && !r.why && !r.offenders.length && !r.sideways ? "✓" : "✗"} ${label} — nothing overflows, page does not scroll sideways`);
+  }
+  checks++;
+  const codeOk = await evaluate(`(() => {
+    const pre = document.querySelector(".reader pre");
+    if (!pre) return null;
+    return getComputedStyle(pre).overflowWrap === "normal";
+  })()`);
+  if (codeOk === false) fail("unbreakable", "a code block was allowed to break mid-token");
+  console.log(`  ${codeOk !== false ? "✓" : "✗"} code still scrolls rather than breaking`);
+
+  await send("Emulation.clearDeviceMetricsOverride", {}, sessionId);
+  db.prepare("DELETE FROM pages WHERE id = 'ui_unbreakable'").run();
+}
+
 /* ————— the measure actually changes the column ————— */
 //
 // Widening the writing without widening the frame around it changes nothing:

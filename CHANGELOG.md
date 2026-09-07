@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.24.1 — 2026-09-02
+
+### Fixed
+
+- **Text with nowhere to break ran off the page.** A pasted URL, a hash, a
+  token, a long compound word — any run of characters with no break
+  opportunity sat wider than its column and widened the whole document, so
+  the page gained a horizontal scrollbar and every other line shifted with
+  it. Such runs now wrap. Ordinary prose is untouched, because a word only
+  breaks when it would not otherwise fit, and code blocks still scroll rather
+  than break: a broken line of code is a wrong line of code.
 ## v0.24.0 — 2026-09-02
 
 ### Added

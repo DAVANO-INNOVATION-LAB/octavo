@@ -980,6 +980,35 @@ mark {
   color: var(--faint);
 }
 
+/* ————— Text that cannot break ————— */
+/*
+ * A pasted URL, a hash, a token, a long compound word: any run of characters
+ * with nowhere to break is wider than the column, and the default is to let
+ * it stick out. It does not merely overhang — it widens the document, so the
+ * whole page gains a horizontal scrollbar and every other line shifts.
+ *
+ * break-word only breaks a word that would not otherwise fit, so ordinary
+ * prose is untouched. Code is the deliberate exception: a broken line of code
+ * is a wrong line of code, so pre keeps its own horizontal scroll.
+ */
+.reader,
+.octavo-editor,
+.blk-model-title,
+.wordmark {
+  overflow-wrap: break-word;
+}
+
+/* A URL has no spaces at all, so it needs permission to break anywhere. */
+.reader a[href],
+.octavo-editor a[href] {
+  overflow-wrap: anywhere;
+}
+
+.reader pre,
+.octavo-editor pre {
+  overflow-wrap: normal;
+}
+
 /* ————— How wide the writing runs ————— */
 /*
  * One measure, set per space, honoured by the reader, the editor and print
