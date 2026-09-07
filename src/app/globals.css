@@ -980,6 +980,35 @@ mark {
   color: var(--faint);
 }
 
+/* ————— How wide the writing runs ————— */
+/*
+ * One measure, set per space, honoured by the reader, the editor and print
+ * alike — three columns that disagree about their own width is how a page
+ * comes out looking like a different document in each.
+ *
+ * "comfortable" is the classic prose measure, around eighty characters at the
+ * reading size. It is right for reading a chapter and can feel cramped while
+ * writing one, which is the whole reason the other two exist.
+ */
+:root {
+  --measure: 42rem;
+  --shell: 80rem;
+}
+[data-measure="wide"] { --measure: 56rem; --shell: 96rem; }
+[data-measure="full"] { --measure: none; --shell: none; }
+
+.measured {
+  max-width: var(--measure);
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+/* The column cannot be wider than the shell that holds it. Widening the
+   writing without widening the frame around it changes nothing, which is
+   why both follow the same setting. */
+.shell { max-width: var(--shell); }
+
 /* ————— For screen readers only ————— */
 /* Removed from sight, kept in the accessibility tree. display:none would
    take it out of both, which is the opposite of the point. */

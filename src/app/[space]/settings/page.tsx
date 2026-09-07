@@ -113,6 +113,25 @@ export default async function SpaceSettings({
           </div>
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+              Measure
+            </span>
+            <select
+              name="measure"
+              defaultValue={space.measure}
+              className="h-10 w-full rounded-lg border border-line bg-bg px-3 text-sm text-ink outline-none focus:border-accent"
+            >
+              <option value="comfortable">Comfortable — a book&rsquo;s column</option>
+              <option value="wide">Wide — more of the page</option>
+              <option value="full">Full — edge to edge</option>
+            </select>
+            <span className="mt-1 block text-xs text-faint">
+              How wide the writing runs, reading and editing alike. Comfortable
+              is about eighty characters a line, which is what a page of a book
+              gives you; wide trades some of that ease for more of the screen.
+            </span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
               3D models
             </span>
             <select

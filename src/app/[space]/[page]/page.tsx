@@ -202,7 +202,7 @@ export default async function ReaderPage({
         </>
       }
     >
-      <article className="rise mx-auto max-w-2xl">
+      <article className="rise measured">
         {page.published === 0 && (
           <p className="mb-6 inline-block rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
             Draft — only signed-in writers can see this page

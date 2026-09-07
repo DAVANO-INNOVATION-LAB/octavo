@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.24.0 — 2026-09-02
+
+### Added
+
+- **How wide the writing runs is now a choice**, per space, in space settings.
+  *Comfortable* is the classic prose measure and stays the default; *wide*
+  gives the text half again as much of the screen; *full* runs it edge to
+  edge. The setting applies to reading, editing and print alike, so a page
+  does not change shape depending on what you are doing to it.
+
+### Fixed
+
+- The frame widened with the writing. The column is a flex child of the space
+  shell, so its own width could never exceed the room the shell gave it — a
+  wider measure alone would have saved the setting and changed nothing on
+  screen. A check now asserts each setting actually widens the rendered
+  column.
 ## v0.23.0 — 2026-09-02
 
 ### Added

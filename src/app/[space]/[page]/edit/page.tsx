@@ -27,7 +27,7 @@ export default async function EditPage({
 
   return (
     <SpaceShell space={space} tree={tree} activeId={page.id} editing rail={null}>
-      <div className="mx-auto max-w-2xl">
+      <div className="measured">
         <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-line pb-4">
           <span
             className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.06em] ${

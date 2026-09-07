@@ -34,6 +34,8 @@ export type Space = {
   model_kind: string;
   /** The tenant this space belongs to, or null for the library itself. */
   tenant_id: string | null;
+  /** How wide the writing runs: comfortable, wide, or full. */
+  measure: string;
 };
 
 export type Page = {
@@ -216,7 +218,7 @@ export function updateSpace(
     Pick<
       Space,
       | "name" | "description" | "kind" | "visibility" | "shelf" | "typeface"
-      | "corners" | "icon" | "model_kind"
+      | "corners" | "icon" | "model_kind" | "measure"
     >
   >
 ) {
@@ -226,7 +228,7 @@ export function updateSpace(
     | undefined;
   if (!space) return;
   db.prepare(
-    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, shelf = ?, typeface = ?, corners = ?, icon = ?, model_kind = ?, updated_at = ? WHERE id = ?"
+    "UPDATE spaces SET name = ?, description = ?, kind = ?, visibility = ?, shelf = ?, typeface = ?, corners = ?, icon = ?, model_kind = ?, measure = ?, updated_at = ? WHERE id = ?"
   ).run(
     fields.name?.trim() ?? space.name,
     fields.description?.trim() ?? space.description,
@@ -246,6 +248,9 @@ export function updateSpace(
     MODEL_KINDS.includes(fields.model_kind ?? "")
       ? (fields.model_kind as string)
       : space.model_kind,
+    ["comfortable", "wide", "full"].includes(fields.measure ?? "")
+      ? (fields.measure as string)
+      : space.measure,
     now(),
     id
   );

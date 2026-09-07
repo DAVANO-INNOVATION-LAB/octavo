@@ -275,6 +275,7 @@ export async function updateSpaceAction(formData: FormData) {
     corners: String(formData.get("corners") ?? space.corners),
     icon: String(formData.get("icon") ?? space.icon),
     model_kind: String(formData.get("model_kind") ?? space.model_kind),
+    measure: String(formData.get("measure") ?? space.measure),
   });
   revalidatePath("/");
   revalidatePath(`/${space.slug}`);

@@ -676,6 +676,35 @@ console.log("\nAccessibility\n");
   }
 }
 
+/* ————— the measure actually changes the column ————— */
+//
+// Widening the writing without widening the frame around it changes nothing:
+// the column is a flex child of the shell, and its max-width cannot make it
+// wider than the space it is given. That is exactly how the first attempt at
+// this failed, silently, with the setting saved and the page unchanged.
+console.log("\nMeasure\n");
+{
+  const space = db.prepare("SELECT id, slug FROM spaces WHERE visibility = 'public' LIMIT 1").get();
+  const page = db.prepare("SELECT slug FROM pages WHERE space_id = ? AND published = 1 LIMIT 1").get(space.id);
+  const before = db.prepare("SELECT measure FROM spaces WHERE id = ?").get(space.id).measure;
+  const widths = {};
+  for (const m of ["comfortable", "wide", "full"]) {
+    db.prepare("UPDATE spaces SET measure = ? WHERE id = ?").run(m, space.id);
+    await visit(`/${space.slug}/${page.slug}`, 1500);
+    widths[m] = await evaluate(`(() => {
+      const p = document.querySelector(".reader p") || document.querySelector("article");
+      return p ? Math.round(p.getBoundingClientRect().width) : 0;
+    })()`);
+  }
+  db.prepare("UPDATE spaces SET measure = ? WHERE id = ?").run(before, space.id);
+
+  checks++;
+  const ok2 = widths.comfortable > 0 && widths.wide > widths.comfortable && widths.full >= widths.wide;
+  if (!ok2)
+    fail("measure", `setting it changed nothing: ${JSON.stringify(widths)}`);
+  console.log(`  ${ok2 ? "✓" : "✗"} each setting widens the column (${widths.comfortable} → ${widths.wide} → ${widths.full}px)`);
+}
+
 /* ————— admin: every section reachable, at every width ————— */
 //
 // This exists because the admin sections were once a single scrolling row

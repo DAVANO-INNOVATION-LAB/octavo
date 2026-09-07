@@ -496,6 +496,12 @@ function migrate(db: Database.Database) {
     db.exec("ALTER TABLE spaces ADD COLUMN typeface TEXT NOT NULL DEFAULT 'classic'");
     db.exec("ALTER TABLE spaces ADD COLUMN corners TEXT NOT NULL DEFAULT 'rounded'");
   }
+  if (!cols.includes("measure")) {
+    // How wide the writing runs. "comfortable" is the classic prose measure
+    // and stays the default; the wider settings exist because a column that
+    // is right for reading a chapter can feel cramped while writing one.
+    db.exec("ALTER TABLE spaces ADD COLUMN measure TEXT NOT NULL DEFAULT 'comfortable'");
+  }
   if (!cols.includes("tenant_id")) {
     // NULL means the space belongs to the library rather than to any one
     // tenant — which is what every existing space is, and must stay.
