@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -24,7 +24,9 @@
     "test:repo": "node scripts/repo-test.mjs",
     "test:failover": "node scripts/failover-test.mjs",
     "test:tenant": "node scripts/tenant-test.mjs",
-    "test:import": "node scripts/import-test.mjs"
+    "test:import": "node scripts/import-test.mjs",
+    "sweep": "node scripts/sweep-uploads.mjs",
+    "test:sweep": "node scripts/sweep-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

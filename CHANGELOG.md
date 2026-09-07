@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.25.1 — 2026-09-02
+
+### Added
+
+- **A sweep for uploads nothing refers to any more** — `npm run sweep`.
+  Deleting a page has never deleted what was attached to it, which is the
+  right default, but the residue is real: files no page names, still on disk
+  and still in every backup.
+
+  It reports and changes nothing unless asked. `--quarantine` moves the
+  orphans aside, `--restore` puts them back, and `--purge` is the only step
+  that destroys anything. A file is a candidate only if **no text column of
+  any table** mentions it — pages, history, comments, covers, settings alike —
+  and never if it is newer than the grace period, because an upload that has
+  just been made and not yet placed on a page looks exactly like an orphan.
 ## v0.25.0 — 2026-09-02
 
 ### Changed
