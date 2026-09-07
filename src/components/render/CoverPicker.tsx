@@ -4,6 +4,19 @@ import { useRef, useState } from "react";
 import { Image as ImageIcon, X } from "lucide-react";
 
 /**
+ * The space the author is working in, taken from the URL.
+ *
+ * Sent with every upload so the file has an owner from the moment it exists.
+ * Without it a just-uploaded image belongs to nobody and the editor cannot
+ * display the thing it has only this second sent.
+ */
+function currentSpaceSlug(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.split("/").filter(Boolean)[0] ?? "";
+}
+
+
+/**
  * The cover control a writer sees. Quiet until used: a small button above
  * the title; open it and there are six ink washes and an upload. The form
  * posts to a server action, so the whole thing degrades to a plain form.
@@ -33,6 +46,7 @@ export function CoverPicker({
     try {
       const fd = new FormData();
       fd.set("file", file);
+      fd.append("space", currentSpaceSlug());
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) return;
       const { url } = (await res.json()) as { url: string };

@@ -32,6 +32,19 @@ import { SketchBlockView } from "./SketchBlockView";
 import { SyncedPagePicker } from "./SyncedPagePicker";
 import { drawioOriginForMessages, drawioSrc } from "@/lib/client-config";
 
+/**
+ * The space the author is working in, taken from the URL.
+ *
+ * Sent with every upload so the file has an owner from the moment it exists.
+ * Without it a just-uploaded image belongs to nobody and the editor cannot
+ * display the thing it has only this second sent.
+ */
+function currentSpaceSlug(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.split("/").filter(Boolean)[0] ?? "";
+}
+
+
 // Resolved per render from the config the server injected, so an operator
 // can point this at a self-hosted draw.io without rebuilding the image.
 const drawioOrigin = () => drawioOriginForMessages();
@@ -87,6 +100,7 @@ function DrawioEditorModal({
             "file",
             new File([blob], "diagram.svg", { type: "image/svg+xml" })
           );
+          body.append("space", currentSpaceSlug());
           const res = await fetch("/api/upload", { method: "POST", body });
           if (!res.ok) throw new Error("upload failed");
           const data = await res.json();
@@ -370,6 +384,7 @@ export const ThemeImage = createReactBlockSpec(
           if (!file) return;
           const body = new FormData();
           body.append("file", file);
+          body.append("space", currentSpaceSlug());
           const res = await fetch("/api/upload", { method: "POST", body });
           if (!res.ok) return;
           const data = await res.json();
@@ -523,7 +538,8 @@ export const Model3DBlock = createReactBlockSpec(
                   if (!file) return;
                   const body = new FormData();
                   body.append("file", file);
-                  const res = await fetch("/api/upload", { method: "POST", body });
+                  body.append("space", currentSpaceSlug());
+          const res = await fetch("/api/upload", { method: "POST", body });
                   const json = (await res.json()) as { url?: string; error?: string };
                   if (json.url)
                     props.editor.updateBlock(props.block, { props: { dataUrl: json.url } });

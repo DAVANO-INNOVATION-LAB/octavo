@@ -111,6 +111,30 @@ CREATE TABLE IF NOT EXISTS collab_docs (
 -- site, which only changes how the library is PRESENTED, a tenant changes
 -- what exists as far as its members are concerned — including public spaces,
 -- which are public WITHIN a tenant and invisible outside it.
+-- Which space an uploaded file belongs to.
+--
+-- Without this an upload is an anonymous blob on disk and the only possible
+-- access rule is "anyone with the URL". A file inherits the readability of
+-- the spaces whose pages reference it, so an image on a public page still
+-- loads for a stranger and an attachment in a private space does not.
+CREATE TABLE IF NOT EXISTS uploads (
+  name TEXT PRIMARY KEY,
+  uploaded_by TEXT NOT NULL DEFAULT '',
+  -- The space it was uploaded into, where the uploader was in one.
+  space_id TEXT,
+  created_at INTEGER NOT NULL
+);
+
+-- A file can be referenced from more than one space; readable from any of
+-- them. Maintained whenever a page is saved, and backfilled from existing
+-- pages the first time this table appears.
+CREATE TABLE IF NOT EXISTS upload_refs (
+  name TEXT NOT NULL,
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  PRIMARY KEY (name, space_id)
+);
+CREATE INDEX IF NOT EXISTS idx_upload_refs_name ON upload_refs(name);
+
 CREATE TABLE IF NOT EXISTS tenants (
   id TEXT PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE,

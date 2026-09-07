@@ -446,8 +446,15 @@ section("A Confluence XML export imports whole");
   const img = homeBlocks.find((b) => b.type === "image");
   check("the attachment became a served image", Boolean(img && String(img.props.url).startsWith("/api/files/")));
   if (img) {
-    const file = await fetch(`${BASE}${img.props.url}`, { headers: as("it_editor") });
+    // Fetched as an instance admin, not as an editor of some other space: an
+    // import lands PRIVATE, so its attachments are private too, and an editor
+    // who is not a member of the imported space is correctly refused. What
+    // this check is for is that the bytes arrived and are served at all.
+    const file = await fetch(`${BASE}${img.props.url}`, { headers: as("it_admin") });
     check("and the served file is the attachment's bytes", file.ok, `HTTP ${file.status}`);
+    const stranger = await fetch(`${BASE}${img.props.url}`, { redirect: "manual" });
+    check("an imported attachment is not public because the import was",
+      stranger.status !== 200, `got ${stranger.status}`);
   }
   const deployBlocks = JSON.parse(kid.content);
   check("the warning macro became a danger callout",
@@ -645,6 +652,95 @@ section("Tenant boundaries are not a space admin's to move");
   check("an instance admin can administer tenants", admin.status === 200, `got ${admin.status}`);
   const anonT = await fetch(`${BASE}/admin/tenants`, { redirect: "manual" });
   check("signed out: tenant administration refused", [302, 307, 308].includes(anonT.status), `got ${anonT.status}`);
+}
+
+// --- 2k. an uploaded file is as private as the space that holds it -----------
+section("Uploads inherit the readability of their space");
+{
+  // An upload used to be an anonymous blob: the endpoint checked the shape of
+  // the name and served the bytes. Every attachment in every private space
+  // was readable by anyone holding the URL, and a URL is not a permission —
+  // it leaks into referrers, logs, chat and history, and neither removing the
+  // file from a page nor removing a person from a space takes one back.
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const dir = path.join(process.cwd(), "data", "uploads");
+  fs.mkdirSync(dir, { recursive: true });
+
+  const secret = "itsecretfile0001.md";
+  const open2 = "itpublicfile0001.md";
+  fs.writeFileSync(path.join(dir, secret), "PRIVATE-ATTACHMENT-BODY");
+  fs.writeFileSync(path.join(dir, open2), "PUBLIC-ATTACHMENT-BODY");
+  db.prepare("DELETE FROM upload_refs WHERE name IN (?, ?)").run(secret, open2);
+  db.prepare("DELETE FROM uploads WHERE name IN (?, ?)").run(secret, open2);
+  db.prepare("INSERT INTO upload_refs (name, space_id) VALUES (?, ?)").run(open2, space.id);
+  if (priv) db.prepare("INSERT INTO upload_refs (name, space_id) VALUES (?, ?)").run(secret, priv.id);
+
+  const fetchFile = async (name, who) => {
+    const r = await fetch(`${BASE}/api/files/${name}`, {
+      headers: who ? as(who) : {}, redirect: "manual",
+    });
+    return { status: r.status, body: r.status === 200 ? await r.text() : "" };
+  };
+
+  // The file on a public page must still load for a stranger, or every image
+  // in every published article breaks.
+  const pub = await fetchFile(open2, null);
+  check("a file on a public page still loads for a stranger",
+    pub.status === 200 && pub.body.includes("PUBLIC-ATTACHMENT-BODY"), `got ${pub.status}`);
+
+  if (priv) {
+    const anonSecret = await fetchFile(secret, null);
+    check("a private space's attachment is refused to a stranger",
+      anonSecret.status !== 200, `got ${anonSecret.status}`);
+    check("and its bytes do not appear in the response",
+      !anonSecret.body.includes("PRIVATE-ATTACHMENT-BODY"));
+
+    const outsider = await fetchFile(secret, "it_outsider");
+    check("refused to a signed-in non-member", outsider.status !== 200, `got ${outsider.status}`);
+
+    const member = await fetchFile(secret, "it_reader");
+    check("served to a member of that space",
+      member.status === 200 && member.body.includes("PRIVATE-ATTACHMENT-BODY"), `got ${member.status}`);
+
+    const admin2 = await fetchFile(secret, "it_admin");
+    check("served to an instance admin", admin2.status === 200, `got ${admin2.status}`);
+  }
+
+  // A file nothing references and nobody uploaded belongs to no one.
+  const orphan = "itorphanfile0001.md";
+  fs.writeFileSync(path.join(dir, orphan), "ORPHAN");
+  db.prepare("DELETE FROM upload_refs WHERE name = ?").run(orphan);
+  db.prepare("DELETE FROM uploads WHERE name = ?").run(orphan);
+  const orphanAnon = await fetchFile(orphan, null);
+  check("an unreferenced file is refused to a stranger", orphanAnon.status !== 200, `got ${orphanAnon.status}`);
+  const orphanEditor = await fetchFile(orphan, "it_editor");
+  check("and to a signed-in person who did not upload it", orphanEditor.status !== 200, `got ${orphanEditor.status}`);
+
+  // The uploader can read back what they just sent, before it is on a page.
+  db.prepare("INSERT INTO uploads (name, uploaded_by, space_id, created_at) VALUES (?, ?, NULL, ?)")
+    .run(orphan, "it_editor", Date.now());
+  const mine = await fetchFile(orphan, "it_editor");
+  check("but the person who uploaded it can", mine.status === 200, `got ${mine.status}`);
+  const notMine = await fetchFile(orphan, "it_reader");
+  check("and nobody else can", notMine.status !== 200, `got ${notMine.status}`);
+
+  // Refusal must not distinguish "exists but forbidden" from "does not exist".
+  const missing = await fetch(`${BASE}/api/files/itdoesnotexist01.md`, { redirect: "manual" });
+  const forbidden = await fetch(`${BASE}/api/files/${secret}`, { redirect: "manual" });
+  check("a refused file is indistinguishable from a missing one",
+    missing.status === forbidden.status, `${missing.status} vs ${forbidden.status}`);
+
+  for (const bad of ["../../etc/passwd", "..%2f..%2fetc%2fpasswd", "octavo.db"]) {
+    const r = await fetch(`${BASE}/api/files/${bad}`, { redirect: "manual" });
+    check(`a path outside uploads is refused (${bad.slice(0, 18)})`, r.status !== 200, `got ${r.status}`);
+  }
+
+  for (const n of [secret, open2, orphan]) {
+    fs.rmSync(path.join(dir, n), { force: true });
+    db.prepare("DELETE FROM upload_refs WHERE name = ?").run(n);
+    db.prepare("DELETE FROM uploads WHERE name = ?").run(n);
+  }
 }
 
 // --- 2e. search is bounded, and the bound respects permissions -----------------

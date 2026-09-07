@@ -19,6 +19,19 @@ import { useOctavoTheme } from "@/lib/theme-store";
 import { customSlashItems, octavoSchema } from "./customBlocks";
 import { FileText } from "lucide-react";
 
+/**
+ * The space the author is working in, taken from the URL.
+ *
+ * Sent with every upload so the file has an owner from the moment it exists.
+ * Without it a just-uploaded image belongs to nobody and the editor cannot
+ * display the thing it has only this second sent.
+ */
+function currentSpaceSlug(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.split("/").filter(Boolean)[0] ?? "";
+}
+
+
 type PageHit = {
   title: string;
   page_slug: string;
@@ -125,7 +138,8 @@ function smartPaste(context: {
 async function uploadFile(file: File): Promise<string> {
   const body = new FormData();
   body.append("file", file);
-  const res = await fetch("/api/upload", { method: "POST", body });
+  body.append("space", currentSpaceSlug());
+          const res = await fetch("/api/upload", { method: "POST", body });
   if (!res.ok) throw new Error("Upload failed");
   const data = await res.json();
   return data.url as string;

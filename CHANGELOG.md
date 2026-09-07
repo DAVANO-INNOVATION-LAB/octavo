@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.25.0 — 2026-09-02
+
+### Changed
+
+- **An uploaded file is now as readable as the space that holds it.** Files
+  are served through the same check the space itself uses: an image on a
+  public page still loads for a stranger, and an attachment in a private
+  space is served only to people who can open that space. Instance admins
+  keep access, and whoever uploaded a file can read it back before it has
+  been placed on a page.
+- Existing uploads are attributed to the spaces already using them the first
+  time an instance starts on this version, scanning current pages and their
+  history. Nothing that is in use stops rendering.
+- A refused file answers exactly as a missing one does. Whether a particular
+  upload exists is not something the answer should reveal.
 ## v0.24.2 — 2026-09-02
 
 ### Fixed

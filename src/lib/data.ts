@@ -371,6 +371,13 @@ export function createPage(input: {
     t
   );
   db.prepare("UPDATE spaces SET updated_at = ? WHERE id = ?").run(t, input.spaceId);
+  // A page created with content already in it — every importer does this —
+  // must register its files too. Doing this only on save meant an imported
+  // attachment belonged to no space and was refused to everyone.
+  if (content && content !== "[]") {
+    rebuildLinks(id, content);
+    syncUploadRefsInline(db, input.spaceId, content);
+  }
   return getPage(id)!;
 }
 
@@ -428,6 +435,31 @@ export function getVersion(id: string): PageVersion | null {
     .get(id) ?? null) as PageVersion | null;
 }
 
+/**
+ * A page's file references, recorded against its space.
+ *
+ * Written here rather than called out to lib/uploads, which reads spaces and
+ * would make the two modules import each other. Adding only: a file that has
+ * left this page may still be on another, so dropping the reference the
+ * moment it disappears would break the file everywhere else it is used.
+ */
+function syncUploadRefsInline(
+  db: ReturnType<typeof getDb>,
+  spaceId: string,
+  content: string
+): void {
+  const names = [
+    ...new Set(
+      [...content.matchAll(/\/api\/files\/([0-9a-z]+\.[0-9a-z]+)/g)].map((m) => m[1])
+    ),
+  ];
+  if (names.length === 0) return;
+  const stmt = db.prepare(
+    "INSERT INTO upload_refs (name, space_id) VALUES (?, ?) ON CONFLICT DO NOTHING"
+  );
+  for (const n of names) stmt.run(n, spaceId);
+}
+
 export function savePage(
   id: string,
   fields: { title?: string; content?: string; published?: boolean; by?: string }
@@ -459,7 +491,12 @@ export function savePage(
     t,
     page.space_id
   );
-  if (fields.content !== undefined) rebuildLinks(id, content);
+  if (fields.content !== undefined) {
+    rebuildLinks(id, content);
+    // Any file this page names now belongs to this space, so it stays as
+    // readable as the space is — and no more.
+    syncUploadRefsInline(db, page.space_id, content);
+  }
   // Sync full-text index.
   db.prepare("DELETE FROM pages_fts WHERE page_id = ?").run(id);
   if (published === 1) {

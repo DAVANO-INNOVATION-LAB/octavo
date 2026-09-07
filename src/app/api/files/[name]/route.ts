@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { UPLOADS_DIR } from "@/lib/db";
+import { currentUser } from "@/lib/auth";
+import { canReadUpload } from "@/lib/uploads";
 
 const MIME: Record<string, string> = {
   ".png": "image/png",
@@ -35,6 +37,12 @@ export async function GET(
     return new NextResponse("not found", { status: 404 });
   const file = path.join(UPLOADS_DIR, name);
   if (!fs.existsSync(file)) return new NextResponse("not found", { status: 404 });
+
+  // A file is as readable as the spaces that reference it. Refused as "not
+  // found" rather than "forbidden": whether a particular upload exists is
+  // itself something the answer should not reveal.
+  if (!canReadUpload(await currentUser(), name))
+    return new NextResponse("not found", { status: 404 });
 
   const ext = path.extname(name);
   const size = fs.statSync(file).size;

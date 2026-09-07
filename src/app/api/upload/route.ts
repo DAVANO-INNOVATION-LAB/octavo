@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
 import { currentUser } from "@/lib/auth";
-import { isAgent } from "@/lib/roles";
+import { canEditSpace, isAgent } from "@/lib/roles";
+import { getSpaceBySlug } from "@/lib/data";
+import { recordUpload } from "@/lib/uploads";
 import { UPLOADS_DIR } from "@/lib/db";
 import { newId } from "@/lib/util";
 
@@ -36,5 +38,13 @@ export async function POST(req: NextRequest) {
   const name = `${newId()}${ext}`;
   const buf = Buffer.from(await file.arrayBuffer());
   fs.writeFileSync(path.join(UPLOADS_DIR, name), buf);
+
+  // Record who uploaded it and where. Until the file lands on a page this is
+  // the only claim on it, and without a claim nobody but an instance admin
+  // could read back the thing they just sent.
+  const spaceSlug = String(form.get("space") ?? "").trim();
+  const space = spaceSlug ? getSpaceBySlug(spaceSlug) : null;
+  recordUpload(name, user.id, space && canEditSpace(user, space.id) ? space.id : null);
+
   return NextResponse.json({ url: `/api/files/${name}` });
 }
