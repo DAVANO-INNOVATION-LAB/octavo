@@ -1,9 +1,9 @@
 // Octavo load test — hammers key endpoints, reports throughput + latency.
 // Usage: node scripts/loadtest.mjs [baseUrl] [label]
-//   e.g. node scripts/loadtest.mjs http://localhost:8524 baseline
+//   e.g. node scripts/loadtest.mjs http://localhost:8541 baseline
 import { writeFileSync } from "node:fs";
 
-const BASE = process.argv[2] ?? "http://localhost:8524";
+const BASE = process.argv[2] ?? "http://localhost:8541";
 const LABEL = process.argv[3] ?? "run";
 const CONCURRENCY = 20;
 const DURATION_MS = 10_000;

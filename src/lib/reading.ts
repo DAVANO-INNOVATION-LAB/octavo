@@ -93,9 +93,35 @@ export function recordReading(
   // a mechanism.
   pruneIfNewDay(day);
 
+  // Collapse to one entry per block before writing anything.
+  //
+  // A real client sends each block once. Nothing stopped a caller sending the
+  // same block many times, and because each row is added to the last, the
+  // per-entry clamp bounded each repeat rather than the visit: several
+  // hundred copies of one block turned into hours of dwell and hundreds of
+  // views on a single passage. These numbers exist to tell a writer which
+  // paragraph is hard, so a number that can be inflated is worse than no
+  // number — it points the rewrite at the wrong place.
+  const merged = new Map<string, { id: string; dwell: number; revisits: number; exit: boolean }>();
+  for (const e of entries.slice(0, 400)) {
+    const prev = merged.get(e.id);
+    if (prev) {
+      prev.dwell += Number.isFinite(e.dwell) ? e.dwell : 0;
+      prev.revisits += Number.isFinite(e.revisits) ? e.revisits : 0;
+      prev.exit = prev.exit || e.exit;
+    } else {
+      merged.set(e.id, {
+        id: e.id,
+        dwell: Number.isFinite(e.dwell) ? e.dwell : 0,
+        revisits: Number.isFinite(e.revisits) ? e.revisits : 0,
+        exit: e.exit,
+      });
+    }
+  }
+
   let written = 0;
   db.transaction(() => {
-    for (const e of entries.slice(0, 400)) {
+    for (const e of merged.values()) {
       // A block id the page does not contain is either a stale client or
       // someone typing into curl. Either way it is not a reading signal.
       if (!validBlockIds.has(e.id)) continue;

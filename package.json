@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,7 @@
     "loadtest": "node scripts/loadtest.mjs",
     "validate": "node scripts/validate-content.mjs",
     "test:ui": "node scripts/ui-test.mjs",
-    "prebuild": "node scripts/vendor-assets.mjs",
+    "prebuild": "node scripts/stamp-version.mjs && node scripts/vendor-assets.mjs",
     "test:airgap": "node scripts/airgap-check.mjs",
     "sbom": "node scripts/sbom.mjs --prod",
     "test:integration": "node scripts/integration.mjs",

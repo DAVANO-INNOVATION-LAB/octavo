@@ -8,8 +8,10 @@ import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { requireTarget } from "./target.mjs";
 
-const BASE = process.argv[2] ?? "http://localhost:8523";
+const BASE = process.argv[2] ?? "http://localhost:8541";
+await requireTarget(BASE);
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PROFILE = path.join(process.cwd(), ".uitest-profile");
 const PORT = 9444;
@@ -757,8 +759,18 @@ console.log("\nUnbreakable text\n");
 // this failed, silently, with the setting saved and the page unchanged.
 console.log("\nMeasure\n");
 {
-  const space = db.prepare("SELECT id, slug FROM spaces WHERE visibility = 'public' LIMIT 1").get();
-  const page = db.prepare("SELECT slug FROM pages WHERE space_id = ? AND published = 1 LIMIT 1").get(space.id);
+  // Must be a space that HAS a published page: "the first public space" is
+  // whatever happens to sort first, and emptying it turns every check below
+  // into a crash that says nothing about the real cause.
+  const space = db.prepare(
+    `SELECT s.id, s.slug FROM spaces s
+      WHERE s.visibility = 'public'
+        AND EXISTS (SELECT 1 FROM pages p WHERE p.space_id = s.id AND p.published = 1)
+      ORDER BY s.position LIMIT 1`
+  ).get();
+  const page = space
+    ? db.prepare("SELECT slug FROM pages WHERE space_id = ? AND published = 1 LIMIT 1").get(space.id)
+    : null;
   const before = db.prepare("SELECT measure FROM spaces WHERE id = ?").get(space.id).measure;
   const widths = {};
   for (const m of ["comfortable", "wide", "full"]) {

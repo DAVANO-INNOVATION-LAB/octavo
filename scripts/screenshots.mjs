@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 
-const BASE = process.argv[2] ?? "http://localhost:8523";
+const BASE = process.argv[2] ?? "http://localhost:8541";
 const CHROME =
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PROFILE = path.join(process.cwd(), ".shot-profile");

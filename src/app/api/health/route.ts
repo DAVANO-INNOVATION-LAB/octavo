@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { VERSION } from "@/lib/version";
 import { isReplica } from "@/lib/db";
 import { lastShipResult } from "@/lib/replicate";
 import { lastPullResult } from "@/lib/replica";
@@ -31,6 +32,11 @@ export async function GET() {
   return NextResponse.json(
     {
       ok: true,
+      // The build this process is actually running. Test suites compare it
+      // against the checkout so that pointing one at a server left over from
+      // another session fails loudly instead of quietly reporting green for
+      // code that is not under test.
+      version: process.env.OCTAVO_VERSION ?? VERSION,
       role: replica ? "standby" : "primary",
       ...(pull ? { lastPull: { ok: pull.ok, at: pull.at, changed: pull.changed ?? false } } : {}),
       ...(ship ? { lastBackup: { ok: ship.ok, at: ship.at, verified: ship.verified ?? false } } : {}),

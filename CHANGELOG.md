@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.24.2 — 2026-09-02
+
+### Fixed
+
+- **Reading signals are now recorded once per passage per visit.** A beacon
+  naming the same passage repeatedly had each repeat counted separately, so a
+  single visit could report hours of attention on one paragraph. These numbers
+  exist to tell a writer which passage is hard; a number that can be inflated
+  points the rewrite at the wrong place.
+
+### Changed
+
+- `/api/health` reports the version it is running, and the test suites refuse
+  to run against a server that is not the current checkout. A suite that can
+  silently grade the wrong build is worse than no suite, because it is
+  believed.
 ## v0.24.1 — 2026-09-02
 
 ### Fixed

@@ -4,7 +4,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 
-const BASE = process.argv[2] ?? "http://localhost:8523";
+const BASE = process.argv[2] ?? "http://localhost:8541";
 const db = new Database(path.join(process.cwd(), "data", "octavo.db"));
 
 // Public spaces only: this crawl is anonymous, so private ones correctly

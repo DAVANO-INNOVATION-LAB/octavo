@@ -10,8 +10,10 @@
 // Usage: node scripts/breaking-test.mjs [baseUrl]
 import Database from "better-sqlite3";
 import path from "node:path";
+import { requireTarget } from "./target.mjs";
 
-const BASE = process.argv[2] ?? "http://localhost:8523";
+const BASE = process.argv[2] ?? "http://localhost:8541";
+await requireTarget(BASE);
 const db = new Database(path.join(process.cwd(), "data", "octavo.db"));
 
 let pass = 0, fail = 0;
@@ -27,7 +29,15 @@ const section = (s) => console.log(`\n${s}`);
 // on their absence.
 {
   const now = Date.now();
-  const sp = db.prepare("SELECT id FROM spaces WHERE visibility='public' LIMIT 1").get();
+  // The space these principals are given roles in MUST be the space the
+  // probes then target. Seeding members into one space and probing a page in
+  // another silently tests a principal with no role at all.
+  const sp = db.prepare(
+    `SELECT s.id, s.slug FROM spaces s
+      WHERE s.visibility = 'public'
+        AND EXISTS (SELECT 1 FROM pages p WHERE p.space_id = s.id AND p.published = 1)
+      ORDER BY s.position LIMIT 1`
+  ).get();
   for (const [id, ir, sr] of [["st_admin","admin","admin"],["st_editor","member","editor"],["st_reader","member","reader"],["st_agent","agent","agent"]]) {
     db.prepare("INSERT OR REPLACE INTO users (id,email,name,password_hash,role,created_at) VALUES (?,?,?,?,?,?)").run(id, id+"@x.org", id, "x", ir, now);
     db.prepare("INSERT OR REPLACE INTO space_members (space_id,user_id,role,added_at) VALUES (?,?,?,?)").run(sp.id, id, sr, now);
@@ -36,7 +46,11 @@ const section = (s) => console.log(`\n${s}`);
 }
 
 const as = (who) => ({ cookie: `octavo_session=sess_${who}` });
-const page = db.prepare("SELECT id FROM pages WHERE published=1 LIMIT 1").get();
+const page = db.prepare(
+  `SELECT p.id FROM pages p JOIN spaces s ON s.id = p.space_id
+    WHERE p.published = 1 AND s.visibility = 'public'
+    ORDER BY s.position LIMIT 1`
+).get();
 
 // A response that is a clean rejection: any 4xx, or a redirect to login/error.
 const cleanReject = (status) => status >= 400 && status < 500;
@@ -100,7 +114,7 @@ section("URL-import SSRF fence resists evasion");
     "http://127.0.0.1:8523/admin",                     // loopback to self
     "http://127.1/",                                    // shorthand loopback
     "http://0.0.0.0:8523/",                             // all-interfaces
-    "http://localhost:8523/admin/users",               // named loopback
+    "http://localhost:8541/admin/users",               // named loopback
     "http://10.0.0.1/",                                 // private A
     "http://192.168.1.1/",                              // private C
     "http://172.16.0.1/",                               // private B
@@ -225,7 +239,12 @@ section("Concurrent writes do not corrupt or deadlock");
 section("The composition engine survives pathological pages");
 {
   // Build a page whose blocks are hostile to the composer, publish it, read it.
-  const sp = db.prepare("SELECT id, slug FROM spaces WHERE visibility='public' LIMIT 1").get();
+  const sp = db.prepare(
+    `SELECT s.id, s.slug FROM spaces s
+      WHERE s.visibility = 'public'
+        AND EXISTS (SELECT 1 FROM pages p WHERE p.space_id = s.id AND p.published = 1)
+      ORDER BY s.position LIMIT 1`
+  ).get();
   const now = Date.now();
   const nasty = [
     // self-referential embed
@@ -256,7 +275,12 @@ section("The composition engine survives pathological pages");
 /* ═══ 7. XSS: injected markup renders as text, not script ═══ */
 section("Injected markup is inert in the reader");
 {
-  const sp = db.prepare("SELECT id, slug FROM spaces WHERE visibility='public' LIMIT 1").get();
+  const sp = db.prepare(
+    `SELECT s.id, s.slug FROM spaces s
+      WHERE s.visibility = 'public'
+        AND EXISTS (SELECT 1 FROM pages p WHERE p.space_id = s.id AND p.published = 1)
+      ORDER BY s.position LIMIT 1`
+  ).get();
   const now = Date.now();
   const payloads = [
     '<script>window.__pwned=1</script>',

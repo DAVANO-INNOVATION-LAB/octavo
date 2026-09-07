@@ -13,8 +13,10 @@ import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { requireTarget } from "./target.mjs";
 
-const BASE = process.argv[2] ?? "http://localhost:8523";
+const BASE = process.argv[2] ?? "http://localhost:8541";
+await requireTarget(BASE);
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const PROFILE = path.join(process.cwd(), ".airgap-profile");
 const PORT = 9445;

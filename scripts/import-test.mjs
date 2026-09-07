@@ -10,8 +10,10 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import { deflateRawSync } from "node:zlib";
+import { requireTarget } from "./target.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:8541";
+await requireTarget(BASE);
 const db = new Database(path.join(process.cwd(), "data", "octavo.db"));
 
 let pass = 0, fail = 0;

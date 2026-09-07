@@ -10,8 +10,10 @@ import Database from "better-sqlite3";
 import http from "node:http";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { requireTarget } from "./target.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:8541";
+await requireTarget(BASE);
 const db = new Database(path.join(process.cwd(), "data", "octavo.db"));
 
 let pass = 0, fail = 0;
@@ -24,7 +26,17 @@ const section = (s) => results.push(`\n${s}`);
 
 // --- fixtures: four principals, one per role ---------------------------------
 const now = Date.now();
-const space = db.prepare("SELECT id, slug FROM spaces WHERE visibility='public' LIMIT 1").get();
+// A public space that actually HAS a published page. Taking merely the first
+// public space couples the whole suite to whatever happens to sort first, and
+// emptying that space breaks every check below with an error that says
+// nothing about the real cause.
+const space = db.prepare(
+  `SELECT s.id, s.slug FROM spaces s
+    WHERE s.visibility = 'public'
+      AND EXISTS (SELECT 1 FROM pages p WHERE p.space_id = s.id AND p.published = 1)
+    ORDER BY s.position LIMIT 1`
+).get();
+if (!space) { console.error("No public space with a published page — seed one first."); process.exit(1); }
 const people = [
   ["it_admin", "Ada Admin", "admin", "admin"],
   ["it_editor", "Ed Editor", "member", "editor"],
