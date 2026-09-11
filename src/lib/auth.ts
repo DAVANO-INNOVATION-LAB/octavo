@@ -221,7 +221,9 @@ export function consumePendingToken(token: string): string | null {
   const [userId, expStr, mac] = parts;
   const payload = `${userId}.${expStr}`;
   const expected = sign(payload);
-  if (mac.length !== expected.length) return null;
+  // Signatures are lowercase SHA-256 hex. String length alone is not a byte
+  // length check: non-ASCII input can make timingSafeEqual throw.
+  if (!/^[0-9a-f]{64}$/.test(mac)) return null;
   if (!timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
   if (Number(expStr) < now()) return null;
   return userId;
