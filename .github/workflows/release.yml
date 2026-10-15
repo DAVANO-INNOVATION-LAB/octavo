@@ -104,7 +104,7 @@ jobs:
             REVISION=${{ steps.version.outputs.revision }}
           tags: ${{ steps.registries.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=min,scope=${{ matrix.arch }},ignore-error=true,timeout=2m
       # Signed evidence of what this image is and what went into it. A buyer
       # asking for supply-chain assurance can verify both with `gh attestation
       # verify`, against nothing but the artifact and this repository.
