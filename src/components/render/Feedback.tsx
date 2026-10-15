@@ -20,13 +20,13 @@ export function Feedback({ pageId }: { pageId: string }) {
 
   if (state === "done")
     return (
-      <p className="mt-12 text-center text-xs text-faint print:hidden">
+      <p className="mt-5 text-center text-xs text-faint print:hidden">
         Thank you — noted.
       </p>
     );
 
   return (
-    <div className="mt-12 flex flex-col items-center gap-3 border-t border-line pt-6 print:hidden">
+    <div className="mt-5 flex flex-wrap items-center justify-center gap-3 border-t border-line py-3 print:hidden">
       {state === "idle" ? (
         <>
           <p className="text-xs text-faint">Was this page helpful?</p>

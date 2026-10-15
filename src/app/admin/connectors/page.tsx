@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Connectors" };
 
 const TYPE_HINT: Record<string, string> = {
+  ray: "Ray dashboard URL. Published JSON block with entrypoint and optional runtime_env/resources.",
+  skypilot: "Octavo SkyPilot bridge URL. Published JSON block with task and optional source. Uses the bridge token.",
   webhook: "Signed JSON POST to any endpoint — the universal connector.",
   airflow: "Triggers a DAG run; the block's first line is `# dag: my_dag_id`.",
   github_actions: "workflow_dispatch on a workflow file URL.",
@@ -108,6 +110,8 @@ export default async function AdminConnectors({
               <option value="webhook">Webhook (any system)</option>
               <option value="airflow">Airflow</option>
               <option value="github_actions">GitHub Actions</option>
+                <option value="ray">Ray Jobs</option>
+                <option value="skypilot">SkyPilot bridge</option>
             </select>
           </label>
         </div>

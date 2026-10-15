@@ -1,5 +1,7 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import * as oidc from "openid-client";
+import { decryptSecret } from "./crypto";
 import { getSetting } from "./settings";
 
 // OIDC single sign-on — in core, never paywalled. Local accounts stay the
@@ -33,8 +35,9 @@ export function oidcSettings(): OidcSettings | null {
   const issuer = process.env.OCTAVO_OIDC_ISSUER || getSetting("oidc_issuer");
   const clientId =
     process.env.OCTAVO_OIDC_CLIENT_ID || getSetting("oidc_client_id");
-  const clientSecret =
-    process.env.OCTAVO_OIDC_CLIENT_SECRET || getSetting("oidc_client_secret");
+  const storedSecret = getSetting("oidc_client_secret");
+  const clientSecret = process.env.OCTAVO_OIDC_CLIENT_SECRET ||
+    (storedSecret?.startsWith("enc:") ? decryptSecret(storedSecret.slice(4)) : storedSecret);
   const baseUrl = process.env.OCTAVO_BASE_URL || getSetting("base_url");
   if (!issuer || !clientId || !clientSecret || !baseUrl) return null;
   return {
@@ -75,14 +78,15 @@ export function redirectUri(settings: OidcSettings): string {
 
 declare global {
   // Discovery is one network round-trip; cache it across requests,
-  // keyed by issuer so UI reconfiguration takes effect immediately.
+  // keyed by issuer and credentials so rotations take effect immediately.
   var __octavoOidcConfig:
-    | { issuer: string; promise: Promise<oidc.Configuration> }
+    | { key: string; promise: Promise<oidc.Configuration> }
     | undefined;
 }
 
 export function discover(settings: OidcSettings): Promise<oidc.Configuration> {
-  if (globalThis.__octavoOidcConfig?.issuer !== settings.issuer) {
+  const key = createHash("sha256").update(JSON.stringify([settings.issuer, settings.clientId, settings.clientSecret])).digest("hex");
+  if (globalThis.__octavoOidcConfig?.key !== key) {
     globalThis.__octavoOidcConfig = undefined;
   }
   if (!globalThis.__octavoOidcConfig) {
@@ -99,10 +103,10 @@ export function discover(settings: OidcSettings): Promise<oidc.Configuration> {
       )
       .catch((e) => {
         // Don't cache a failed discovery.
-        globalThis.__octavoOidcConfig = undefined;
+        if (globalThis.__octavoOidcConfig?.key === key) globalThis.__octavoOidcConfig = undefined;
         throw e;
       });
-    globalThis.__octavoOidcConfig = { issuer: settings.issuer, promise };
+    globalThis.__octavoOidcConfig = { key, promise };
   }
   return globalThis.__octavoOidcConfig.promise;
 }

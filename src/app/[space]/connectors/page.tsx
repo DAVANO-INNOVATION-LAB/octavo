@@ -132,6 +132,8 @@ export default async function SpaceConnectors({
                 <option value="webhook">Webhook (any system)</option>
                 <option value="airflow">Airflow</option>
                 <option value="github_actions">GitHub Actions</option>
+                <option value="ray">Ray Jobs</option>
+                <option value="skypilot">SkyPilot bridge</option>
               </select>
             </label>
           </div>

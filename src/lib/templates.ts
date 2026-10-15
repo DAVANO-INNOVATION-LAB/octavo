@@ -109,11 +109,23 @@ export type SpaceTemplate = {
   tagline: string;
   audience: string;
   kind: string;
-  group: "simple" | "engineering";
+  group: "simple" | "engineering" | "presentation";
   pages: TemplatePage[];
 };
 
 export const TEMPLATES: SpaceTemplate[] = [
+  {
+    id: "job-demos", group: "engineering", name: "Runnable job demos",
+    tagline: "CPU-only Ray and SkyPilot examples with synthetic data.",
+    audience: "Engineers learning job submission", kind: "docs",
+    pages: [{title:"Start here",blocks:[h(2,"Connect, publish, run"),p(t("Ask a space administrator to configure a Ray Jobs connector or the optional SkyPilot bridge. Use your own private endpoint and save credentials only in connector settings. These examples contain no accounts, tokens, customer data, or automatic connections.")),p(t("The six draft pages demonstrate synthetic ETL, deliberate failure, and cancellation. Publish a reviewed page, select its matching connector, and choose Run. Refresh status to see completion and logs. Execution requires write access; readers and agent accounts cannot submit jobs.")),p(t("SkyPilot examples request CPU-only Kubernetes resources. Your operator must configure Kubernetes access and quotas. Ray examples use the existing cluster. No GPU or cloud account is required for these examples."))]},
+{title:"Ray \u2014 Synthetic ETL",blocks:[p(t("Expected: succeeded, 3 synthetic records, 9600 total bytes. This example processes metadata in memory; it does not transfer S3 objects.")),p(t("Choose the matching connector. Review and publish this draft before running. No job runs automatically.")),code("json","{\n  \"entrypoint\": \"python3 -c 'import json; rows=[{\\\"kind\\\":k,\\\"bytes\\\":n} for k,n in [(\\\"image\\\",1200),(\\\"text\\\",400),(\\\"video\\\",8000)]]; print(json.dumps({\\\"records\\\":len(rows),\\\"total_bytes\\\":sum(r[\\\"bytes\\\"] for r in rows),\\\"synthetic\\\":True}))'\",\n  \"entrypoint_num_cpus\": 1\n}")]},
+{title:"Ray \u2014 Expected failure",blocks:[p(t("Expected: failed with exit code 2. This deliberately tests failure reporting.")),p(t("Choose the matching connector. Review and publish this draft before running. No job runs automatically.")),code("json","{\n  \"entrypoint\": \"python3 -c 'raise SystemExit(2)'\",\n  \"entrypoint_num_cpus\": 1\n}")]},
+{title:"Ray \u2014 Cancellation",blocks:[p(t("Submit, then choose Cancel job and Refresh status. Expected: cancelled.")),p(t("Choose the matching connector. Review and publish this draft before running. No job runs automatically.")),code("json","{\n  \"entrypoint\": \"sleep 120\",\n  \"entrypoint_num_cpus\": 1\n}")]},
+{title:"Skypilot \u2014 Synthetic ETL",blocks:[p(t("Expected: succeeded, 3 synthetic records, 9600 total bytes. This example processes metadata in memory; it does not transfer S3 objects.")),p(t("Choose the matching connector. Review and publish this draft before running. No job runs automatically.")),code("json","{\n  \"task\": {\n    \"resources\": {\n      \"cloud\": \"kubernetes\",\n      \"cpus\": 1,\n      \"memory\": 1\n    },\n    \"run\": \"python3 -c 'import json; rows=[{\\\"kind\\\":k,\\\"bytes\\\":n} for k,n in [(\\\"image\\\",1200),(\\\"text\\\",400),(\\\"video\\\",8000)]]; print(json.dumps({\\\"records\\\":len(rows),\\\"total_bytes\\\":sum(r[\\\"bytes\\\"] for r in rows),\\\"synthetic\\\":True}))'\"\n  }\n}")]},
+{title:"Skypilot \u2014 Expected failure",blocks:[p(t("Expected: failed with exit code 2. This deliberately tests failure reporting.")),p(t("Choose the matching connector. Review and publish this draft before running. No job runs automatically.")),code("json","{\n  \"task\": {\n    \"resources\": {\n      \"cloud\": \"kubernetes\",\n      \"cpus\": 1,\n      \"memory\": 1\n    },\n    \"run\": \"python3 -c 'raise SystemExit(2)'\"\n  }\n}")]},
+{title:"Skypilot \u2014 Cancellation",blocks:[p(t("Submit, then choose Cancel job and Refresh status. Expected: cancelled.")),p(t("Choose the matching connector. Review and publish this draft before running. No job runs automatically.")),code("json","{\n  \"task\": {\n    \"resources\": {\n      \"cloud\": \"kubernetes\",\n      \"cpus\": 1,\n      \"memory\": 1\n    },\n    \"run\": \"sleep 120\"\n  }\n}")]}]},
+
   {
     id: "blank",
     name: "Blank",
@@ -122,6 +134,45 @@ export const TEMPLATES: SpaceTemplate[] = [
     kind: "docs",
     group: "simple",
     pages: [{ title: "Introduction", blocks: [] }],
+  },
+  {
+    id: "product-demo", name: "Product demo",
+    tagline: "A guided walkthrough from problem to proof and next steps.", audience: "Product teams",
+    kind: "docs", group: "presentation",
+    pages: [{ title: "Product demo", blocks: [
+          p(t("Replace these prompts with your content, then select Present to walk through the sections. This is an editable document presentation, not a slide deck.")),
+          h(2, "The problem"), p(t("Describe the audience, their current workflow, and the outcome they need.")),
+          h(2, "What we will demonstrate"), p(t("List the capabilities you will show and define what a successful result looks like.")),
+          h(2, "Live walkthrough"), p(t("Add screenshots, diagrams or a video. Walk through the input, the action and the visible result. Use sample data for demonstrations.")),
+          h(2, "Evidence and limitations"), p(t("Include measured results and show an expected failure or recovery case. Clearly label anything simulated or not yet supported.")),
+          h(2, "Next steps"), p(t("Summarize the result, invite questions, and record the agreed next action."))
+    ] }],
+  },
+  {
+    id: "technical-presentation", name: "Technical walkthrough",
+    tagline: "Architecture, workflow, validation and operational readiness.", audience: "Engineers and architects",
+    kind: "docs", group: "presentation",
+    pages: [{ title: "Technical walkthrough", blocks: [
+          p(t("Replace these prompts with your content, then select Present to walk through the sections. This is an editable document presentation, not a slide deck.")),
+          h(2, "Purpose and scope"), p(t("State the problem, audience, constraints and boundaries of this walkthrough.")),
+          h(2, "Architecture"), p(t("Add a system diagram. Explain components, interfaces and data ownership.")),
+          h(2, "Workflow"), p(t("Trace one representative input through the system. Show transformations and outputs.")),
+          h(2, "Validation and recovery"), p(t("Show test evidence, failure handling, recovery steps and any remaining risks.")),
+          h(2, "Rollout and questions"), p(t("Describe prerequisites, rollout stages and rollback criteria. Capture open decisions."))
+    ] }],
+  },
+  {
+    id: "project-briefing", name: "Project briefing",
+    tagline: "A concise update with progress, risks and decisions.", audience: "Leadership and project teams",
+    kind: "docs", group: "presentation",
+    pages: [{ title: "Project briefing", blocks: [
+          p(t("Replace these prompts with your content, then select Present to walk through the sections. This is an editable document presentation, not a slide deck.")),
+          h(2, "Executive summary"), p(t("State the objective and the most important outcome since the previous update.")),
+          h(2, "Progress and evidence"), p(t("Show completed milestones and supporting results. Distinguish completed work from plans.")),
+          h(2, "Risks and dependencies"), p(t("List the material risks, their impact, and the owner of each response.")),
+          h(2, "Decisions needed"), p(t("Describe each decision, available options, recommendation and deadline.")),
+          h(2, "Next milestones"), p(t("Record owners, deliverables and dates. Close with questions."))
+    ] }],
   },
   {
     id: "lab-notebook",

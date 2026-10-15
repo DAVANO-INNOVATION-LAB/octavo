@@ -787,6 +787,16 @@ const rows = db.prepare("SELECT id, prev_hash, hash FROM audit_log ORDER BY at A
 let prev = "0".repeat(64), broken = null;
 for (const r of rows) { if (r.prev_hash !== prev) { broken = r.id; break; } prev = r.hash; }
 check(`chain links across ${rows.length} entries`, broken === null, broken ? `breaks at ${broken}` : "");
+// Generate the failed sign-in event instead of depending on historical data.
+{
+  const html = await (await fetch(`${BASE}/login`)).text();
+  const form = [...html.matchAll(/<form[^>]*>[\s\S]*?<\/form>/g)].map(m => m[0]).find(f => f.includes('name="email"'));
+  const action = form?.match(/name="(\$ACTION_ID_[^"]+)"/)?.[1];
+  if (action) {
+    const body = new FormData(); body.set(action, ""); body.set("email", "integration-nonexistent@example.test"); body.set("password", "deliberately-incorrect");
+    await fetch(`${BASE}/login`, {method: "POST", headers: {origin: BASE}, body, redirect: "manual"});
+  }
+}
 const failed = db.prepare("SELECT COUNT(*) c FROM audit_log WHERE action='auth.signin_failed'").get().c;
 check("failed sign-ins are on the record", failed > 0, `${failed} recorded`);
 

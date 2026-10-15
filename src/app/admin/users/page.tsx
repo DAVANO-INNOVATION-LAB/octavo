@@ -6,6 +6,7 @@ import {
   resetTotpAction,
   setRoleAction,
 } from "@/app/actions";
+import { AddUserForm } from "@/components/AddUserForm";
 import { AdminShell } from "@/components/AdminShell";
 
 export const dynamic = "force-dynamic";
@@ -15,12 +16,13 @@ export const metadata = { title: "Users" };
 export default async function AdminUsers({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; created?: string }>;
 }) {
   const me = await currentUser();
   if (!me) redirect("/login");
   if (me.role !== "admin") redirect("/");
-  const { error } = await searchParams;
+  const { error, created } = await searchParams;
+  const errors: Record<string, string> = { name: "Enter a name of 1–120 characters.", email: "Enter a valid email address.", password: "Use a password of 12–128 characters.", role: "Choose Member or Administrator.", duplicate: "An account with that email already exists." };
   const users = listUsers();
 
   return (
@@ -30,10 +32,11 @@ export default async function AdminUsers({
           You can’t demote or delete your own account.
         </p>
       )}
+      {created === "1" && <p role="status" className="mb-4 rounded-lg bg-accent-soft p-3 text-sm text-accent">User created. Assign space access from the space’s Members page.</p>}
+      {error && errors[error] && <p role="alert" className="mb-4 rounded-lg bg-accent-soft p-3 text-sm text-accent">{errors[error]}</p>}
+      <AddUserForm />
       <p className="mb-4 text-sm text-muted">
-        {users.length} {users.length === 1 ? "member" : "members"}. Groups
-        arrive with SCIM provisioning — for now roles are the boundary:
-        admins see this office, members write.
+        {users.length} {users.length === 1 ? "member" : "members"}. Manage local accounts here and space permissions from each space’s Members page.
       </p>
       <ul className="space-y-2">
         {users.map((u) => (

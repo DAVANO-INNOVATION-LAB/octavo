@@ -5,6 +5,7 @@ import { CheckCircle2, ExternalLink, Play, XCircle } from "lucide-react";
 
 type Connector = { id: string; name: string; type: string };
 type LastRun = {
+  id?: string;
   status: string;
   user_name: string;
   started: number;
@@ -38,6 +39,9 @@ export function RunButton({
   lastRun: LastRun;
 }) {
   const [connectorId, setConnectorId] = useState(connectors[0]?.id ?? "");
+  const [runId, setRunId] = useState(lastRun?.id ?? "");
+  const [jobError, setJobError] = useState("");
+  const jobTarget = ["ray", "skypilot"].includes(connectors.find(c => c.id === connectorId)?.type ?? "");
   const [state, setState] = useState<"idle" | "running" | "done">("idle");
   const [result, setResult] = useState<{
     status: string;
@@ -46,6 +50,8 @@ export function RunButton({
   } | null>(null);
 
   async function run() {
+    if (jobTarget && !window.confirm("Submit the saved, published job specification to this connector? The target may allocate compute resources.")) return;
+    setJobError("");
     setState("running");
     setResult(null);
     try {
@@ -55,9 +61,10 @@ export function RunButton({
         body: JSON.stringify({ pageId, blockId, connectorId, params: {} }),
       });
       const data = await res.json();
+      setRunId(data.runId ?? "");
       setResult({
         status: data.status ?? "failed",
-        output: data.output ?? "",
+        output: data.output ?? data.error ?? "",
         externalUrl: data.externalUrl ?? "",
       });
     } catch (e) {
@@ -70,6 +77,18 @@ export function RunButton({
     setState("done");
   }
 
+  async function refresh(stop = false) {
+    if (stop && !window.confirm("Request cancellation of this job?")) return;
+    setState("running"); setJobError("");
+    try {
+      const res = await fetch(`/api/runs/${encodeURIComponent(runId)}`, {method: stop ? "POST" : "GET"});
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error ?? "Could not refresh job");
+      setResult(data);
+    } catch(e) { setJobError(e instanceof Error ? e.message : "Could not refresh job"); }
+    setState("done");
+  }
+
   const shown = result ?? (lastRun ? { status: lastRun.status, output: lastRun.output, externalUrl: lastRun.external_url } : null);
 
   return (
@@ -77,7 +96,7 @@ export function RunButton({
       <div className="run-bar">
         <button onClick={run} disabled={state === "running" || !connectorId} className="run-play">
           <Play size={12} />
-          {state === "running" ? "Running…" : "Run"}
+          {state === "running" ? "Working…" : jobTarget ? "Submit job" : "Run"}
         </button>
         {connectors.length > 1 && (
           <select
@@ -104,10 +123,12 @@ export function RunButton({
           </span>
         )}
       </div>
+      {runId && jobTarget && <div className="run-bar"><button onClick={() => refresh()} disabled={state === "running"} className="run-play">Refresh status / logs</button>{shown?.status === "running" && <button onClick={() => refresh(true)} disabled={state === "running"} className="run-play">Cancel job</button>}</div>}
+      {jobError && <p role="alert" className="text-sm text-accent">{jobError}</p>}
       {shown && (
         <div className="run-output">
           <p className="run-status">
-            {shown.status === "succeeded" ? (
+            {shown.status === "running" ? <Play size={13}/> : shown.status === "succeeded" ? (
               <CheckCircle2 size={13} className="run-ok" />
             ) : (
               <XCircle size={13} className="run-bad" />

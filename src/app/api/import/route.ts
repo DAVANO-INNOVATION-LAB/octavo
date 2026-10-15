@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { isAgent } from "@/lib/roles";
+import { getSpaceBySlug } from "@/lib/data";
+import { revalidatePath } from "next/cache";
+import { isAgent, setSpaceMember } from "@/lib/roles";
 import { importUpload } from "@/lib/transfer";
 
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -27,6 +29,11 @@ export async function POST(req: NextRequest) {
   try {
     const buf = Buffer.from(await file.arrayBuffer());
     const result = importUpload(file.name, buf, name || undefined);
+    const space = getSpaceBySlug(result.spaceSlug);
+    if (!space) throw new Error("Imported space was not found");
+    setSpaceMember(space.id, user.id, "admin");
+    revalidatePath("/");
+    revalidatePath(`/${space.slug}`);
     return NextResponse.redirect(new URL(`/${result.spaceSlug}`, req.url), {
       status: 303,
     });

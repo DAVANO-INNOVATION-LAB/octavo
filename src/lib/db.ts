@@ -484,6 +484,7 @@ function open(): Database.Database {
 
 /** Additive migrations for databases created by earlier versions. */
 function migrate(db: Database.Database) {
+  if (!(db.pragma("table_info(runs)") as {name:string}[]).some(c => c.name === "remote_id")) db.exec("ALTER TABLE runs ADD COLUMN remote_id TEXT NOT NULL DEFAULT ''");
   {
     const pageCols = (db.pragma("table_info(pages)") as { name: string }[]).map((c) => c.name);
     if (pageCols.length && !pageCols.includes("cover")) {

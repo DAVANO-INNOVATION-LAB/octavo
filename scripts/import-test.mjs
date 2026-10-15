@@ -75,6 +75,10 @@ async function importZip(fileName, buf, spaceName) {
     redirect: "manual",
   });
   const loc = res.headers.get("location") ?? "";
+  if (res.status === 303 && loc && !loc.includes("error=")) {
+    const landing = await fetch(new URL(loc, BASE), {headers: {cookie: `octavo_session=${session.id}`}});
+    ok("import redirect opens a readable space", landing.status === 200, `status ${landing.status}`);
+  }
   return { status: res.status, slug: loc.split("/").filter(Boolean).pop() ?? "", loc };
 }
 

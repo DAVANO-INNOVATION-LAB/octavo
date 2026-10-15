@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  distDir: process.env.OCTAVO_BUILD_DIR || ".next",
   serverExternalPackages: ["better-sqlite3"],
   // Octavo serves uploads and vendored assets directly and uses no
   // next/image anywhere, so the optimizer would only ever sit there

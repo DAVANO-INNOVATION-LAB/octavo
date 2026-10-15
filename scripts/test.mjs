@@ -10,7 +10,7 @@ import * as nodeCrypto from "node:crypto";
 const STAGE = path.join(process.cwd(), ".test-stage");
 rmSync(STAGE, { recursive: true, force: true });
 mkdirSync(STAGE, { recursive: true });
-for (const f of ["markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex", "orcid", "model-data", "notion", "confluence-html"]) {
+for (const f of ["oidc-policy", "benchmark", "markdown", "blocks", "util", "zip", "templates", "totp", "mentions", "diff", "sync", "capabilities", "variants", "yaml", "openapi", "syslog", "reading-score", "policy-pure", "xml", "html-blocks", "page-compose", "bibtex", "orcid", "model-data", "notion", "confluence-html"]) {
   const src = readFileSync(`src/lib/${f}.ts`, "utf8")
     .replace(/from "\.\/([a-z-]+)"/g, 'from "./$1.ts"')
     .replace(/import "server-only";\n?/g, "");
@@ -163,7 +163,7 @@ test("all templates are valid BlockNote docs", () => {
   };
   const walk = (ps) => ps.forEach((p) => { ok(p.title, "untitled page"); checkBlocks(p.blocks); if (p.children) walk(p.children); });
   tpl.TEMPLATES.forEach((t) => {
-    ok(["simple", "engineering"].includes(t.group), `bad group ${t.id}`);
+    ok(["simple", "engineering", "presentation"].includes(t.group), `bad group ${t.id}`);
     walk(t.pages);
   });
   ok(blocks > 100, "suspiciously few blocks");
@@ -172,6 +172,35 @@ test("template ids unique, fallback works", () => {
   const ids = tpl.TEMPLATES.map((t) => t.id);
   eq(new Set(ids).size, ids.length, "duplicate ids");
   eq(tpl.getTemplate("nope").id, "blank");
+});
+
+const benchmark = await import(pathToFileURL(path.join(STAGE, "benchmark.ts")));
+test("benchmark CSV preserves quoted commas, CRLF and zero values", () => {
+  eq(benchmark.benchmarkRows('metric,value\r\n"GPU, 0",0\r\n'), [["metric","value"],["GPU, 0","0"]]);
+});
+test("benchmark CSV rejects oversized, unclosed and inconsistent input", () => {
+  for (const input of ['x,y\na', 'x,y\n"bad,2', 'x'.repeat(1000001), 'x,y\n'+ '1,2\n'.repeat(501)]) {
+    let rejected = false; try { benchmark.benchmarkRows(input); } catch { rejected = true; } ok(rejected);
+  }
+});
+test("benchmark source rejects executable and credential-bearing URLs", () => {
+  for (const url of ['javascript:alert(1)', 'https://user:secret@example.com']) {
+    let rejected = false; try { benchmark.benchmarkSource(url); } catch { rejected = true; } ok(rejected);
+  }
+});
+
+const oidcPolicy = await import(pathToFileURL(path.join(STAGE, "oidc-policy.ts")));
+test("OIDC requires verified email and exact allowed domain", () => {
+  eq(oidcPolicy.verifiedOidcEmail({email:" Person@Example.com ",email_verified:true},"example.com"),"person@example.com");
+  for (const claims of [{email:"a@example.com"},{email:"a@example.com",email_verified:"true"},{email:"a@evil-example.com",email_verified:true}]) {
+    let rejected=false; try { oidcPolicy.verifiedOidcEmail(claims,"example.com"); } catch { rejected=true; } ok(rejected);
+  }
+});
+test("OIDC URL settings refuse credentials, fragments and mismatched base paths", () => {
+  oidcPolicy.validateOidcUrls("https://id.example.com/realms/main","https://docs.example.com");
+  for (const url of ["javascript:bad","https://user:pass@example.com","https://docs.example.com/subpath","https://docs.example.com/#bad"]) {
+    let rejected=false; try { oidcPolicy.validateOidcUrls("https://id.example.com",url); } catch { rejected=true; } ok(rejected);
+  }
 });
 
 console.log("totp:");

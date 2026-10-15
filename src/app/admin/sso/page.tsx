@@ -83,7 +83,7 @@ export default async function AdminSso({
         </p>
       )}
       <p className="mb-6 text-sm leading-relaxed text-muted">
-        Works with any OpenID Connect provider — Keycloak, Authentik, Dex,
+        Requires a verified email claim (email_verified=true). Local administrator sign-in remains available for recovery. Works with an OpenID Connect provider — Keycloak, Authentik, Dex,
         Okta, Entra. Register a client with redirect URI{" "}
         <code className="rounded bg-surface-2 px-1 text-xs">
           {active?.baseUrl ?? "https://your-octavo"}/api/auth/oidc/callback
@@ -148,7 +148,7 @@ export default async function AdminSso({
         </button>
       </form>
       <p className="mt-4 max-w-2xl text-xs leading-relaxed text-faint">
-        Works with any OpenID Connect provider — including ORCID for research
+        Requires a verified email claim (email_verified=true). Local administrator sign-in remains available for recovery. Works with an OpenID Connect provider — including ORCID for research
         groups: issuer <code>https://orcid.org</code>, with the client id and
         secret from their developer tools. Members then sign in with their
         ORCID iD.

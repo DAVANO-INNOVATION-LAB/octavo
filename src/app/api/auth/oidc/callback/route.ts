@@ -1,3 +1,4 @@
+import { verifiedOidcEmail } from "@/lib/oidc-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { createSession, upsertOidcUser } from "@/lib/auth";
 import { syncClaimGroups } from "@/lib/groups";
@@ -12,9 +13,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "SSO is not configured" }, { status: 404 });
   const fail = (reason: string) => {
     console.error("oidc callback rejected:", reason);
-    return NextResponse.redirect(new URL("/login?error=sso", settings.baseUrl), {
-      status: 303,
-    });
+    const response = NextResponse.redirect(new URL("/login?error=sso", settings.baseUrl), { status: 303 });
+    response.cookies.set("octavo_oidc", "", { path: "/api/auth/oidc", maxAge: 0 });
+    return response;
   };
 
   const stashRaw = req.cookies.get("octavo_oidc")?.value;
@@ -38,13 +39,7 @@ export async function GET(req: NextRequest) {
     const claims = tokens.claims();
     if (!claims?.sub) return fail("no subject claim");
 
-    const email = typeof claims.email === "string" ? claims.email : "";
-    if (!email) return fail("identity provider sent no email claim");
-    if (
-      settings.allowedDomain &&
-      !email.toLowerCase().endsWith(`@${settings.allowedDomain.toLowerCase()}`)
-    )
-      return fail(`email domain not allowed: ${email}`);
+    const email = verifiedOidcEmail({ email: claims.email, email_verified: claims.email_verified }, settings.allowedDomain);
 
     const domain = email.split("@")[1]?.toLowerCase() ?? "";
     const role =
@@ -82,7 +77,7 @@ export async function GET(req: NextRequest) {
     const res = NextResponse.redirect(new URL("/", settings.baseUrl), {
       status: 303,
     });
-    res.cookies.delete("octavo_oidc");
+    res.cookies.set("octavo_oidc", "", { path: "/api/auth/oidc", maxAge: 0 });
     return res;
   } catch (e) {
     return fail(e instanceof Error ? e.message : "token exchange failed");

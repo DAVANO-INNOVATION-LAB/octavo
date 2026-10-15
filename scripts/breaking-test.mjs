@@ -217,7 +217,7 @@ section("Reading beacons clamp abuse rather than trusting it");
 /* ═══ 5. Concurrent writes to the same page ═══ */
 section("Concurrent writes do not corrupt or deadlock");
 {
-  const target = db.prepare("SELECT id, space_id FROM pages WHERE published=1 LIMIT 1").get();
+  const target = db.prepare("SELECT id, space_id, title FROM pages WHERE id=?").get(page.id);
   // 30 editors saving the same page at once.
   const saves = Array.from({ length: 30 }, (_, i) =>
     hit("PATCH", `/api/pages/${target.id}`, {
@@ -227,10 +227,11 @@ section("Concurrent writes do not corrupt or deadlock");
   );
   const results = await Promise.allSettled(saves);
   const statuses = results.map((r) => (r.status === "fulfilled" ? r.value.status : 0));
-  ok("no concurrent save 500s or drops", statuses.every((s) => notServerError(s) && s !== 0), `statuses ${[...new Set(statuses)].join(",")}`);
+  ok("no concurrent save 500s or drops", statuses.every((s) => s === 200), `statuses ${[...new Set(statuses)].join(",")}`);
   // The database is still readable and consistent.
   const row = db.prepare("SELECT title FROM pages WHERE id=?").get(target.id);
   ok("the page still has exactly one coherent title", typeof row.title === "string" && /^concurrent \d+$/.test(row.title), row.title);
+  db.prepare("UPDATE pages SET title=? WHERE id=?").run(target.title, target.id);
   const integrity = db.pragma("integrity_check", { simple: true });
   ok("the database integrity check passes after the storm", integrity === "ok", String(integrity));
 }

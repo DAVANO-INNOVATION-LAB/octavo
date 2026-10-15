@@ -1,3 +1,4 @@
+import { sameOrigin } from "@/lib/request-origin";
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { getPage } from "@/lib/data";
@@ -7,6 +8,9 @@ import { isAgent, may } from "@/lib/roles";
 export async function POST(req: NextRequest) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  if (req.headers.get("origin") && !sameOrigin(req.headers))
+    return NextResponse.json({ error: "origin mismatch" }, { status: 403 });
 
   type RunBody = {
     pageId?: string;
@@ -28,10 +32,10 @@ export async function POST(req: NextRequest) {
 
   const page = getPage(body.pageId);
   if (!page) return NextResponse.json({ error: "not found" }, { status: 404 });
-  // A run reaches outside the instance. The caller must be able to read the
+  // A run reaches outside the instance. The caller must be able to edit the
   // page it hangs on, and must not be an agent: an agent proposes, it does
   // not cause effects beyond the library.
-  if (isAgent(user) || !may(user, page.space_id, "read"))
+  if (isAgent(user) || !may(user, page.space_id, "write"))
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const result = await startRun({

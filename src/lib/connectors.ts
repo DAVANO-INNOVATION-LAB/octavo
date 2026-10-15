@@ -1,4 +1,5 @@
 import "server-only";
+import { submitJob, inspectJob, type JobUpdate } from "./jobs";
 import { createHmac } from "node:crypto";
 import { getDb } from "./db";
 import { getPage } from "./data";
@@ -20,7 +21,7 @@ import { newId, now } from "./util";
 //  4. Every run is immutably logged with who, what, when, and which page
 //     version — the log is a feature, shown on the page.
 
-export const CONNECTOR_TYPES = ["webhook", "airflow", "github_actions"] as const;
+export const CONNECTOR_TYPES = ["webhook", "airflow", "github_actions", "ray", "skypilot"] as const;
 export type ConnectorType = (typeof CONNECTOR_TYPES)[number];
 
 export type Connector = {
@@ -85,7 +86,7 @@ export function deleteConnector(id: string): void {
   getDb().prepare("DELETE FROM connectors WHERE id = ?").run(id);
 }
 
-function getConnector(id: string) {
+export function getConnector(id: string) {
   return getDb().prepare("SELECT * FROM connectors WHERE id = ?").get(id) as
     | (Connector & { credential: string })
     | undefined;
@@ -113,7 +114,7 @@ function findCodeBlock(pageContent: string, blockId: string) {
 
 export type RunResult = {
   runId: string;
-  status: "succeeded" | "failed" | "running";
+  status: "succeeded" | "failed" | "running" | "cancelled";
   output: string;
   externalUrl: string;
 };
@@ -148,6 +149,7 @@ export async function startRun(input: {
   const block = findCodeBlock(page.content, input.blockId);
   if (!block) return fail("no runnable code block with that id on this page");
 
+  if (page.published !== 1) return fail("Publish the page before running it");
   const runId = newId();
   db.prepare(
     `INSERT INTO runs (id, page_id, block_id, connector_id, connector_name, user_id, user_name, page_version, status, started)
@@ -164,9 +166,11 @@ export async function startRun(input: {
     now()
   );
 
-  let result: { status: "succeeded" | "failed"; output: string; externalUrl: string };
+  let result: JobUpdate;
   try {
-    result = await dispatch(connector, block, input.params, {
+    result = ["ray", "skypilot"].includes(connector.type)
+      ? await submitJob(connector.type, connector.base_url, connector.credential ? decryptSecret(connector.credential) : "", block.code, runId)
+      : await dispatch(connector, block, input.params, {
       page: page.slug,
       user: input.user.name,
     });
@@ -179,8 +183,8 @@ export async function startRun(input: {
   }
 
   db.prepare(
-    "UPDATE runs SET status = ?, output = ?, external_url = ?, finished = ? WHERE id = ?"
-  ).run(result.status, result.output.slice(0, 20000), result.externalUrl, now(), runId);
+    "UPDATE runs SET status = ?, output = ?, external_url = ?, finished = ?, remote_id = ? WHERE id = ?"
+  ).run(result.status, result.output.slice(0, 20000), result.externalUrl, result.status === "running" ? null : now(), result.remoteId ?? "", runId);
 
   return { runId, ...result };
 
@@ -296,4 +300,16 @@ export function latestRunForBlock(pageId: string, blockId: string): Run | null {
        FROM runs WHERE page_id = ? AND block_id = ? ORDER BY started DESC LIMIT 1`
     )
     .get(pageId, blockId) ?? null) as Run | null;
+}
+
+
+export async function refreshRun(runId: string, stop = false): Promise<RunResult> {
+  const db = getDb();
+  const run = db.prepare("SELECT * FROM runs WHERE id=?").get(runId) as { id:string; connector_id:string; remote_id:string; status:string; output:string; external_url:string } | undefined;
+  if (!run?.remote_id) throw new Error("No remote job is associated with this run");
+  const connector = getConnector(run.connector_id);
+  if (!connector || !["ray", "skypilot"].includes(connector.type)) throw new Error("Job connector is no longer available");
+  const result = await inspectJob(connector.type, connector.base_url, connector.credential ? decryptSecret(connector.credential) : "", run.remote_id, stop);
+  db.prepare("UPDATE runs SET status=?, output=?, external_url=?, finished=? WHERE id=?").run(result.status,result.output,result.externalUrl,result.status === "running" ? null : now(),runId);
+  return {runId,...result};
 }

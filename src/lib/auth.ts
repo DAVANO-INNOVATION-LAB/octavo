@@ -46,13 +46,14 @@ export function userCount(): number {
   return row.n;
 }
 
-export function createUser(email: string, name: string, password: string) {
+export function createUser(email: string, name: string, password: string, role: "admin" | "member" = "admin") {
+  if (role !== "admin" && role !== "member") throw new Error("Invalid local account role");
   const id = newId();
   getDb()
     .prepare(
-      "INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, 'admin', ?)"
+      "INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)"
     )
-    .run(id, email.toLowerCase().trim(), name.trim(), hashPassword(password), now());
+    .run(id, email.toLowerCase().trim(), name.trim(), hashPassword(password), role, now());
   return id;
 }
 
@@ -175,6 +176,8 @@ export function upsertOidcUser(input: {
     .prepare("SELECT id, email, name, role FROM users WHERE email = ?")
     .get(email) as User | undefined;
   if (byEmail) {
+    const linked = db.prepare("SELECT oidc_issuer FROM users WHERE id = ?").get(byEmail.id) as { oidc_issuer: string | null };
+    if (linked.oidc_issuer) throw new Error("Email is already linked to a different SSO identity");
     db.prepare("UPDATE users SET oidc_issuer = ?, oidc_sub = ? WHERE id = ?").run(
       input.issuer,
       input.sub,

@@ -1,5 +1,10 @@
 "use server";
 
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
+import { validateOidcUrls } from "@/lib/oidc-policy";
+import { newId } from "@/lib/util";
+import { benchmarkRows, benchmarkSource } from "@/lib/benchmark";
+import { validateNewUser } from "@/lib/user-input";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
@@ -61,7 +66,7 @@ import {
 } from "@/lib/change-requests";
 import { findUserByEmail, setUserRole } from "@/lib/auth";
 import type { User } from "@/lib/auth";
-import { setSetting } from "@/lib/settings";
+import { getSetting, setSetting } from "@/lib/settings";
 import { forgetAllReading, pruneReading } from "@/lib/reading";
 import { createVisitorToken, revokeVisitorToken } from "@/lib/visitors";
 import {
@@ -230,13 +235,14 @@ export async function logoutAction() {
 // ---- spaces ----
 
 export async function createSpaceAction(formData: FormData) {
-  await requireUser();
+  const creator = await requireUser();
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const visibility = String(formData.get("visibility") ?? "private");
   const template = getTemplate(String(formData.get("template") ?? "blank"));
   if (!name) redirect("/new?error=1");
   const space = createSpace({ name, description, kind: template.kind, visibility });
+  setSpaceMember(space.id, creator.id, "admin");
   // A space built from an engineering template starts with that discipline's
   // model, so the first 3D block someone inserts is already the right one.
   updateSpace(space.id, { model_kind: templateModelKind(template) });
@@ -464,6 +470,26 @@ async function requireAdmin() {
   return user;
 }
 
+export async function createUserAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const checked = validateNewUser({
+    name: String(formData.get("name") ?? ""), email: String(formData.get("email") ?? ""),
+    password: String(formData.get("password") ?? ""), role: String(formData.get("role") ?? "member"),
+  });
+  if (!checked.value) redirect(`/admin/users?error=${checked.error}`);
+  const { name, email, password, role } = checked.value;
+  let id: string;
+  try { id = createUser(email, name, password, role); }
+  catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "SQLITE_CONSTRAINT_UNIQUE")
+      redirect("/admin/users?error=duplicate");
+    throw error;
+  }
+  recordAudit({ actor: admin, action: "user.created", objectType: "user", objectId: id, objectLabel: name, detail: { role } });
+  revalidatePath("/admin/users");
+  redirect("/admin/users?created=1");
+}
+
 export async function setRoleAction(formData: FormData) {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
@@ -519,6 +545,12 @@ export async function resetTotpAction(formData: FormData) {
 
 export async function saveOidcAction(formData: FormData) {
   await requireAdmin();
+  if (process.env.OCTAVO_OIDC_ISSUER) redirect("/admin/sso?test=Settings%20are%20managed%20by%20environment");
+  const issuer = String(formData.get("oidc_issuer") ?? "").trim();
+  if (issuer) {
+    try { validateOidcUrls(issuer, String(formData.get("base_url") ?? "").trim()); }
+    catch (e) { redirect(`/admin/sso?test=${encodeURIComponent(e instanceof Error ? e.message : "Invalid URLs")}`); }
+  }
   const fields = [
     "oidc_issuer",
     "oidc_client_id",
@@ -532,7 +564,12 @@ export async function saveOidcAction(formData: FormData) {
   for (const f of fields) {
     const v = String(formData.get(f) ?? "").trim();
     // Leave the stored secret untouched when the field comes back masked.
-    if (f === "oidc_client_secret" && v === "********") continue;
+    if (f === "oidc_client_secret") {
+      const stored = getSetting(f);
+      const value = v === "********" ? (stored?.startsWith("enc:") ? decryptSecret(stored.slice(4)) : stored) : v;
+      setSetting(f, value ? `enc:${encryptSecret(value)}` : null);
+      continue;
+    }
     setSetting(f, v || null);
   }
   redirect("/admin/sso?saved=1");
@@ -1473,8 +1510,13 @@ export async function saveRepoAction(formData: FormData) {
   const repo = String(formData.get("repo") ?? "").trim();
   if (!repo.includes("/")) redirect(`/${slug}/repository?error=${encodeURIComponent("a repository looks like owner/name")}`);
 
+  if (formData.get("provider") === "bitbucket-dc") {
+    let valid = false;
+    try { const url = new URL(String(formData.get("endpoint") ?? "")); valid = ["http:", "https:"].includes(url.protocol) && !url.username && !url.password; } catch {}
+    if (!valid || !/^[^/]+\/[^/]+$/.test(repo)) redirect(`/${slug}/repository?error=${encodeURIComponent("Data Center needs a server URL and PROJECT/repository-slug")}`);
+  }
   saveRepoSettings(space.id, {
-    provider: String(formData.get("provider") ?? "github") === "gitlab" ? "gitlab" : "github",
+    provider: formData.get("provider") === "bitbucket-dc" ? "bitbucket-dc" : formData.get("provider") === "bitbucket" ? "bitbucket" : formData.get("provider") === "gitlab" ? "gitlab" : "github",
     endpoint: String(formData.get("endpoint") ?? "").trim(),
     repo,
     branch: String(formData.get("branch") ?? "main").trim() || "main",
@@ -1506,6 +1548,10 @@ export async function runRepoSyncAction(formData: FormData) {
   if (!canAdminSpace(user, space.id)) redirect(`/${slug}`);
 
   const report = await syncWithRepo(space);
+  if (report.importedSpace) {
+    const imported = getSpaceBySlug(report.importedSpace);
+    if (imported) setSpaceMember(imported.id, user.id, "admin");
+  }
   recordAudit({
     actor: user, action: "repo.sync", objectType: "space",
     objectId: space.id, objectLabel: space.name, spaceId: space.id,
@@ -1519,7 +1565,7 @@ export async function runRepoSyncAction(formData: FormData) {
   redirect(
     report.error
       ? `/${slug}/repository?error=${encodeURIComponent(report.error)}`
-      : `/${slug}/repository?synced=1&p=${report.pushed}&u=${report.pulled}&c=${report.conflicts.length}`
+      : report.importedSpace ? `/${report.importedSpace}` : `/${slug}/repository?synced=1&p=${report.pushed}&u=${report.pulled}&c=${report.conflicts.length}`
   );
 }
 
@@ -1649,4 +1695,33 @@ export async function saveAuditForwardAction(formData: FormData) {
     objectLabel: "audit forwarding changed",
   });
   redirect("/admin/audit");
+}
+
+
+export async function importBenchmarkAction(formData: FormData) {
+  const user = await requireUser();
+  const space = getSpaceBySlug(String(formData.get("space") ?? ""));
+  if (!space || !may(user, space.id, "write")) redirect("/");
+  let rows: string[][]; let source: string;
+  const title = String(formData.get("title") ?? "").trim().slice(0, 200);
+  try {
+    const file = formData.get("file");
+    if (!title) throw new Error("Enter a report title");
+    if (!(file instanceof File) || file.size > 1_000_000) throw new Error("Choose a CSV file under 1 MB");
+    rows = benchmarkRows(await file.text());
+    source = benchmarkSource(String(formData.get("source") ?? ""));
+  } catch (e) {
+    redirect(`/${space.slug}/benchmarks?error=${encodeURIComponent(e instanceof Error ? e.message : "Invalid CSV")}`);
+  }
+  const text = (value: string) => ({ type: "text", text: value, styles: {} });
+  const paragraph = (value: string) => ({ id: newId(), type: "paragraph", props: {}, children: [], content: [text(value)] });
+  const blocks = [
+    paragraph(`Measurement snapshot imported ${new Date().toISOString()}. Values and units come from the uploaded CSV; this report does not poll the source.`),
+    paragraph(String(formData.get("conditions") ?? "").slice(0, 4000)),
+    ...(source ? [{ id: newId(), type: "paragraph", props: {}, children: [], content: [{ type: "link", href: source, content: [text("Open source dashboard")] }] }] : []),
+    { id: newId(), type: "table", props: {}, children: [], content: { type: "tableContent", rows: rows.map(row => ({ cells: row.map(cell => [text(cell)]) })) } },
+  ];
+  const page = createPage({spaceId: space.id, parentId: null, title, content: JSON.stringify(blocks)});
+  revalidatePath(`/${space.slug}`);
+  redirect(`/${space.slug}/${page.slug}/edit`);
 }

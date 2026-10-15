@@ -45,10 +45,7 @@ export default async function SpaceRepository({
           {space.name}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Keep this space and a branch in agreement. Octavo reads and writes
-          through the host&rsquo;s own API — it does not clone, run Git, or need
-          anything installed beside it. Pages are pushed as one commit, and
-          changes made in the repository come back as pages.
+          Connect documentation through the repository API. GitHub, GitLab and Bitbucket Cloud support reads and commits. Bitbucket Data Center imports Markdown into a new private snapshot space; it does not push changes.
         </p>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
           When both sides changed the same page,{" "}
@@ -82,6 +79,8 @@ export default async function SpaceRepository({
               <select name="provider" defaultValue={repo?.provider ?? "github"} className={field}>
                 <option value="github">GitHub</option>
                 <option value="gitlab">GitLab</option>
+                <option value="bitbucket">Bitbucket Cloud</option>
+                <option value="bitbucket-dc">Bitbucket Data Center (pull)</option>
               </select>
             </label>
             <label className="block flex-1">
@@ -89,7 +88,7 @@ export default async function SpaceRepository({
               <input
                 name="repo"
                 defaultValue={repo?.repo ?? ""}
-                placeholder="owner/name"
+                placeholder="owner/name or PROJECT/repository-slug"
                 className={`${field} font-mono text-xs`}
               />
             </label>
@@ -104,7 +103,7 @@ export default async function SpaceRepository({
               className={`${field} font-mono text-xs`}
             />
             <span className="mt-1 block text-xs text-faint">
-              Only needed for a self-hosted GitHub Enterprise or GitLab.
+              Leave blank for Bitbucket Cloud, GitHub.com or GitLab.com. For Data Center, enter your server URL including its context path, for example https://git.example.com/bitbucket. Use PROJECT/repository-slug above. Data Center connections currently pull Markdown; pushing is disabled to avoid partial multi-file commits.
             </span>
           </label>
 
@@ -138,8 +137,7 @@ export default async function SpaceRepository({
               className={`${field} font-mono text-xs`}
             />
             <span className="mt-1 block text-xs text-faint">
-              Encrypted at rest and never shown back. It needs permission to
-              read and write repository contents, and nothing else. Saving
+              Encrypted at rest and never shown back. Use read-only repository permission for Data Center snapshots, or read/write permission for two-way connections. Bitbucket Cloud uses a repository access token (Bearer), with repository read/write permissions; Data Center uses a personal or repository HTTP access token (Bearer). API tokens requiring Basic authentication are not supported here. Saving
               checks it against the branch straight away.
             </span>
           </label>
@@ -168,7 +166,7 @@ export default async function SpaceRepository({
                 <form action={runRepoSyncAction}>
                   <input type="hidden" name="space" value={space.slug} />
                   <button className="h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink">
-                    Sync now
+                    {repo.provider === "bitbucket-dc" ? "Import Markdown snapshot" : "Sync now"}
                   </button>
                 </form>
                 <form action={saveRepoAction}>

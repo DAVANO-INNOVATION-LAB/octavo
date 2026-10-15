@@ -93,6 +93,13 @@ export default async function NewSpacePage() {
               )}
             </div>
             <p className="mb-2 mt-5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
+              Presentations and demos
+            </p>
+            <p className="mb-3 text-xs text-muted">Create a dedicated space with an editable presentation outline. Use Present on the page to walk through its sections.</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {TEMPLATES.filter((tpl) => tpl.group === "presentation").map((tpl) => <TemplateCard key={tpl.id} tpl={tpl} />)}
+            </div>
+            <p className="mb-2 mt-5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
               For engineers
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">

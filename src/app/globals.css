@@ -1238,3 +1238,24 @@ mark {
 .cover-indigo    { background-image: linear-gradient(120deg, #7c86c9, #3c4487 60%, #1d2147); }
 .cover-slate     { background-image: linear-gradient(120deg, #b8bcc4, #6a7078 60%, #3a3e44); }
 .cover-night     { background-image: linear-gradient(120deg, #3a3524, #211d12 60%, #0f0d08); }
+
+/* Reader controls apply only to published documents and articles. */
+.reader-frame[data-reading-width="wide"] .space-layout { --measure: none; --shell: none; }
+.reader-frame[data-reading-width="page"] .space-layout { --measure: 42rem; --shell: 80rem; }
+.reader-toolbar { position: sticky; top: 0; z-index: 45; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .5rem; padding: .65rem 1.5rem; border-bottom: 1px solid var(--line); background: var(--surface); }
+.reader-toolbar-title { margin-right: auto; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; color: var(--muted); }
+.reader-toolbar button { border: 1px solid var(--line); border-radius: .4rem; padding: .4rem .65rem; font-size: .8rem; cursor: pointer; }
+.reader-toolbar button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.reader-toolbar button:disabled { opacity: .4; cursor: default; }
+.reader-toolbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.reader-frame [id] { scroll-margin-top: 7rem; }
+.reader-frame[data-focus="true"] .reader-sidebar { display: none; }
+.reader-frame[data-presenting="true"] .reader-header,
+.reader-frame[data-presenting="true"] .reader-page-actions { display: none; }
+.reader-frame[data-presenting="true"] .space-layout { --measure: none; --shell: 100rem; }
+.reader-frame[data-presenting="true"] main { padding: 3rem clamp(1rem, 5vw, 6rem); }
+body:has(.reader-frame[data-presenting="true"]) > footer { display: none; }
+@media (min-width: 1280px) {
+  .reader-frame[data-reading-width="wide"] .reader-sidebar { width: 13rem; }
+}
+@media print { .reader-toolbar { display: none; } }

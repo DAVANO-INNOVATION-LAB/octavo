@@ -5,10 +5,10 @@ import { writeFileSync } from "node:fs";
 
 const BASE = process.argv[2] ?? "http://localhost:8541";
 const LABEL = process.argv[3] ?? "run";
-const CONCURRENCY = 20;
+const CONCURRENCY = Math.min(50, Math.max(1, Number(process.env.OCTAVO_LOAD_CONCURRENCY) || 20));
 const DURATION_MS = 10_000;
 
-const TARGETS = [
+const TARGETS = process.env.OCTAVO_LOAD_PATHS ? JSON.parse(process.env.OCTAVO_LOAD_PATHS).map(path => ({name: path, path})) : [
   { name: "home (library grid)", path: "/" },
   { name: "space cover (30-page TOC)", path: "/rfc-reading-room" },
   { name: "reader page (RFC, code blocks)", path: "/rfc-reading-room/rfc-9293-transmission-control-protocol-tcp" },
@@ -31,10 +31,10 @@ async function run(target) {
     while (Date.now() < stop) {
       const t0 = performance.now();
       try {
-        const res = await fetch(BASE + target.path, { redirect: "manual" });
+        const res = await fetch(BASE + target.path, { redirect: "manual", signal: AbortSignal.timeout(15000) });
         const body = await res.arrayBuffer();
         bytes += body.byteLength;
-        if (res.status >= 400) errors++;
+        if (res.status !== 200) errors++;
         latencies.push(performance.now() - t0);
       } catch {
         errors++;

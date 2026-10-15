@@ -149,14 +149,16 @@ export default async function ReaderPage({
 
   // Runnable cookbooks: the play button appears only for signed-in members
   // on pages in a space that has connectors configured.
-  const connectors = user ? connectorsForSpace(space.id) : [];
+  const connectors = user && mayWrite ? connectorsForSpace(space.id) : [];
   const lastRuns: Record<string, {
+    id: string;
     status: string; user_name: string; started: number; output: string; external_url: string;
   }> = {};
   if (connectors.length > 0) {
     for (const r of runsForPage(page.id, 50)) {
       if (!lastRuns[r.block_id])
         lastRuns[r.block_id] = {
+          id: r.id,
           status: r.status,
           user_name: r.user_name,
           started: r.started,
@@ -170,6 +172,7 @@ export default async function ReaderPage({
     <SpaceShell
       space={space}
       tree={tree}
+      reader={{ title: page.title, headings }}
       activeId={page.id}
       editing={editing}
       rail={
@@ -246,7 +249,7 @@ export default async function ReaderPage({
             >
               {page.title}
             </h1>
-            <span className="order-first flex flex-wrap items-center gap-1.5 print:hidden sm:order-none sm:mt-2 sm:flex-nowrap sm:shrink-0">
+            <span className="reader-page-actions order-first flex flex-wrap items-center gap-1.5 print:hidden sm:order-none sm:mt-2 sm:flex-nowrap sm:shrink-0">
               <PrintButton />
               <a
                 href={`/api/pages/${page.id}/export`}
@@ -353,14 +356,7 @@ export default async function ReaderPage({
           }
         />
 
-        <p
-          aria-hidden
-          className="wordmark mt-14 select-none text-center text-lg tracking-[0.5em] text-line-strong"
-        >
-          ⁂
-        </p>
-
-        <nav aria-label="Previous and next page" className="mt-10 grid gap-3 sm:grid-cols-2">
+        {(prev || next) && <nav aria-label="Previous and next page" className="mt-6 grid gap-3 sm:grid-cols-2">
           {prev ? (
             <Link
               href={`/${space.slug}/${prev.slug}`}
@@ -391,7 +387,7 @@ export default async function ReaderPage({
               </span>
             </Link>
           )}
-        </nav>
+        </nav>}
 
         {/* A page's DOIs: what it has been cited as. Minting is offered only
             to people who can publish, and only when a provider is set up. */}
@@ -434,7 +430,7 @@ export default async function ReaderPage({
             the page cites them. */}
         <References keys={citedKeys} refs={bibliography(space.id)} />
 
-        {page.published === 1 && <Feedback pageId={page.id} />}
+        <div className="reader-page-actions">{page.published === 1 && <Feedback pageId={page.id} />}</div>
 
         {/* Deliberately down here rather than in the action row: it is a
             quiet writer's tool, and the row is already full at 375px. */}
@@ -450,7 +446,7 @@ export default async function ReaderPage({
           </p>
         )}
 
-        {commentable && (
+        <div className="reader-page-actions">{commentable && (
           <Discussion
             pageId={page.id}
             spaceSlug={space.slug}
@@ -458,7 +454,7 @@ export default async function ReaderPage({
             user={user}
             liveBlockIds={liveBlockIds}
           />
-        )}
+        )}</div>
       </article>
     </SpaceShell>
   );

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { isAgent } from "@/lib/roles";
+import { isAgent, setSpaceMember } from "@/lib/roles";
 import { createPage, createSpace, savePage } from "@/lib/data";
 import { markdownToBlocks } from "@/lib/markdown";
 import { pageContentToBlocks } from "@/lib/html-blocks";
@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
     kind: "docs",
     visibility: "private",
   });
+  setSpaceMember(space.id, user.id, "admin");
   const page = createPage({
     spaceId: space.id,
     parentId: null,

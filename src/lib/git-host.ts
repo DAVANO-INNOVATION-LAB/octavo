@@ -18,7 +18,7 @@ import "server-only";
  * credentials, and never leave the server.
  */
 
-export type GitProvider = "github" | "gitlab";
+export type GitProvider = "github" | "gitlab" | "bitbucket" | "bitbucket-dc";
 
 export type RepoConnection = {
   provider: GitProvider;
@@ -41,17 +41,25 @@ const TIMEOUT = 20_000;
 function apiBase(c: RepoConnection): string {
   const e = c.endpoint.replace(/\/+$/, "");
   if (c.provider === "github") return e || "https://api.github.com";
+  if (c.provider === "bitbucket-dc") return /\/rest\/api\/(?:1\.0|latest)$/.test(e) ? e : `${e}/rest/api/1.0`;
+  if (c.provider === "bitbucket") return e || "https://api.bitbucket.org/2.0";
   return (e || "https://gitlab.com").endsWith("/api/v4") ? e : `${e || "https://gitlab.com"}/api/v4`;
 }
 
 function headers(c: RepoConnection): Record<string, string> {
-  return c.provider === "github"
+  if (c.provider === "bitbucket" || c.provider === "bitbucket-dc") return { Authorization: `Bearer ${c.token}`, Accept: "application/json" };
+  return c.provider !== "gitlab"
     ? {
         Authorization: `Bearer ${c.token}`,
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
       }
     : { "PRIVATE-TOKEN": c.token };
+}
+
+function dcRepo(c: RepoConnection): string {
+  const [project, repo] = c.repo.split("/");
+  return `${apiBase(c)}/projects/${encodeURIComponent(project)}/repos/${encodeURIComponent(repo)}`;
 }
 
 /** GitLab addresses a project by its url-encoded full path. */
@@ -62,7 +70,7 @@ async function call(
   init: RequestInit & { headers: Record<string, string> }
 ): Promise<Attempt<{ status: number; text: string }>> {
   try {
-    const res = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT) });
+    const res = await fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(TIMEOUT) });
     const text = await res.text();
     if (!res.ok)
       return {
@@ -88,6 +96,22 @@ async function call(
  * is how a space ends up half-pushed.
  */
 export async function verifyConnection(c: RepoConnection): Promise<Attempt<{ branch: string }>> {
+  if (c.provider === "bitbucket-dc") {
+    for (let start = 0, page = 0; page < 200; page++) {
+      const r = await call(`${dcRepo(c)}/branches?filterText=${encodeURIComponent(c.branch)}&limit=100&start=${start}`, { headers: headers(c) });
+      if (!r.ok) return r;
+      const data = JSON.parse(r.value.text) as { values?: { displayId: string }[]; isLastPage?: boolean; nextPageStart?: number };
+      if (data.values?.some(b => b.displayId === c.branch)) return { ok: true, value: { branch: c.branch } };
+      if (data.isLastPage) break;
+      if (typeof data.nextPageStart !== "number" || data.nextPageStart <= start) return { ok: false, error: "Invalid Data Center pagination" };
+      start = data.nextPageStart;
+    }
+    return { ok: false, error: "Branch was not found in Bitbucket Data Center" };
+  }
+  if (c.provider === "bitbucket") {
+    const r = await call(`${apiBase(c)}/repositories/${encodePath(c.repo)}/refs/branches/${encodeURIComponent(c.branch)}`, { headers: headers(c) });
+    return r.ok ? { ok: true, value: { branch: c.branch } } : r;
+  }
   const url =
     c.provider === "github"
       ? `${apiBase(c)}/repos/${c.repo}/branches/${encodeURIComponent(c.branch)}`
@@ -100,6 +124,46 @@ export async function verifyConnection(c: RepoConnection): Promise<Attempt<{ bra
 /** Every Markdown file under the configured path, at the configured branch. */
 export async function listMarkdown(c: RepoConnection): Promise<Attempt<RemoteFile[]>> {
   const prefix = c.path.replace(/^\/+|\/+$/g, "");
+  if (c.provider === "bitbucket-dc") {
+    const files: RemoteFile[] = [];
+    for (let start = 0, page = 0; page < 200; page++) {
+      const r = await call(`${dcRepo(c)}/files?at=${encodeURIComponent("refs/heads/" + c.branch)}&limit=1000&start=${start}`, { headers: headers(c) });
+      if (!r.ok) return r;
+      const data = JSON.parse(r.value.text) as { values?: string[]; isLastPage?: boolean; nextPageStart?: number };
+      if (!Array.isArray(data.values)) return { ok: false, error: "Invalid Data Center file listing" };
+      for (const path of data.values) {
+        if (/\.md$/i.test(path) && (!prefix || path.startsWith(prefix + "/"))) files.push({ path: prefix ? path.slice(prefix.length + 1) : path, sha: "" });
+      }
+      if (data.isLastPage) return { ok: true, value: files };
+      if (typeof data.nextPageStart !== "number" || data.nextPageStart <= start) return { ok: false, error: "Invalid Data Center pagination" };
+      start = data.nextPageStart;
+    }
+    return { ok: false, error: "Data Center file listing exceeds 200 requests" };
+  }
+  if (c.provider === "bitbucket") {
+    const root = `${apiBase(c)}/repositories/${encodePath(c.repo)}/src/${encodeURIComponent(c.branch)}/`;
+    const queue = [`${root}${encodePath(prefix)}?pagelen=100`];
+    const seen = new Set<string>();
+    const files: RemoteFile[] = [];
+    while (queue.length) {
+      const url = queue.shift()!;
+      if (seen.has(url)) return { ok: false, error: "Repeated Bitbucket listing page" };
+      if (seen.size >= 200) return { ok: false, error: "Repository listing exceeds 200 requests; select a smaller directory" };
+      if (!url.startsWith(root)) return { ok: false, error: "Bitbucket returned an unexpected listing URL" };
+      seen.add(url);
+      const r = await call(url, { headers: headers(c) });
+      if (!r.ok) return r;
+      const data = JSON.parse(r.value.text) as { next?: string; values?: { type: string; path: string; commit?: { hash: string } }[] };
+      if (!Array.isArray(data.values)) return { ok: false, error: "Invalid Bitbucket directory response" };
+      for (const n of data.values) {
+        if (prefix && !n.path.startsWith(prefix + "/")) continue;
+        if (n.type === "commit_directory") queue.push(`${root}${encodePath(n.path)}?pagelen=100`);
+        if (n.type === "commit_file" && /\.md$/i.test(n.path)) files.push({path: prefix ? n.path.slice(prefix.length + 1) : n.path, sha: n.commit?.hash ?? ""});
+      }
+      if (data.next) queue.push(data.next);
+    }
+    return { ok: true, value: files };
+  }
   if (c.provider === "github") {
     const r = await call(
       `${apiBase(c)}/repos/${c.repo}/git/trees/${encodeURIComponent(c.branch)}?recursive=1`,
@@ -144,6 +208,14 @@ export async function listMarkdown(c: RepoConnection): Promise<Attempt<RemoteFil
 export async function readFile(c: RepoConnection, rel: string): Promise<Attempt<string>> {
   const prefix = c.path.replace(/^\/+|\/+$/g, "");
   const full = prefix ? `${prefix}/${rel}` : rel;
+  if (c.provider === "bitbucket-dc") {
+    const r = await call(`${dcRepo(c)}/raw/${encodePath(full)}?at=${encodeURIComponent("refs/heads/" + c.branch)}`, { headers: headers(c) });
+    return r.ok ? { ok: true, value: r.value.text } : r;
+  }
+  if (c.provider === "bitbucket") {
+    const r = await call(`${apiBase(c)}/repositories/${encodePath(c.repo)}/src/${encodeURIComponent(c.branch)}/${encodePath(full)}`, { headers: headers(c) });
+    return r.ok ? { ok: true, value: r.value.text } : r;
+  }
   if (c.provider === "github") {
     const r = await call(
       `${apiBase(c)}/repos/${c.repo}/contents/${encodePath(full)}?ref=${encodeURIComponent(c.branch)}`,
@@ -183,6 +255,18 @@ export async function pushFiles(
   const prefix = c.path.replace(/^\/+|\/+$/g, "");
   const full = (rel: string) => (prefix ? `${prefix}/${rel}` : rel);
 
+  if (c.provider === "bitbucket-dc") return { ok: false, error: "Bitbucket Data Center currently supports pull only. No files were written; export Markdown to commit changes through your Git workflow." };
+  if (c.provider === "bitbucket") {
+    const body = new FormData();
+    body.set("branch", c.branch);
+    body.set("message", message);
+    for (const change of changes) body.set("/" + full(change.path), new Blob([change.content], { type: "text/plain" }), change.path.split("/").pop());
+    const r = await call(`${apiBase(c)}/repositories/${encodePath(c.repo)}/src`, { method: "POST", headers: headers(c), body });
+    if (!r.ok) return r;
+    const made = JSON.parse(r.value.text) as { hash?: string };
+    if (!made.hash) return { ok: false, error: "Bitbucket returned no commit hash" };
+    return { ok: true, value: { commit: made.hash, files: changes.length } };
+  }
   if (c.provider === "gitlab") {
     const existing = await listMarkdown(c);
     if (!existing.ok) return existing;
@@ -272,6 +356,11 @@ function encodePath(p: string): string {
 export function fileUrl(c: RepoConnection, rel: string): string {
   const prefix = c.path.replace(/^\/+|\/+$/g, "");
   const full = prefix ? `${prefix}/${rel}` : rel;
+  if (c.provider === "bitbucket-dc") {
+    const [project, repo] = c.repo.split("/");
+    return `${apiBase(c).replace(/\/rest\/api\/(?:1\.0|latest)$/, "")}/projects/${encodeURIComponent(project)}/repos/${encodeURIComponent(repo)}/browse/${encodePath(full)}?at=${encodeURIComponent("refs/heads/" + c.branch)}`;
+  }
+  if (c.provider === "bitbucket") return `https://bitbucket.org/${encodePath(c.repo)}/src/${encodeURIComponent(c.branch)}/${encodePath(full)}`;
   const host =
     c.provider === "github"
       ? apiBase(c).replace(/^https:\/\/api\./, "https://").replace(/\/api\/v3$/, "")

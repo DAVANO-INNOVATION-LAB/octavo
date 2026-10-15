@@ -63,3 +63,8 @@ AGENTS.md
 /.doi-stage/
 .uitest-profile/
 /data/uploads-quarantine/
+
+# Local release validation outputs
+/loadtest-*.json
+/.next-release/
+/integrations/skypilot/__pycache__/

@@ -78,6 +78,7 @@ export type RunContext = {
   pageId: string;
   connectors: { id: string; name: string; type: string }[];
   lastRuns: Record<string, {
+    id?: string;
     status: string;
     user_name: string;
     started: number;

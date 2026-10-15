@@ -60,7 +60,7 @@ export function getRepoSettings(spaceId: string): RepoSettings | null {
     .get(spaceId) as Row | undefined;
   if (!row) return null;
   return {
-    provider: row.provider === "gitlab" ? "gitlab" : "github",
+    provider: row.provider === "bitbucket-dc" ? "bitbucket-dc" : row.provider === "bitbucket" ? "bitbucket" : row.provider === "gitlab" ? "gitlab" : "github",
     endpoint: row.endpoint,
     repo: row.repo,
     branch: row.branch || "main",
@@ -131,6 +131,7 @@ export type RepoReport = {
   unchanged: number;
   commit: string;
   error?: string;
+  importedSpace?: string;
 };
 
 export async function verify(s: RepoSettings): Promise<{ ok: boolean; error?: string }> {
@@ -167,6 +168,13 @@ export async function syncWithRepo(space: Space): Promise<RepoReport> {
       title: title ?? f.path.replace(/\.md$/i, ""),
       hash: sha(body.value),
     });
+  }
+
+  if (settings.provider === "bitbucket-dc") {
+    if (!bodies.size) return { ...empty, error: "No Markdown files found in the configured directory" };
+    const imported = importMarkdownEntries([...bodies].map(([name, body]) => ({name, data: Buffer.from(body)})), `${space.name} — Data Center snapshot`);
+    getDb().prepare("UPDATE space_repos SET last_synced = ?, last_result = ? WHERE space_id = ?").run(now(), `${imported.pages} pages imported into ${imported.spaceSlug}`, space.id);
+    return { ...empty, pulled: imported.pages, importedSpace: imported.spaceSlug };
   }
 
   const pages = collectPages(space);
@@ -208,10 +216,11 @@ export async function syncWithRepo(space: Space): Promise<RepoReport> {
     }
   }
 
+  let importedSpace: string | undefined;
   if (pulled.length > 0) {
     // The markdown importer owns turning files into pages; there is one
     // implementation of "what does this file mean" and this is not it.
-    importMarkdownEntries(pulled, `${space.name} — from ${settings.repo}`);
+    importedSpace = importMarkdownEntries(pulled, `${space.name} — from ${settings.repo}`).spaceSlug;
   }
 
   getDb()
@@ -223,6 +232,7 @@ export async function syncWithRepo(space: Space): Promise<RepoReport> {
     );
 
   return {
+    importedSpace,
     pushed: changes.length,
     pulled: pulled.length,
     conflicts,

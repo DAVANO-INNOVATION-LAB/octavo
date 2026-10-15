@@ -1,3 +1,5 @@
+import { ReaderFrame } from "./ReaderFrame";
+import type { Heading } from "@/lib/blocks";
 import type { ReactNode } from "react";
 import type { Space, TreeNode } from "@/lib/data";
 import { SiteHeader } from "./SiteHeader";
@@ -10,6 +12,7 @@ export function SpaceShell({
   editing,
   rail,
   children,
+  reader,
 }: {
   space: Space;
   tree: TreeNode[];
@@ -17,17 +20,18 @@ export function SpaceShell({
   editing: boolean;
   rail?: ReactNode;
   children: ReactNode;
+  reader?: { title: string; headings: Heading[] };
 }) {
-  return (
+  const layout = (
     <div
-      className="flex min-h-screen flex-col"
+      className="space-layout flex min-h-screen flex-col"
       data-typeface={space.typeface}
       data-measure={space.measure}
       data-corners={space.corners}
     >
-      <SiteHeader />
+      <div className="reader-header"><SiteHeader /></div>
       <div className="shell mx-auto flex w-full flex-1 items-start gap-8 px-4 sm:px-6">
-        <aside className="sticky top-14 hidden max-h-[calc(100vh-3.5rem)] w-64 shrink-0 overflow-y-auto py-8 pr-2 md:block">
+        <aside className="reader-sidebar sticky top-14 hidden max-h-[calc(100vh-3.5rem)] w-64 shrink-0 overflow-y-auto py-8 pr-2 md:block">
           <SpaceNav
             space={space}
             tree={tree}
@@ -37,11 +41,12 @@ export function SpaceShell({
         </aside>
         <main id="main" className="min-w-0 flex-1 py-10">{children}</main>
         {rail !== undefined && (
-          <aside className="sticky top-14 hidden max-h-[calc(100vh-3.5rem)] w-56 shrink-0 overflow-y-auto py-10 xl:block">
+          <aside className="reader-sidebar sticky top-14 hidden max-h-[calc(100vh-3.5rem)] w-56 shrink-0 overflow-y-auto py-10 xl:block">
             {rail}
           </aside>
         )}
       </div>
     </div>
   );
+  return reader ? <ReaderFrame key={activeId} {...reader}>{layout}</ReaderFrame> : layout;
 }

@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.25.1",
+  "version": "0.26.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -26,7 +26,12 @@
     "test:tenant": "node scripts/tenant-test.mjs",
     "test:import": "node scripts/import-test.mjs",
     "sweep": "node scripts/sweep-uploads.mjs",
-    "test:sweep": "node scripts/sweep-test.mjs"
+    "test:sweep": "node scripts/sweep-test.mjs",
+    "test:bitbucket": "node scripts/bitbucket-test.mjs",
+    "test:oidc-settings": "node scripts/oidc-settings-test.mjs",
+    "test:preview-regression": "node scripts/preview-regression.mjs",
+    "test:jobs": "node scripts/jobs-test.mjs",
+    "test:sky-bridge": "python3 scripts/sky-bridge-test.py"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",
