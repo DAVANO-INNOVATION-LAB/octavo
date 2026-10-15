@@ -41,9 +41,17 @@ jobs:
       - run: node scripts/jobs-test.mjs
       - run: python3 scripts/sky-bridge-test.py
 
-  image:
+  build_image:
     needs: verify
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -53,24 +61,23 @@ jobs:
         run: |
           TAG="${{ inputs.tag || github.ref_name }}"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - id: registries
         # Publish to ghcr always; add Docker Hub when its secrets exist.
         env:
           HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
           VERSION: ${{ steps.version.outputs.version }}
+          ARCH: ${{ matrix.arch }}
         run: |
           {
             echo "tags<<EOF"
-            echo "${IMAGE}:${VERSION}"
-            echo "${IMAGE}:latest"
+            echo "${IMAGE}:${VERSION}-${ARCH}"
             if [ -n "$HUB_USER" ]; then
-              echo "docker.io/${HUB_USER}/octavo:${VERSION}"
-              echo "docker.io/${HUB_USER}/octavo:latest"
+              echo "docker.io/${HUB_USER}/octavo:${VERSION}-${ARCH}"
             fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
           echo "hub=$([ -n "$HUB_USER" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
@@ -90,14 +97,14 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/${{ matrix.arch }}
           push: true
           build-args: |
             VERSION=${{ steps.version.outputs.version }}
-            REVISION=${{ github.sha }}
+            REVISION=${{ steps.version.outputs.revision }}
           tags: ${{ steps.registries.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
       # Signed evidence of what this image is and what went into it. A buyer
       # asking for supply-chain assurance can verify both with `gh attestation
       # verify`, against nothing but the artifact and this repository.
@@ -115,11 +122,64 @@ jobs:
           sbom-path: octavo-${{ steps.version.outputs.version }}.cdx.json
           push-to-registry: true
       - uses: actions/upload-artifact@v7
+        if: matrix.arch == 'amd64'
         with:
           name: sbom
           path: "*.cdx.json"
+
+  image:
+    needs: build_image
+    runs-on: ubuntu-latest
+    env:
+      HUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v4
+        if: env.HUB_USER != ''
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Publish the multi-architecture image
+        id: merge
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          VERSION="${TAG#v}"
+          docker buildx imagetools create --tag "${IMAGE}:${VERSION}" --tag "${IMAGE}:latest" "${IMAGE}:${VERSION}-amd64" "${IMAGE}:${VERSION}-arm64"
+          DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" | awk '$1 == "Digest:" {print $2; exit}')
+          test -n "$DIGEST"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ -n "$HUB_USER" ]; then
+            HUB="docker.io/${HUB_USER}/octavo"
+            docker buildx imagetools create --tag "${HUB}:${VERSION}" --tag "${HUB}:latest" "${HUB}:${VERSION}-amd64" "${HUB}:${VERSION}-arm64"
+          fi
+      - uses: actions/download-artifact@v8
+        with:
+          name: sbom
+      - name: Attest the image index
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.merge.outputs.digest }}
+          push-to-registry: true
+      - name: Attest the image bill of materials
+        uses: actions/attest-sbom@v4
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.merge.outputs.digest }}
+          sbom-path: octavo-${{ steps.merge.outputs.version }}.cdx.json
+          push-to-registry: true
       - name: Sync Docker Hub description
-        if: steps.registries.outputs.hub == 'true'
+        if: env.HUB_USER != ''
         uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -154,11 +214,11 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    # A dispatch re-publishes images only; the GitHub Release already exists.
-    if: github.event_name == 'push'
     needs: [image, chart]
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/download-artifact@v8
         with:
           name: helm-chart
@@ -169,8 +229,10 @@ jobs:
           path: dist/
       - name: Extract changelog section for this version
         id: notes
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${TAG#v}"
           awk -v ver="$VERSION" '
             $0 ~ "^## v" ver { found=1; next }
             found && /^## v/ { exit }
@@ -179,6 +241,7 @@ jobs:
           [ -s release-notes.md ] || echo "See CHANGELOG.md" > release-notes.md
       - uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           body_path: release-notes.md
           files: |
             dist/*.tgz
