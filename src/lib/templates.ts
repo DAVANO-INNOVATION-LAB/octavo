@@ -901,7 +901,7 @@ edges:
 ];
 
 export function getTemplate(id: string): SpaceTemplate {
-  return TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
+  return TEMPLATES.find((t) => t.id === id) ?? TEMPLATES.find((t) => t.id === "blank")!;
 }
 
 /**

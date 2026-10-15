@@ -17,3 +17,5 @@ scripts
 loadtest-*.json
 .integrations-test
 .next-release
+
+!scripts/prune-standalone.mjs

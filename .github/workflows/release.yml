@@ -22,7 +22,27 @@ env:
   IMAGE: ghcr.io/davano-innovation-lab/octavo
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Development packages are pruned from the standalone image after build.
+      - run: npm audit --omit=dev --audit-level=high
+      - run: node scripts/test.mjs
+      - run: npx next typegen && npx tsc --noEmit
+      - run: npx eslint src
+      - run: node scripts/jobs-test.mjs
+      - run: python3 scripts/sky-bridge-test.py
+
   image:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

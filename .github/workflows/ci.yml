@@ -15,7 +15,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm audit --audit-level=high
+      # Development packages are pruned from the standalone image after build.
+      - run: npm audit --omit=dev --audit-level=high
       - run: node scripts/test.mjs   # content validation needs a database, run locally
       - run: npx next typegen   # route types tsc needs (LayoutProps etc.)
       - run: npx tsc --noEmit

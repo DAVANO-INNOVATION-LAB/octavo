@@ -7,7 +7,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN npm run build \
+    && rm -rf /app/.next/standalone/data /app/.next/standalone/.env*
 
 # Trim what the runtime cannot use. This has to happen here: deleting in a
 # later layer leaves the bytes in an earlier one, and the image is carried

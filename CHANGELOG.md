@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.26.0 — 2026-10-15
+## v0.26.1 — 2026-10-15
 
 - Expanded integrations and workspace capabilities.
 - Improved usability, access controls, and reliability.
