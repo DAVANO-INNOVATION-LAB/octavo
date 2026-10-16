@@ -35,6 +35,7 @@ export type AuditAction =
   // spaces
   | "space.created"
   | "space.deleted"
+  | "space.restored"
   | "space.updated"
   | "space.visibility_changed"
   // membership

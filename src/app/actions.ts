@@ -1,5 +1,8 @@
 "use server";
 
+import { canRestoreSpace } from "@/lib/roles";
+import { restoreSpace } from "@/lib/data";
+
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { validateOidcUrls } from "@/lib/oidc-policy";
 import { newId } from "@/lib/util";
@@ -293,6 +296,8 @@ export async function deleteSpaceAction(formData: FormData) {
   const slug = String(formData.get("slug") ?? "");
   const space = getSpaceBySlug(slug);
   if (space) {
+    if (!may(user, space.id, "administer")) redirect("/");
+    if (String(formData.get("confirmation") ?? "") !== space.name) redirect(`/${space.slug}/settings?error=confirmation`);
     recordAudit({
       actor: user,
       action: "space.deleted",
@@ -302,10 +307,20 @@ export async function deleteSpaceAction(formData: FormData) {
       spaceId: space.id,
       detail: { visibility: space.visibility, kind: space.kind },
     });
-    deleteSpace(space.id);
+    deleteSpace(space.id, user.id);
   }
-  revalidatePath("/");
-  redirect("/");
+  revalidatePath("/", "layout");
+  redirect("/trash?deleted=1");
+}
+
+export async function restoreSpaceAction(formData: FormData) {
+  const user = await requireUser();
+  const id = String(formData.get("spaceId") ?? "");
+  if (!canRestoreSpace(user, id)) redirect("/trash");
+  restoreSpace(id);
+  recordAudit({ actor: user, action: "space.restored", objectType: "space", objectId: id, spaceId: id });
+  revalidatePath("/", "layout");
+  redirect("/trash?restored=1");
 }
 
 // ---- pages ----

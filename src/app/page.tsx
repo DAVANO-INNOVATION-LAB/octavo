@@ -74,6 +74,7 @@ export default async function Home() {
           </div>
           {user && (
             <div className="flex shrink-0 items-center gap-2">
+              <Link href="/trash" className="px-2 text-sm text-muted hover:text-accent">Trash</Link>
               <Link
                 href="/import"
                 className="flex h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-3.5 text-sm font-medium text-muted shadow-card transition-colors hover:border-line-strong hover:text-ink"

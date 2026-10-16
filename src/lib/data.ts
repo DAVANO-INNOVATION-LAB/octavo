@@ -114,7 +114,7 @@ export function scopeClause(
   // all three, or the tenancy predicate silently binds to the wrong table.
   tenantColumn = "tenant_id"
 ): { sql: string; params: string[] } {
-  const parts: string[] = [];
+  const parts: string[] = [`${idColumn} NOT IN (SELECT space_id FROM deleted_spaces)`];
   const params: string[] = [];
 
   // Visibility: public, or a private space this principal is a member of.
@@ -152,13 +152,13 @@ export function listSpaces(scope: SpaceScope): Space[] {
 
 export function getSpace(id: string): Space | null {
   return (getDb()
-    .prepare("SELECT * FROM spaces WHERE id = ?")
+    .prepare("SELECT * FROM spaces WHERE id = ? AND id NOT IN (SELECT space_id FROM deleted_spaces)")
     .get(id) ?? null) as Space | null;
 }
 
 export function getSpaceBySlug(slug: string): Space | null {
   return (getDb()
-    .prepare("SELECT * FROM spaces WHERE slug = ?")
+    .prepare("SELECT * FROM spaces WHERE slug = ? AND id NOT IN (SELECT space_id FROM deleted_spaces)")
     .get(slug) ?? null) as Space | null;
 }
 
@@ -173,6 +173,7 @@ export function createSpace(input: {
   let slug = slugify(input.name);
   // Root-level app routes a space slug must never shadow.
   const RESERVED = new Set([
+    "trash",
     "login",
     "setup",
     "new",
@@ -223,7 +224,7 @@ export function updateSpace(
   >
 ) {
   const db = getDb();
-  const space = db.prepare("SELECT * FROM spaces WHERE id = ?").get(id) as
+  const space = db.prepare("SELECT * FROM spaces WHERE id = ? AND id NOT IN (SELECT space_id FROM deleted_spaces)").get(id) as
     | Space
     | undefined;
   if (!space) return;
@@ -256,26 +257,25 @@ export function updateSpace(
   );
 }
 
-export function deleteSpace(id: string) {
-  const db = getDb();
-  const pages = db
-    .prepare("SELECT id FROM pages WHERE space_id = ?")
-    .all(id) as { id: string }[];
-  const delFts = db.prepare("DELETE FROM pages_fts WHERE page_id = ?");
-  for (const p of pages) delFts.run(p.id);
-  db.prepare("DELETE FROM spaces WHERE id = ?").run(id);
+/** Retain the entire space graph so restoration does not lose history or access. */
+export function deleteSpace(id: string, actorId: string) {
+  getDb().prepare("INSERT OR IGNORE INTO deleted_spaces(space_id, deleted_at, deleted_by) VALUES (?, ?, ?)").run(id, now(), actorId);
+}
+
+export function restoreSpace(id: string) {
+  getDb().prepare("DELETE FROM deleted_spaces WHERE space_id = ?").run(id);
 }
 
 // ---- pages ----
 
 export function getPage(id: string): Page | null {
-  return (getDb().prepare("SELECT * FROM pages WHERE id = ?").get(id) ??
+  return (getDb().prepare("SELECT * FROM pages WHERE id = ? AND space_id NOT IN (SELECT space_id FROM deleted_spaces)").get(id) ??
     null) as Page | null;
 }
 
 export function getPageBySlug(spaceId: string, slug: string): Page | null {
   return (getDb()
-    .prepare("SELECT * FROM pages WHERE space_id = ? AND slug = ?")
+    .prepare("SELECT * FROM pages WHERE space_id = ? AND slug = ? AND space_id NOT IN (SELECT space_id FROM deleted_spaces)")
     .get(spaceId, slug) ?? null) as Page | null;
 }
 
@@ -283,7 +283,7 @@ export function listPages(spaceId: string): PageMeta[] {
   return getDb()
     .prepare(
       `SELECT id, space_id, parent_id, slug, title, position, published, created_at, updated_at
-       FROM pages WHERE space_id = ? ORDER BY position, created_at`
+       FROM pages WHERE space_id = ? AND space_id NOT IN (SELECT space_id FROM deleted_spaces) ORDER BY position, created_at`
     )
     .all(spaceId) as PageMeta[];
 }
@@ -589,7 +589,7 @@ export function searchPages(
                   bm25(pages_fts, 0, 3.0, 1.0) AS score
            FROM pages_fts f
            JOIN pages p ON p.id = f.page_id
-           JOIN spaces s ON s.id = p.space_id
+           JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
            WHERE pages_fts MATCH ?
              ${scoped.sql ? `AND ${scoped.sql}` : ""}
            LIMIT ${SEARCH_CANDIDATES}
@@ -801,7 +801,7 @@ function internalLinkTargets(content: string): string[] {
     if (!m) continue;
     const row = db
       .prepare(
-        `SELECT p.id FROM pages p JOIN spaces s ON s.id = p.space_id
+        `SELECT p.id FROM pages p JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
          WHERE s.slug = ? AND p.slug = ?`
       )
       .get(m[1], m[2]) as { id: string } | undefined;
@@ -838,7 +838,7 @@ export function backlinks(pageId: string, scope: SpaceScope): Backlink[] {
               s.slug AS space_slug, s.name AS space_name
        FROM page_links l
        JOIN pages p ON p.id = l.from_page
-       JOIN spaces s ON s.id = p.space_id
+       JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
        WHERE l.to_page = ? AND p.published = 1
            ${bscope.sql ? `AND ${bscope.sql}` : ""}
        ORDER BY s.name, p.title`
@@ -854,7 +854,7 @@ export function lookupPages(q: string, scope: SpaceScope, limit = 8): Backlink[]
     .prepare(
       `SELECT p.id AS page_id, p.title, p.slug AS page_slug,
               s.slug AS space_slug, s.name AS space_name
-       FROM pages p JOIN spaces s ON s.id = p.space_id
+       FROM pages p JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
        WHERE p.title LIKE ?
              ${lscope.sql ? `AND ${lscope.sql}` : ""}
        ORDER BY p.updated_at DESC LIMIT ?`
@@ -876,7 +876,7 @@ export function linkGraph(scope: SpaceScope): GraphData {
   const nodes = db
     .prepare(
       `SELECT p.id, p.title, s.name AS space, s.slug AS space_slug, p.slug
-       FROM pages p JOIN spaces s ON s.id = p.space_id
+       FROM pages p JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
        WHERE p.published = 1 ${gscope.sql ? `AND ${gscope.sql}` : ""}`
     )
     .all(...gscope.params) as {
@@ -937,7 +937,7 @@ export function brokenLinks(): BrokenLink[] {
   const pages = db
     .prepare(
       `SELECT p.id, p.title, p.slug, p.content, s.slug AS space_slug, s.name AS space_name
-       FROM pages p JOIN spaces s ON s.id = p.space_id WHERE p.published = 1`
+       FROM pages p JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces) WHERE p.published = 1`
     )
     .all() as {
     id: string; title: string; slug: string; content: string;
@@ -945,7 +945,7 @@ export function brokenLinks(): BrokenLink[] {
   }[];
 
   const resolve = db.prepare(
-    `SELECT p.published FROM pages p JOIN spaces s ON s.id = p.space_id
+    `SELECT p.published FROM pages p JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
      WHERE s.slug = ? AND p.slug = ?`
   );
   const spaceExists = db.prepare("SELECT 1 FROM spaces WHERE slug = ?");
@@ -1057,7 +1057,7 @@ export function pageInsights(days = 30): {
            COALESCE((SELECT SUM(views) FROM page_views v WHERE v.page_id = p.id AND v.day >= ?), 0) AS views,
            COALESCE((SELECT COUNT(*) FROM feedback f WHERE f.page_id = p.id AND f.helpful = 1), 0) AS helpful,
            COALESCE((SELECT COUNT(*) FROM feedback f WHERE f.page_id = p.id AND f.helpful = 0), 0) AS unhelpful
-    FROM pages p JOIN spaces s ON s.id = p.space_id
+    FROM pages p JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
     WHERE p.published = 1`;
   const all = db.prepare(base).all(since) as PageInsight[];
   const totalViews = all.reduce((n, p) => n + p.views, 0);
@@ -1115,7 +1115,7 @@ export function variantSiblings(space: {
   const spaces = db
     .prepare(
       `SELECT id, slug, name, variant_group, variant_label, variant_kind, variant_position
-       FROM spaces WHERE variant_group = ? ORDER BY variant_position`
+       FROM spaces WHERE id NOT IN (SELECT space_id FROM deleted_spaces) AND variant_group = ? ORDER BY variant_position`
     )
     .all(group) as VariantSpace[];
   const slugs = new Map<string, Set<string>>();
@@ -1139,7 +1139,7 @@ export function variantGroups(): { group: string; count: number }[] {
   return getDb()
     .prepare(
       `SELECT variant_group AS "group", COUNT(*) AS count FROM spaces
-       WHERE variant_group != '' GROUP BY variant_group ORDER BY variant_group`
+       WHERE id NOT IN (SELECT space_id FROM deleted_spaces) AND variant_group != '' GROUP BY variant_group ORDER BY variant_group`
     )
     .all() as { group: string; count: number }[];
 }

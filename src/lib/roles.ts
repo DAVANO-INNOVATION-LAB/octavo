@@ -48,7 +48,7 @@ function instanceRoleOf(user: User | null): InstanceRole | null {
 
 /** Everything a principal may do in one space. */
 export function capsFor(user: User | null, spaceId: string): Capability[] {
-  if (!user) return [];
+  if (!user || isSpaceDeleted(spaceId)) return [];
   // A direct membership and a group grant are unioned, stronger winning.
   // A group must never take access away: someone added to a reader group
   // while holding an editor seat stays an editor.
@@ -151,13 +151,13 @@ export function spacesAdministeredBy(user: User): { id: string; name: string; sl
   const db = getDb();
   if (user.role === "admin")
     return db
-      .prepare("SELECT id, name, slug FROM spaces ORDER BY position")
+      .prepare("SELECT id, name, slug FROM spaces WHERE id NOT IN (SELECT space_id FROM deleted_spaces) ORDER BY position")
       .all() as { id: string; name: string; slug: string }[];
   return db
     .prepare(
       `SELECT s.id, s.name, s.slug FROM spaces s
        JOIN space_members m ON m.space_id = s.id
-       WHERE m.user_id = ? AND m.role = 'admin' ORDER BY s.position`
+       WHERE s.id NOT IN (SELECT space_id FROM deleted_spaces) AND m.user_id = ? AND m.role = 'admin' ORDER BY s.position`
     )
     .all(user.id) as { id: string; name: string; slug: string }[];
 }
@@ -224,10 +224,22 @@ export function scopeFor(user: User | null): SpaceScope {
  * capability, and is re-validated against the stored hash on every request —
  * revoking a token ends access on the next click, cookie or no cookie.
  */
+export function isSpaceDeleted(spaceId: string): boolean {
+  return !!getDb().prepare("SELECT 1 FROM deleted_spaces WHERE space_id = ?").get(spaceId);
+}
+
+/** Recovery uses retained grants; ordinary access to a deleted space is denied. */
+export function canRestoreSpace(user: User | null, spaceId: string): boolean {
+  if (!user) return false;
+  const role = strongest(spaceRole(user.id, spaceId), groupRoleFor(user.id, spaceId));
+  return capabilities(instanceRoleOf(user), role).includes("administer");
+}
+
 export async function canReadSpaceAsVisitor(
   user: User | null,
   space: { id: string; visibility?: string }
 ): Promise<boolean> {
+  if (isSpaceDeleted(space.id)) return false;
   if (canReadSpace(user, space)) return true;
   const jar = await cookies();
   const token = jar.get(VISITOR_COOKIE)?.value;
@@ -239,6 +251,7 @@ export function canReadSpace(
   user: User | null,
   space: { id: string; visibility?: string; tenant_id?: string | null }
 ): boolean {
+  if (isSpaceDeleted(space.id)) return false;
   // Tenancy is checked FIRST and applies to public spaces too. A tenant's
   // public space is public within that tenant; anyone outside it must be
   // refused before visibility is even considered, or knowing a slug would be

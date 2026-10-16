@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.26.3
+
+- Improved workspace safeguards and recovery.
+- Refined access controls and reliability.
+
 ## v0.26.2
 
 - Improved workspace organization and usability.

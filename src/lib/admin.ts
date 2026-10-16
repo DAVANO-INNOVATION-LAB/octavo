@@ -58,13 +58,13 @@ export function instanceStats(): InstanceStats {
       .prepare(
         `SELECT s.name, s.slug, COUNT(p.id) AS pages, s.updated_at
          FROM spaces s LEFT JOIN pages p ON p.space_id = s.id
-         GROUP BY s.id ORDER BY pages DESC LIMIT 6`
+         WHERE s.id NOT IN (SELECT space_id FROM deleted_spaces) GROUP BY s.id ORDER BY pages DESC LIMIT 6`
       )
       .all() as InstanceStats["topSpaces"],
     recentPages: db
       .prepare(
         `SELECT p.title, p.slug, s.slug AS space_slug, p.updated_at
-         FROM pages p JOIN spaces s ON s.id = p.space_id
+         FROM pages p JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
          ORDER BY p.updated_at DESC LIMIT 8`
       )
       .all() as InstanceStats["recentPages"],

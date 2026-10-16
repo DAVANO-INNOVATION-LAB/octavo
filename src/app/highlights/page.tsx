@@ -35,7 +35,7 @@ export default async function MyHighlights() {
               s.slug AS space_slug, s.name AS space_name
          FROM highlights h
          JOIN pages p ON p.id = h.page_id
-         JOIN spaces s ON s.id = p.space_id
+         JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
         WHERE h.user_id = ?
         ORDER BY h.created_at DESC`
     )

@@ -1,8 +1,9 @@
+import { DeleteSpaceButton } from "@/components/DeleteSpaceButton";
 import { notFound, redirect } from "next/navigation";
 import { variantGroups } from "@/lib/data";
 import { currentUser } from "@/lib/auth";
 import { getSpaceBySlug, pageTree } from "@/lib/data";
-import { setSpaceVariantAction, deleteSpaceAction, updateSpaceAction } from "@/app/actions";
+import { setSpaceVariantAction, updateSpaceAction } from "@/app/actions";
 import { IconPicker } from "@/components/IconPicker";
 import { SpaceShell } from "@/components/SpaceShell";
 
@@ -252,15 +253,9 @@ export default async function SpaceSettings({
         <div className="mt-8 rounded-2xl border border-accent/30 bg-surface p-8">
           <h2 className="text-sm font-semibold text-ink">Danger zone</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted">
-            Deleting this space permanently removes all {""}
-            of its pages. There is no undo.
+            Deleting moves this space to Trash. Its pages and files are kept, and you can restore it later.
           </p>
-          <form action={deleteSpaceAction} className="mt-4">
-            <input type="hidden" name="slug" value={space.slug} />
-            <button className="h-9 rounded-lg border border-accent/40 px-4 text-sm font-medium text-accent transition-colors hover:bg-accent hover:text-accent-ink">
-              Delete this space
-            </button>
-          </form>
+          <DeleteSpaceButton slug={space.slug} name={space.name} />
         </div>
       </div>
     </SpaceShell>

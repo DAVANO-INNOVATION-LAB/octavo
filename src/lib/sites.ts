@@ -200,7 +200,7 @@ export function siteEntries(siteId: string, scope: SpaceScope): SiteEntry[] {
   const rows = db
     .prepare(
       `SELECT ss.section_id, ss.label, ss.position, s.*
-         FROM site_spaces ss JOIN spaces s ON s.id = ss.space_id
+         FROM site_spaces ss JOIN spaces s ON s.id = ss.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
         WHERE ss.site_id = ?
         ORDER BY ss.position`
     )
