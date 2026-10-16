@@ -68,3 +68,5 @@ AGENTS.md
 /loadtest-*.json
 /.next-release/
 /integrations/skypilot/__pycache__/
+
+/.next-order/

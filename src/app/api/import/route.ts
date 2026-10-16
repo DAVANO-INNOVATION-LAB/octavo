@@ -5,26 +5,27 @@ import { revalidatePath } from "next/cache";
 import { isAgent, setSpaceMember } from "@/lib/roles";
 import { importUpload } from "@/lib/transfer";
 
+// Keep the browser on its public origin, including behind container proxies.
+function localRedirect(path: string) {
+  return new NextResponse(null, { status: 303, headers: { Location: path } });
+}
+
 const MAX_BYTES = 100 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   const user = await currentUser();
   if (!user)
-    return NextResponse.redirect(new URL("/login", req.url), { status: 303 });
+    return localRedirect("/login");
   if (isAgent(user))
-    return NextResponse.redirect(new URL("/", req.url), { status: 303 });
+    return localRedirect("/");
 
   const form = await req.formData();
   const file = form.get("file");
   const name = String(form.get("name") ?? "");
   if (!(file instanceof File))
-    return NextResponse.redirect(new URL("/import?error=nofile", req.url), {
-      status: 303,
-    });
+    return localRedirect("/import?error=nofile");
   if (file.size > MAX_BYTES)
-    return NextResponse.redirect(new URL("/import?error=toolarge", req.url), {
-      status: 303,
-    });
+    return localRedirect("/import?error=toolarge");
 
   try {
     const buf = Buffer.from(await file.arrayBuffer());
@@ -34,14 +35,9 @@ export async function POST(req: NextRequest) {
     setSpaceMember(space.id, user.id, "admin");
     revalidatePath("/");
     revalidatePath(`/${space.slug}`);
-    return NextResponse.redirect(new URL(`/${result.spaceSlug}`, req.url), {
-      status: 303,
-    });
+    return localRedirect(`/${result.spaceSlug}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "import failed";
-    return NextResponse.redirect(
-      new URL(`/import?error=${encodeURIComponent(msg)}`, req.url),
-      { status: 303 }
-    );
+    return localRedirect(`/import?error=${encodeURIComponent(msg)}`);
   }
 }

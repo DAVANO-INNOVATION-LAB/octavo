@@ -11,7 +11,7 @@ let space;
 try {
  const f=new FormData();f.set('name','Private regression import');f.set('file',new Blob(['# Imported\n\nReal content']), 'imported.md');
  const imported=await fetch(base+'/api/import',{method:'POST',headers,body:f,redirect:'manual'});
- assert.equal(imported.status,303);const location=imported.headers.get('location');assert.ok(!location.includes('error='));
+ assert.equal(imported.status,303);const location=new URL(imported.headers.get('location'),base).href;assert.ok(!location.includes('error='));
  space=db.prepare('SELECT * FROM spaces WHERE slug=?').get(new URL(location).pathname.slice(1));assert.equal(space.visibility,'private');
  assert.equal(db.prepare('SELECT role FROM space_members WHERE space_id=? AND user_id=?').get(space.id,id).role,'admin');
  assert.equal((await fetch(location,{headers})).status,200);

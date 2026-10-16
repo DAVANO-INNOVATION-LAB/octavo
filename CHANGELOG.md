@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.26.2
+
+- Improved workspace organization and usability.
+- Refined import reliability and validation.
+
 ## v0.26.1 — 2026-10-15
 
 - Expanded integrations and workspace capabilities.

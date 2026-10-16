@@ -89,6 +89,7 @@ export default async function SpaceCover({
             )}
             {editing && (
               <>
+                <Link href={`/${space.slug}/organize`} className="text-sm text-accent">Organize pages</Link>
                 <form action={createPageAction}>
                   <input type="hidden" name="space" value={space.slug} />
                   <button className="flex h-10 items-center gap-1.5 rounded-lg border border-line bg-surface px-4 text-sm font-medium text-ink shadow-card transition-colors hover:border-line-strong">

@@ -19,3 +19,5 @@ loadtest-*.json
 .next-release
 
 !scripts/prune-standalone.mjs
+
+.next-order
