@@ -140,7 +140,7 @@ export const TEMPLATES: SpaceTemplate[] = [
     tagline: "A guided walkthrough from problem to proof and next steps.", audience: "Product teams",
     kind: "docs", group: "presentation",
     pages: [{ title: "Product demo", blocks: [
-          p(t("Replace these prompts with your content, then select Present to walk through the sections. This is an editable document presentation, not a slide deck.")),
+          p(t("Replace these prompts with your content. Each level-two heading starts a slide in Present mode. Keep each slide concise.")),
           h(2, "The problem"), p(t("Describe the audience, their current workflow, and the outcome they need.")),
           h(2, "What we will demonstrate"), p(t("List the capabilities you will show and define what a successful result looks like.")),
           h(2, "Live walkthrough"), p(t("Add screenshots, diagrams or a video. Walk through the input, the action and the visible result. Use sample data for demonstrations.")),
@@ -153,7 +153,7 @@ export const TEMPLATES: SpaceTemplate[] = [
     tagline: "Architecture, workflow, validation and operational readiness.", audience: "Engineers and architects",
     kind: "docs", group: "presentation",
     pages: [{ title: "Technical walkthrough", blocks: [
-          p(t("Replace these prompts with your content, then select Present to walk through the sections. This is an editable document presentation, not a slide deck.")),
+          p(t("Replace these prompts with your content. Each level-two heading starts a slide in Present mode. Keep each slide concise.")),
           h(2, "Purpose and scope"), p(t("State the problem, audience, constraints and boundaries of this walkthrough.")),
           h(2, "Architecture"), p(t("Add a system diagram. Explain components, interfaces and data ownership.")),
           h(2, "Workflow"), p(t("Trace one representative input through the system. Show transformations and outputs.")),
@@ -166,7 +166,7 @@ export const TEMPLATES: SpaceTemplate[] = [
     tagline: "A concise update with progress, risks and decisions.", audience: "Leadership and project teams",
     kind: "docs", group: "presentation",
     pages: [{ title: "Project briefing", blocks: [
-          p(t("Replace these prompts with your content, then select Present to walk through the sections. This is an editable document presentation, not a slide deck.")),
+          p(t("Replace these prompts with your content. Each level-two heading starts a slide in Present mode. Keep each slide concise.")),
           h(2, "Executive summary"), p(t("State the objective and the most important outcome since the previous update.")),
           h(2, "Progress and evidence"), p(t("Show completed milestones and supporting results. Distinguish completed work from plans.")),
           h(2, "Risks and dependencies"), p(t("List the material risks, their impact, and the owner of each response.")),

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { getSetting } from "@/lib/settings";
-import { oidcFromEnv, oidcSettings } from "@/lib/oidc";
+import { oidcFromEnv, oidcSettings, oidcMissingFields } from "@/lib/oidc";
 import { saveOidcAction, testOidcAction } from "@/app/actions";
 import { AdminShell } from "@/components/AdminShell";
 import { cookies } from "next/headers";
@@ -47,24 +47,30 @@ function Field({
 export default async function AdminSso({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; test?: string }>;
+  searchParams: Promise<{ saved?: string; test?: string; error?: string }>;
 }) {
   const user = await currentUser();
   if (!user) redirect("/login");
   if (user.role !== "admin") redirect("/");
-  const { saved, test } = await searchParams;
+  const { saved, test, error } = await searchParams;
   const scimOn = scimEnabled();
   const freshScim = (await cookies()).get("octavo_new_scim")?.value ?? null;
   const fromEnv = oidcFromEnv();
   const active = oidcSettings();
+  const missing = oidcMissingFields();
 
   return (
     <AdminShell active="/admin/sso">
       {saved && (
         <p className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
-          Saved. The sign-in page now offers “Continue with {active?.name ?? "SSO"}”.
+          {active ? `Saved. The sign-in page now offers “Continue with ${active.name}”.` : "Saved. SSO is disabled; local sign-in remains available."}
         </p>
       )}
+      {error && <p role="alert" className="mb-4 rounded-lg border border-accent p-3 text-sm text-accent">{error}</p>}
+      <div className="mb-4 rounded-lg border border-line bg-surface p-4 text-sm">
+        <strong>{active ? "SSO sign-in is available" : "SSO sign-in is not available"}</strong>
+        <p className="mt-1 text-muted">{active ? `The login page shows “Continue with ${active.name}”. Open it in a private browser window to check without signing out. Provider authentication still needs to be tested.` : `Required configuration: ${missing.join(", ")}. Complete these fields and save to enable the sign-in option.`}</p>
+      </div>
       {test === "ok" && (
         <p className="mb-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
           Discovery succeeded — the identity provider answered correctly.
@@ -103,12 +109,12 @@ export default async function AdminSso({
             value={fromEnv ? (active?.clientId ?? "") : (getSetting("oidc_client_id") ?? "")}
             placeholder="octavo" />
           <Field label="Client secret" name="oidc_client_secret" type="password" disabled={fromEnv}
-            value={getSetting("oidc_client_secret") ? "********" : ""}
-            placeholder="stored in the database" />
+            value=""
+            placeholder={getSetting("oidc_client_secret") || process.env.OCTAVO_OIDC_CLIENT_SECRET ? "Saved — leave blank to keep it" : "Required to enable SSO"} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Base URL of this Octavo" name="base_url" disabled={fromEnv}
-            value={fromEnv ? (active?.baseUrl ?? "") : (getSetting("base_url") ?? "")}
+          <Field label="Base URL of this Octavo" name="base_url" disabled={fromEnv || Boolean(process.env.OCTAVO_BASE_URL)}
+            value={process.env.OCTAVO_BASE_URL || getSetting("base_url") || ""}
             placeholder="https://docs.example.com" />
           <Field label="Button label" name="oidc_name" disabled={fromEnv}
             value={fromEnv ? (active?.name ?? "") : (getSetting("oidc_name") ?? "")}
@@ -142,11 +148,20 @@ export default async function AdminSso({
           </button>
         )}
       </form>
+      <p className="mt-3 text-xs text-muted">
+        {missing.includes("Client secret (missing or unreadable)")
+          ? "No readable client secret is configured. Enter it and save before testing."
+          : "A client secret is configured. The input stays empty for privacy; leave it blank to keep the saved secret."}
+      </p>
       <form action={testOidcAction} className="mt-3">
         <button className="h-9 rounded-lg border border-line bg-surface px-4 text-sm font-medium text-muted transition-colors hover:border-line-strong hover:text-ink">
-          Test discovery against the issuer
+          Test saved discovery settings
         </button>
       </form>
+      <p className="mt-2 text-xs text-muted">
+        Save changes before testing. Discovery checks the saved issuer without changing settings.
+        It reloads this page, so unsaved edits are discarded. Discovery does not verify a complete sign-in.
+      </p>
       <p className="mt-4 max-w-2xl text-xs leading-relaxed text-faint">
         Requires a verified email claim (email_verified=true). Local administrator sign-in remains available for recovery. Works with an OpenID Connect provider — including ORCID for research
         groups: issuer <code>https://orcid.org</code>, with the client id and

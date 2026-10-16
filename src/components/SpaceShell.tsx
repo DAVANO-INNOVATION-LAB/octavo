@@ -20,7 +20,7 @@ export function SpaceShell({
   editing: boolean;
   rail?: ReactNode;
   children: ReactNode;
-  reader?: { title: string; headings: Heading[] };
+  reader?: { title: string; headings: Heading[]; slideCount?: number };
 }) {
   const layout = (
     <div

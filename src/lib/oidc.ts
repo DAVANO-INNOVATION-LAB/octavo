@@ -30,7 +30,7 @@ export type OidcSettings = {
   defaultRole: "member" | "admin";
 };
 
-export function oidcSettings(): OidcSettings | null {
+function oidcValues() {
   // Environment wins; the admin UI (kv-stored) fills in otherwise.
   const issuer = process.env.OCTAVO_OIDC_ISSUER || getSetting("oidc_issuer");
   const clientId =
@@ -39,12 +39,11 @@ export function oidcSettings(): OidcSettings | null {
   const clientSecret = process.env.OCTAVO_OIDC_CLIENT_SECRET ||
     (storedSecret?.startsWith("enc:") ? decryptSecret(storedSecret.slice(4)) : storedSecret);
   const baseUrl = process.env.OCTAVO_BASE_URL || getSetting("base_url");
-  if (!issuer || !clientId || !clientSecret || !baseUrl) return null;
   return {
     issuer,
     clientId,
     clientSecret,
-    baseUrl: baseUrl.replace(/\/$/, ""),
+    baseUrl: baseUrl?.replace(/\/$/, ""),
     name:
       process.env.OCTAVO_OIDC_NAME || getSetting("oidc_name") || "SSO",
     allowedDomain:
@@ -61,6 +60,20 @@ export function oidcSettings(): OidcSettings | null {
         ? "admin"
         : "member",
   };
+}
+
+/** Report configuration gaps without disclosing credential values. */
+export function oidcMissingFields(): string[] {
+  const values = oidcValues();
+  return ([ ["issuer", "Issuer URL"], ["clientId", "Client ID"],
+    ["clientSecret", "Client secret (missing or unreadable)"], ["baseUrl", "Base URL of this Octavo"] ] as const)
+    .filter(([key]) => !values[key]?.trim()).map(([, label]) => label);
+}
+
+export function oidcSettings(): OidcSettings | null {
+  const values = oidcValues();
+  if (!values.issuer?.trim() || !values.clientId?.trim() || !values.clientSecret?.trim() || !values.baseUrl?.trim()) return null;
+  return values as OidcSettings;
 }
 
 /** True when OIDC came from env — the UI form should show read-only. */

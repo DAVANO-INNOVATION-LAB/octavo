@@ -1,3 +1,4 @@
+import { presentationSections } from "@/lib/presentation";
 import { Children as ReactChildren, cloneElement, Fragment, isValidElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import {
@@ -668,12 +669,16 @@ function OneBlock({ block: b, ctx }: { block: Block; ctx: Ctx }) {
 export function Renderer({
   blocks,
   dropCap = false,
+  slides = false,
+  slideTitle,
   run,
   threads,
   scenes,
 }: {
   blocks: Block[];
   dropCap?: boolean;
+  slides?: boolean;
+  slideTitle?: string;
   run?: RunContext;
   threads?: Map<string, { open: number; resolved: number }>;
   scenes?: Map<string, ModelScene>;
@@ -681,7 +686,7 @@ export function Renderer({
   const ctx: Ctx = { headingSeen: new Map(), run, threads, scenes };
   return (
     <div className={`reader${dropCap ? " reader-dropcap" : ""}`}>
-      <Blocks blocks={blocks} ctx={ctx} />
+      {slides ? presentationSections(blocks).map((section, index) => <section key={section[0].id} data-slide-index={index} data-slide-number={String(index + 1).padStart(2, "0")} className="document-slide">{index === 0 && section[0].type !== "heading" && slideTitle && <h1 className="presentation-title">{slideTitle}</h1>}<Blocks blocks={section} ctx={ctx} /></section>) : <Blocks blocks={blocks} ctx={ctx} />}
     </div>
   );
 }

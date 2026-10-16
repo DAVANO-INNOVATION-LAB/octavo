@@ -3,19 +3,24 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Heading } from "@/lib/blocks";
 
-export function ReaderFrame({ title, headings, children }: {
-  title: string; headings: Heading[]; children: ReactNode;
+export function ReaderFrame({ title, slideCount = 0, children }: {
+  title: string; headings: Heading[]; slideCount?: number; children: ReactNode;
 }) {
   const [wide, setWide] = useState(true);
   const [focus, setFocus] = useState(false);
   const [presenting, setPresenting] = useState(false);
-  const [section, setSection] = useState(-1);
+  const [section, setSection] = useState(0);
   const frame = useRef<HTMLDivElement>(null);
   const presentButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!presenting) return;
     function onKey(event: KeyboardEvent) {
+      if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable=true]")) return;
+      if (["ArrowRight", "PageDown", "ArrowLeft", "PageUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        setSection(current => event.key === "Home" ? 0 : event.key === "End" ? Math.max(0, slideCount - 1) : Math.max(0, Math.min(slideCount - 1, current + (["ArrowRight", "PageDown"].includes(event.key) ? 1 : -1))));
+      }
       if (event.key === "Escape") {
         setPresenting(false);
         presentButton.current?.focus();
@@ -23,12 +28,11 @@ export function ReaderFrame({ title, headings, children }: {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [presenting]);
+  }, [presenting, slideCount]);
 
   function goTo(index: number) {
     setSection(index);
-    const target = index < 0 ? frame.current : document.getElementById(headings[index].id);
-    target?.scrollIntoView({ behavior: "instant", block: "start" });
+    frame.current?.scrollIntoView({ behavior: "instant", block: "start" });
   }
 
   return (
@@ -40,16 +44,17 @@ export function ReaderFrame({ title, headings, children }: {
           <button type="button" aria-pressed={wide} onClick={() => setWide(!wide)}>{wide ? "Wide page" : "Book width"}</button>
           <button type="button" aria-pressed={focus} onClick={() => setFocus(!focus)}>{focus ? "Show navigation" : "Focus"}</button>
         </>}
-        {presenting && headings.length > 0 && <>
-          <button type="button" disabled={section < 0} onClick={() => goTo(section - 1)}>Previous</button>
-          <span aria-live="polite" className="text-xs text-muted">{section < 0 ? "Overview" : `${section + 1} / ${headings.length}`}</span>
-          <button type="button" disabled={section >= headings.length - 1} onClick={() => goTo(section + 1)}>Next section</button>
+        {presenting && slideCount > 0 && <>
+          <button type="button" disabled={section === 0} onClick={() => goTo(section - 1)}>Previous</button>
+          <span aria-live="polite" className="text-xs text-muted">{`${section + 1} / ${slideCount}`}</span>
+          <button type="button" disabled={section >= slideCount - 1} onClick={() => goTo(section + 1)}>Next slide</button>
         </>}
-        <button ref={presentButton} type="button" aria-pressed={presenting} onClick={() => {
+        <button ref={presentButton} disabled={slideCount === 0} type="button" aria-pressed={presenting} onClick={() => {
           setPresenting(!presenting);
-          if (!presenting) goTo(-1);
+          if (!presenting) goTo(0);
         }}>{presenting ? "Exit presentation" : "Present"}</button>
       </div>
+      {presenting && <style>{`@media screen { .reader-frame[data-presenting="true"] .document-slide:not([data-slide-index="${section}"]) { display: none; } }`}</style>}
       {children}
     </div>
   );

@@ -1,3 +1,4 @@
+import { presentationSections } from "@/lib/presentation";
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
 import { may , scopeFor , canReadSpaceAsVisitor, canEditSpace, canReadSpace } from "@/lib/roles";
@@ -172,7 +173,7 @@ export default async function ReaderPage({
     <SpaceShell
       space={space}
       tree={tree}
-      reader={{ title: page.title, headings }}
+      reader={{ title: page.title, headings, slideCount: presentationSections(rendered).length }}
       activeId={page.id}
       editing={editing}
       rail={
@@ -337,6 +338,8 @@ export default async function ReaderPage({
         )}
 
         <Renderer
+          slides
+          slideTitle={page.title}
           blocks={rendered}
           scenes={scenesForBlocks(rendered, space.id)}
           threads={commentable ? blockThreadCounts(page.id) : undefined}

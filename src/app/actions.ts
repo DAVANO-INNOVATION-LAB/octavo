@@ -562,9 +562,17 @@ export async function saveOidcAction(formData: FormData) {
   await requireAdmin();
   if (process.env.OCTAVO_OIDC_ISSUER) redirect("/admin/sso?test=Settings%20are%20managed%20by%20environment");
   const issuer = String(formData.get("oidc_issuer") ?? "").trim();
+  const clientId = process.env.OCTAVO_OIDC_CLIENT_ID || String(formData.get("oidc_client_id") ?? "").trim();
+  const baseUrl = process.env.OCTAVO_BASE_URL || String(formData.get("base_url") ?? "").trim();
+  const submittedSecret = String(formData.get("oidc_client_secret") ?? "").trim();
+  const storedSecret = getSetting("oidc_client_secret");
+  const previousSecret = storedSecret?.startsWith("enc:") ? decryptSecret(storedSecret.slice(4)) : storedSecret;
+  const secret = process.env.OCTAVO_OIDC_CLIENT_SECRET || (!submittedSecret || submittedSecret === "********" ? previousSecret : submittedSecret);
   if (issuer) {
-    try { validateOidcUrls(issuer, String(formData.get("base_url") ?? "").trim()); }
-    catch (e) { redirect(`/admin/sso?test=${encodeURIComponent(e instanceof Error ? e.message : "Invalid URLs")}`); }
+    const missing = [!clientId && "Client ID", !secret && "Client secret", !baseUrl && "Base URL of this Octavo"].filter(Boolean);
+    if (missing.length) redirect(`/admin/sso?error=${encodeURIComponent(`SSO was not saved. Required: ${missing.join(", ")}.`)}`);
+    try { validateOidcUrls(issuer, baseUrl); }
+    catch { redirect("/admin/sso?error=Use%20valid%20HTTP(S)%20issuer%20and%20Octavo%20URLs.%20The%20Octavo%20URL%20must%20not%20include%20a%20path."); }
   }
   const fields = [
     "oidc_issuer",
@@ -576,17 +584,22 @@ export async function saveOidcAction(formData: FormData) {
     "oidc_default_role",
     "base_url",
   ];
-  for (const f of fields) {
-    const v = String(formData.get(f) ?? "").trim();
-    // Leave the stored secret untouched when the field comes back masked.
-    if (f === "oidc_client_secret") {
-      const stored = getSetting(f);
-      const value = v === "********" ? (stored?.startsWith("enc:") ? decryptSecret(stored.slice(4)) : stored) : v;
-      setSetting(f, value ? `enc:${encryptSecret(value)}` : null);
-      continue;
+  getDb().transaction(() => {
+    for (const f of fields) {
+      if (f === "base_url" && process.env.OCTAVO_BASE_URL) continue;
+      const v = String(formData.get(f) ?? "").trim();
+      // Blank or masked means keep the saved credential, never erase it.
+      if (f === "oidc_client_secret") {
+        const stored = getSetting(f);
+        const value = !v || v === "********" ? (stored?.startsWith("enc:") ? decryptSecret(stored.slice(4)) : stored) : v;
+        setSetting(f, value ? `enc:${encryptSecret(value)}` : null);
+        continue;
+      }
+      setSetting(f, v || null);
     }
-    setSetting(f, v || null);
-  }
+  })();
+  revalidatePath("/login");
+  revalidatePath("/admin/sso");
   redirect("/admin/sso?saved=1");
 }
 
