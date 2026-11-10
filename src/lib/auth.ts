@@ -222,11 +222,15 @@ export function consumePendingToken(token: string): string | null {
   const parts = token.split(".");
   if (parts.length !== 3) return null;
   const [userId, expStr, mac] = parts;
+  // Validate the wire format before comparing bytes: a 64-character Unicode
+  // signature can have a different byte length and make timingSafeEqual throw.
+  if (!userId || !/^\d+$/.test(expStr) || !/^[a-f0-9]{64}$/.test(mac)) return null;
+  const expiresAt = Number(expStr);
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= now()) return null;
   const payload = `${userId}.${expStr}`;
   const expected = sign(payload);
   if (mac.length !== expected.length) return null;
   if (!timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
-  if (Number(expStr) < now()) return null;
   return userId;
 }
 

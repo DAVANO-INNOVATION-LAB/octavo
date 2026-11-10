@@ -1,31 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Fraunces, Newsreader } from "next/font/google";
+import "./fonts.css";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { SiteFooter } from "@/components/SiteFooter";
 import { bootstrapScript } from "@/lib/runtime-config";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  axes: ["opsz", "SOFT", "WONK"],
-});
-
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
-  subsets: ["latin"],
-  style: ["normal", "italic"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -54,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${newsreader.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <head>
         {/* Runtime config and the local Excalidraw asset path must both be set
