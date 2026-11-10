@@ -83,7 +83,7 @@ function idOf(node: XmlNode | undefined): string {
  * Read the whole export. `entries` is the unzipped archive; attachment
  * binaries live at attachments/<pageId>/<attachmentId>/<version>.
  */
-export function readConfluenceExport(entries: ZipEntry[]): ConfluenceSpace {
+export function readConfluenceExport(entries: ZipEntry[], dryRun = false): ConfluenceSpace {
   const entitiesEntry = entries.find((e) => e.name.endsWith("entities.xml"));
   if (!entitiesEntry) throw new Error("entities.xml missing — not a Confluence XML export");
 
@@ -153,7 +153,7 @@ export function readConfluenceExport(entries: ZipEntry[]): ConfluenceSpace {
   }
 
   // Pass 2: materialise attachments into uploads, newest version of each.
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  if (!dryRun) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   const attachmentUrl = new Map<string, string>(); // "<pageId>/<filename>" and "<filename>"
   const missing: string[] = [];
   let saved = 0;
@@ -167,7 +167,7 @@ export function readConfluenceExport(entries: ZipEntry[]): ConfluenceSpace {
     }
     const ext = path.extname(a.title) || "";
     const stored = `${newId()}${ext}`;
-    fs.writeFileSync(path.join(UPLOADS_DIR, stored), entry.data);
+    if (!dryRun) fs.writeFileSync(path.join(UPLOADS_DIR, stored), entry.data);
     const url = `/api/files/${stored}`;
     attachmentUrl.set(`${a.pageId}/${a.title}`, url);
     if (!attachmentUrl.has(a.title)) attachmentUrl.set(a.title, url);

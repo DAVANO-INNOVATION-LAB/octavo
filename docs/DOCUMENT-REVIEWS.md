@@ -1,26 +1,44 @@
-# Document ownership and review queue
+# Document quality
 
-## First increment
+Open **Admin → Document quality**, or **Review & checks** from a page editor.
+Editors see only spaces they can edit. Agents and deactivated accounts cannot
+use quality mutations. Every mutation checks the current content fingerprint.
 
-The pure review-state and completion functions are implemented in
-`src/lib/document-review.ts` and covered by `scripts/document-review-test.mjs`.
-CI executes those tests. They are foundations, not a user-visible feature yet.
+| Improvement | Available behavior |
+| --- | --- |
+| Ownership and reviews | Assign an active editor and UTC due date; verify a revision without rewriting content or edit timestamps. Source edits invalidate reviews of synced content. |
+| Links and assets | Check local page destinations, heading/block anchors, synced sources and uploaded files. External URLs are listed as unchecked; the server does not fetch arbitrary URLs. |
+| Search | Filter before ranking by space, owner ID (`me` for the current user), collection and update window; highlighted snippets and pagination retain permission scope. |
+| Reusable content | Register a published source page, insert it as a synced block and inspect editable usages. Nested synced sources are rejected by this insertion flow. |
+| Import preview | Inspect page names/counts, unsupported blocks, duplicate titles and missing references before confirmation. The file digest binds confirmation to its preview; page writes are transactional. |
+| Feedback | Assign feedback, move it through open/in progress/resolved, and require a resolution note. |
+| Publishing checks | Space administrators can require headings, a current review, independent publisher approval and local link checks. Editing governed published content returns it to draft. |
+| Version comparison | Compare saved versions or current content as Markdown, with an optional structural diff for media, diagrams and table properties. History is editor-only. |
+| Runbooks | Define expected output, download a revision-bound plan, explicitly execute it locally, and submit evidence. Changed definitions/revisions reject old evidence. |
+| Release bundles | Export published-page Markdown and block JSON with attachments, review metadata and SHA-256 checksums. Version label can be supplied as `?version=1.0`. |
 
-- Verification fingerprints the exact stored title and content.
-- Title/content edits invalidate verification even if their timestamps match.
-- Completing a review leaves page content and modification time untouched.
-- A stale revision cannot be marked verified.
-- Completing a review preserves the assigned owner and requires a future due date.
+Runbook execution:
 
-## Remaining acceptance criteria
+```sh
+# Inspect the downloaded command first; run only in an authorized environment.
+node scripts/runbook-check.mjs --execute runbook-plan.json > evidence.json
+```
 
-1. Add review metadata with a forward-only SQLite migration; preserve existing pages.
-2. Add an admin review queue to Insights with owner, due date, and review state.
-3. Limit assignment to active people who can edit the page's space, including group grants.
-4. Recheck authorization and expected revision inside the write transaction.
-5. Audit assignments and completed reviews; reject anonymous, reader, and agent writes.
-6. Exclude deleted spaces; invalidate verification when title/content changes.
-7. Verify migrations, permission failures, concurrent edits, and the complete browser flow.
+Paste the resulting JSON into the page's execution evidence field. Commands run
+on the invoking machine with its permissions, with a 30-second timeout and
+bounded output. Octavo never executes them on its web server. Submitted results
+are user-provided evidence, not independently attested execution.
 
-No schema migration, ownership assignment, or review mutation is activated by
-this increment. The current release is v0.26.4; this draft is for the next update.
+Bundles are read-only snapshots, not application backups. They omit drafts,
+include accessible published synced sources, and fail on missing local assets.
+External URLs/interactive embeds may still need network access. Review metadata
+reflects export time. Import previews for Word and notebooks report structural
+counts; complex formatting and notebook outputs are converted on confirmation.
+A failed import rolls back database content; attachment files already written
+may remain orphaned and can be handled by the existing upload sweep.
+
+Validation: `npm run test:quality` exercises a disposable SQLite database,
+review concurrency and timestamp invariants, permission checks, publishing
+rules, runbook evidence, import preview, search filtering and bundle generation.
+Existing core and authentication tests remain required. New schema tables are
+additive; upgrade the writer before opening a replica with this code.

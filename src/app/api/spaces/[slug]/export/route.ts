@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { canReadSpace } from "@/lib/roles";
+import { canReadSpace, canEditSpace } from "@/lib/roles";
 import { getSpaceBySlug } from "@/lib/data";
 import { exportSpaceZip } from "@/lib/transfer";
 
@@ -16,7 +16,7 @@ export async function GET(
   if (!canReadSpace(user, space))
     return new NextResponse("unauthorized", { status: 401 });
 
-  const buf = exportSpaceZip(space);
+  const buf = exportSpaceZip(space, !canEditSpace(user, space.id));
   return new NextResponse(new Uint8Array(buf), {
     headers: {
       "Content-Type": "application/zip",

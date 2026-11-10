@@ -1,3 +1,4 @@
+import { canEditSpace } from "@/lib/roles";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, History } from "lucide-react";
@@ -32,7 +33,7 @@ export default async function HistoryPage({
   if (!user) redirect("/login");
   const { space: spaceSlug, page: pageSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
-  if (!space) notFound();
+  if (!space || !canEditSpace(user, space.id)) notFound();
   const page = getPageBySlug(space.id, pageSlug);
   if (!page) notFound();
 
@@ -61,6 +62,7 @@ export default async function HistoryPage({
           versioned first.
         </p>
 
+        <Link className="mt-5 inline-block text-accent underline" href={`/${space.slug}/${page.slug}/history/compare`}>Compare versions</Link>
         {versions.length === 0 ? (
           <p className="mt-10 text-sm text-faint">
             No earlier versions yet — history begins with the next edit.

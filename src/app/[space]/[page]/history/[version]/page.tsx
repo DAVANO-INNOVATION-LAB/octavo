@@ -1,3 +1,4 @@
+import { canEditSpace } from "@/lib/roles";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -26,7 +27,7 @@ export default async function VersionPage({
   if (!user) redirect("/login");
   const { space: spaceSlug, page: pageSlug, version: versionId } = await params;
   const space = getSpaceBySlug(spaceSlug);
-  if (!space) notFound();
+  if (!space || !canEditSpace(user, space.id)) notFound();
   const page = getPageBySlug(space.id, pageSlug);
   if (!page) notFound();
   const version = getVersion(versionId);

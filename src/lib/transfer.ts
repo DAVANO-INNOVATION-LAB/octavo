@@ -57,8 +57,8 @@ export function pageToMarkdown(pageId: string): string | null {
   return front + blocksToMarkdown(blocks) + "\n";
 }
 
-export function exportSpaceZip(space: Space): Buffer {
-  const tree = pageTree(space.id, false);
+export function exportSpaceZip(space: Space, publishedOnly = false): Buffer {
+  const tree = pageTree(space.id, publishedOnly);
   const db = getDb();
   const entries: ZipEntry[] = [];
   const manifestPages: ManifestPage[] = [];

@@ -365,7 +365,9 @@ export async function publishPageAction(formData: FormData) {
   const page = getPage(id);
   if (!page) redirect("/");
   if (!may(user, page.space_id, "publish")) redirect(`/${String(formData.get("space") ?? "")}`);
-  const saved = savePage(id, { published: publish });
+  let saved;
+  try { saved = savePage(id, { published: publish }); }
+  catch (e) { redirect(`/quality?page=${encodeURIComponent(id)}&error=${encodeURIComponent(e instanceof Error ? e.message : "Publishing checks failed")}`); }
   const spaceSlug = String(formData.get("space") ?? "");
   revalidatePath(`/${spaceSlug}`);
   redirect(`/${spaceSlug}/${saved?.slug ?? page.slug}${publish ? "" : "/edit"}`);

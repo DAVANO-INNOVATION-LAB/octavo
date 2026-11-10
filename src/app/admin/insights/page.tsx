@@ -75,6 +75,7 @@ export default async function AdminInsights() {
         pages, not to follow readers. {p.totalViews} page{p.totalViews === 1 ? "" : "s"} read.
       </p>
 
+      <Link href="/quality" className="mb-6 inline-block text-sm underline">Open document review queue</Link>
       <div className="grid gap-8 sm:grid-cols-2 [&>section]:min-w-0">
         <List
           title="Most read"

@@ -109,6 +109,8 @@ export function unzip(buf: Buffer): ZipEntry[] {
   let p = buf.readUInt32LE(eocd + 16);
 
   const out: ZipEntry[] = [];
+  let totalBytes = 0;
+  if (count > 10000) throw new Error("Archive has too many entries");
   for (let n = 0; n < count; n++) {
     if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error("bad central directory");
     const method = buf.readUInt16LE(p + 10);
@@ -131,9 +133,11 @@ export function unzip(buf: Buffer): ZipEntry[] {
 
     let data: Buffer;
     if (method === 0) data = Buffer.from(raw);
-    else if (method === 8) data = inflateRawSync(raw);
+    else if (method === 8) data = inflateRawSync(raw, { maxOutputLength: 100 * 1024 * 1024 });
     else throw new Error(`unsupported compression method ${method} in ${name}`);
 
+    totalBytes += data.length;
+    if (totalBytes > 200 * 1024 * 1024) throw new Error("Expanded archive exceeds 200 MB");
     out.push({ name, data });
   }
   return out;
