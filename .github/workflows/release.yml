@@ -36,6 +36,7 @@ jobs:
       # Development packages are pruned from the standalone image after build.
       - run: npm audit --omit=dev --audit-level=high
       - run: node scripts/test.mjs
+      - run: npm run test:quality
       - run: npm run test:auth
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src

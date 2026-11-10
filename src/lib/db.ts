@@ -68,6 +68,43 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 CREATE INDEX IF NOT EXISTS pages_space ON pages(space_id, parent_id, position);
 
+CREATE TABLE IF NOT EXISTS document_reviews (
+  page_id TEXT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
+  owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  due_at INTEGER, verified_at INTEGER,
+  verified_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  verified_revision TEXT
+);
+CREATE TABLE IF NOT EXISTS document_approvals (
+  page_id TEXT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
+  reviewer_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  revision TEXT NOT NULL, at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS quality_policies (
+  space_id TEXT PRIMARY KEY REFERENCES spaces(id) ON DELETE CASCADE,
+  policy TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reusable_pages (
+  page_id TEXT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS feedback_triage (
+  feedback_id TEXT PRIMARY KEY REFERENCES feedback(id) ON DELETE CASCADE,
+  owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','in_progress','resolved')),
+  resolution TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS runbook_checks (
+  id TEXT PRIMARY KEY, page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, command TEXT NOT NULL, expected TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS runbook_evidence (
+  id TEXT PRIMARY KEY, check_id TEXT NOT NULL REFERENCES runbook_checks(id) ON DELETE CASCADE,
+  revision TEXT NOT NULL, definition TEXT NOT NULL, passed INTEGER NOT NULL,
+  output TEXT NOT NULL, recorded_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS runbook_evidence_check ON runbook_evidence(check_id, at DESC);
+
 CREATE TABLE IF NOT EXISTS kv (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL

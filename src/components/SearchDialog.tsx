@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Search } from "lucide-react";
 
@@ -31,6 +32,7 @@ export function SearchButton() {
   return (
     <>
       <button
+        aria-label="Search the library"
         onClick={() => setOpen(true)}
         className="group flex h-8 items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-sm text-muted transition-colors hover:border-line-strong hover:text-ink"
       >
@@ -109,6 +111,7 @@ function SearchOverlay({ close }: { close: () => void }) {
     >
       <div className="rise w-full max-w-xl overflow-hidden rounded-xl border border-line bg-surface shadow-pop">
         <div className="flex items-center gap-3 border-b border-line px-4">
+          <Link href="/search" onClick={close} className="text-xs underline">Filters</Link>
           <Search size={16} className="shrink-0 text-faint" />
           <input
             ref={inputRef}

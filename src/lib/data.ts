@@ -1,4 +1,5 @@
 import "server-only";
+import { hasPolicy, publishProblems } from "./quality-checks";
 import { asVariantKind, type VariantSpace } from "./variants";
 import { getDb } from "./db";
 import { asIconName } from "./icons";
@@ -366,7 +367,7 @@ export function createPage(input: {
     content,
     content === "[]" ? "" : extractText(content),
     maxPos + 1,
-    input.published ? 1 : 0,
+    input.published && !hasPolicy(input.spaceId) ? 1 : 0,
     t,
     t
   );
@@ -469,11 +470,17 @@ export function savePage(
   if (!page) return null;
   const title = fields.title?.trim() || page.title;
   const content = fields.content ?? page.content;
-  if (title !== page.title || content !== page.content) maybeSnapshot(page);
   const contentText =
     fields.content !== undefined ? extractText(content) : page.content_text;
-  const published =
+  let published =
     fields.published === undefined ? page.published : fields.published ? 1 : 0;
+  if (hasPolicy(page.space_id)) {
+    const problems = publishProblems({ ...page, title, content });
+    if (fields.published === true && problems.length) throw new Error(problems.join("; "));
+    // Editing a governed published document returns it to draft until rechecked.
+    if ((title !== page.title || content !== page.content) && published) published = 0;
+  }
+  if (title !== page.title || content !== page.content) maybeSnapshot(page);
   // Keep the slug following the title until the page is first published,
   // then freeze it so public URLs stay stable.
   const slug =
@@ -562,10 +569,13 @@ export type SearchHit = {
  */
 const SEARCH_CANDIDATES = 2000;
 
+export type SearchFilters = { space?: string; owner?: string; kind?: string; since?: number; offset?: number };
+
 export function searchPages(
   query: string,
   scope: SpaceScope,
-  limit = 12
+  limit = 12,
+  filters: SearchFilters = {}
 ): SearchHit[] {
   const q = query.trim();
   if (!q) return [];
@@ -578,6 +588,12 @@ export function searchPages(
     .join(" ");
   if (!match) return [];
   const scoped = scopeClause(scope, "s.visibility", "s.id", "s.tenant_id");
+  const conditions: string[] = [];
+  const filterParams: (string | number)[] = [];
+  if (filters.space) { conditions.push("s.slug = ?"); filterParams.push(filters.space); }
+  if (filters.owner) { conditions.push("EXISTS (SELECT 1 FROM document_reviews dr WHERE dr.page_id=p.id AND dr.owner_id=?)"); filterParams.push(filters.owner); }
+  if (filters.kind) { conditions.push("s.kind = ?"); filterParams.push(filters.kind); }
+  if (filters.since && Number.isFinite(filters.since)) { conditions.push("p.updated_at >= ?"); filterParams.push(filters.since); }
   try {
     const rows = getDb()
       .prepare(
@@ -592,12 +608,14 @@ export function searchPages(
            JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
            WHERE pages_fts MATCH ?
              ${scoped.sql ? `AND ${scoped.sql}` : ""}
+             ${conditions.length ? `AND ${conditions.join(" AND ")}` : ""}
+           ORDER BY score
            LIMIT ${SEARCH_CANDIDATES}
          )
          ORDER BY score
-         LIMIT ?`
+         LIMIT ? OFFSET ?`
       )
-      .all(match, ...scoped.params, limit) as SearchHit[];
+      .all(match, ...scoped.params, ...filterParams, Math.min(100, Math.max(1, limit)), Math.min(1900, Math.max(0, filters.offset ?? 0))) as SearchHit[];
     // Escape page-authored text, then swap the sentinel chars for <mark> tags,
     // so snippets are safe to render as HTML.
     for (const r of rows) {

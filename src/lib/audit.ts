@@ -43,6 +43,13 @@ export type AuditAction =
   | "member.role_changed"
   | "member.removed"
   // content
+  | "document.reviewed"
+  | "document.assigned"
+  | "document.approved"
+  | "document.reused"
+  | "feedback.triaged"
+  | "runbook.recorded"
+  | "quality.policy_changed"
   | "page.published"
   | "page.unpublished"
   | "page.deleted"
