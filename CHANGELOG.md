@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.27.0
+
+- Add document ownership and reviews, publishing policies, local link checks, reusable sources, and feedback triage.
+- Add filtered search, import previews, version comparisons, local runbook verification, and checksummed documentation bundles.
+- Keep page history editor-only and exclude drafts from reader exports.
+- Paginate large review queues, reduce repeated database lookups, and fix mobile overflow in quality, search, navigation, and editor controls.
+- Add quality integration and local stress-test coverage.
+
 ## v0.26.4
 
 - Bundle application fonts locally so production builds do not fetch Google Fonts.

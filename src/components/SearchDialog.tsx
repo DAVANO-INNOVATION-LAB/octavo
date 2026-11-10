@@ -32,6 +32,7 @@ export function SearchButton() {
   return (
     <>
       <button
+        aria-label="Search the library"
         onClick={() => setOpen(true)}
         className="group flex h-8 items-center gap-2 rounded-md border border-line bg-surface px-2.5 text-sm text-muted transition-colors hover:border-line-strong hover:text-ink"
       >

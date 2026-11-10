@@ -38,7 +38,7 @@ export default async function EditPage({
           >
             {page.published === 1 ? "Published" : "Draft"}
           </span>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
             <Link href={`/quality?page=${page.id}`} className="text-xs underline">Review & checks</Link>
             <form action={publishPageAction}>
               <input type="hidden" name="id" value={page.id} />

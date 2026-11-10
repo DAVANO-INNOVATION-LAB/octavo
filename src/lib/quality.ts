@@ -4,7 +4,7 @@ import type { User } from "./auth";
 import { canEditSpace, isAgent, may } from "./roles";
 import { isDeactivated } from "./scim";
 import { savePage } from "./data";
-import { completeReview, reviewState } from "./document-review";
+import { completeReview, reviewState, reviewRevision, type ReviewRecord } from "./document-review";
 import { qualityRevision, reviewFor, reviewInput, type QualityPage, type PublishPolicy } from "./quality-checks";
 import { contentDigest, documentReferences, reviewDate } from "./quality-core";
 import { recordAudit, type AuditAction } from "./audit";
@@ -24,7 +24,17 @@ export function qualityPages(user: User) {
   requireQualityUser(user);
   const rows=getDb().prepare(`SELECT p.*, s.name AS space_name, s.slug AS space_slug FROM pages p
     JOIN spaces s ON s.id=p.space_id WHERE s.id NOT IN (SELECT space_id FROM deleted_spaces) ORDER BY s.name,p.title`).all() as (QualityPage & {space_name:string;space_slug:string})[];
-  return rows.filter(p=>canEditSpace(user,p.space_id)).map(p=>({...p,review:reviewFor(p.id),state:reviewState(reviewInput(p),reviewFor(p.id),Date.now()),revision:qualityRevision(p)}));
+  const access = new Map<string, boolean>();
+  const reviews = new Map((getDb().prepare(`SELECT page_id, owner_id AS ownerId, due_at AS dueAt,
+    verified_at AS verifiedAt, verified_by AS verifiedBy, verified_revision AS verifiedRevision FROM document_reviews`).all() as (ReviewRecord & {page_id:string})[]).map(r=>[r.page_id,r]));
+  const timestamp = Date.now();
+  return rows.filter(p=>{
+    if (!access.has(p.space_id)) access.set(p.space_id,canEditSpace(user,p.space_id));
+    return access.get(p.space_id);
+  }).map(p=>{
+    const review=reviews.get(p.id)??null, input=reviewInput(p);
+    return {...p,review,state:reviewState(input,review,timestamp),revision:reviewRevision(input)};
+  });
 }
 export function eligibleOwners(spaceId:string): User[] {
   return (getDb().prepare("SELECT id,email,name,role FROM users ORDER BY name").all() as User[])

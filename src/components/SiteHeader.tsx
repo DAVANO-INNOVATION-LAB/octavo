@@ -13,14 +13,15 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-md">
       <SeasonalDecor />
-      <div className="relative mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
+      <div className="relative mx-auto flex h-14 max-w-7xl items-center gap-2 px-2 sm:gap-4 sm:px-6">
         <Link href="/" className="wordmark shrink-0 text-[1.35rem] leading-none">
           octavo<span className="text-accent">.</span>
         </Link>
         <nav aria-label="Site" className="ml-auto flex items-center gap-0.5 sm:gap-2">
           <Link
             href="/whiteboard"
-            className="flex h-8 items-center gap-1.5 rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:px-2.5"
+            aria-label="Whiteboard"
+            className="hidden min-[400px]:flex h-8 items-center gap-1.5 rounded-md px-1.5 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink sm:px-2.5"
           >
             <PenTool size={14} />
             <span className="hidden sm:inline">Whiteboard</span>
@@ -36,7 +37,7 @@ export async function SiteHeader() {
           <SearchButton />
           <ThemeMenu />
           {user ? (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-0 sm:gap-1">
               {/* The header is exactly full at 375px — this icon pushed every
                   page into horizontal scroll. On phones the entry point is the
                   account page instead. */}
