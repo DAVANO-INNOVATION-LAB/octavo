@@ -1,13 +1,14 @@
 {
   "name": "octavo",
-  "version": "0.26.3",
+  "version": "0.26.4",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "node scripts/test.mjs && node scripts/validate-content.mjs",
+    "test": "node scripts/auth-test.mjs && node scripts/test.mjs && node scripts/validate-content.mjs",
+    "test:auth": "node scripts/auth-test.mjs",
     "loadtest": "node scripts/loadtest.mjs",
     "validate": "node scripts/validate-content.mjs",
     "test:ui": "node scripts/ui-test.mjs",

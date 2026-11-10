@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.26.4
+
+- Bundle application fonts locally so production builds do not fetch Google Fonts.
+- Use the verified webpack compiler for production builds.
+- Reject malformed pending-login signatures and invalid expiry values safely; run auth regressions in CI and release verification.
+
 ## v0.26.3
 
 - Improved workspace safeguards and recovery.
