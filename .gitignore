@@ -94,3 +94,5 @@ AGENTS.md
 /artifacts/offline-smoke/
 
 /artifacts/import-provenance*/
+
+/artifacts/provenance-verification*/

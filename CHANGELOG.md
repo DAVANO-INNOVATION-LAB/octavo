@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.24
+
+- Add explicit read-only checks comparing recorded upload-derived page and attachment hashes with current stored outputs.
+- Distinguish unchanged, changed, missing and unavailable results; export the dated result as JSON without replacing the original receipt.
+- Keep checks administrator-only, bounded and private, with explicit limits: recorded outputs only, no original-source or authenticity verification.
+
 ## v0.27.23
 
 - Record source upload fingerprints and converter identity in new file-import receipts, linked to stored page-content and saved-attachment hashes.

@@ -114,3 +114,18 @@ The manifest describes derivation from the whole uploaded file. It does not clai
 Older receipts, URL imports and OpenAPI imports show provenance as not recorded. Historical identities are not reconstructed from current content. The manifest is saved in the import transaction; capture failure rolls back the import rather than returning partial provenance. No schema migration is needed: existing receipt JSON remains readable. Reverting the application release leaves receipt JSON in place but older code will not display the new field.
 
 Capture is bounded to 10,000 combined pages and attachments and 512 MiB of saved attachment bytes per import, in addition to the existing upload-size limit. Imports exceeding these limits fail and roll back rather than omitting manifest entries. Hashes do not grant file access and are not a cross-tenant matching service.
+
+## Check recorded outputs
+
+Space administrators can explicitly **Check recorded outputs** from a receipt that has upload provenance. The check compares each recorded page's current stored content and each recorded attachment's current bytes with the import-time hashes. It does not edit content, replace the receipt, or run automatically on page load. Results can be downloaded as a dated JSON snapshot.
+
+- **Unchanged**: the checked content bytes match the recorded hash.
+- **Changed**: the bytes differ. Normal edits can cause this; it is not a corruption or security-incident diagnosis.
+- **Missing**: the recorded output is no longer available in the same space. Moved outputs are not followed into another space.
+- **Unavailable**: a baseline, file, permission-independent resource limit or safe read prevented comparison. This is never counted as unchanged.
+
+The check covers recorded outputs only. New pages and files added after import are not included. Page titles, permissions, publication state and other metadata are outside the page-content hash. Original uploaded source bytes were not retained, so the source itself is explicitly **not checked**. Results are a point-in-time observation, not ongoing monitoring, a signature, provenance authenticity or proof of lossless conversion.
+
+The POST endpoint is `/api/spaces/<slug>/import-report/verify`. It requires current receipt access and a same-origin request with the original Host preserved by reverse proxies. Responses are private and not cached. No successful comparison is inferred for legacy or malformed receipts. Permission revocation takes effect on the next check; previously downloaded results remain the recipient's copy.
+
+Verification reads at most 64 MiB of combined current page content and attachment bytes across at most 10,000 recorded outputs; stored receipts larger than 8 MiB are unavailable. Items beyond the read budget are marked unavailable, never skipped as passing. This lower verification budget is separate from the import capture limit.
