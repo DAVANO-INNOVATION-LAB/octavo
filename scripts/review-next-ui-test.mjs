@@ -217,7 +217,7 @@ try {
     otherBefore=reviewRows(second.id);pagesBefore=pageRows();await submit(true);
     await waitFor(`new URLSearchParams(location.search).get('advanced')==='1' && document.querySelector('[data-testid="quality-selected-page"] h2')?.textContent===${JSON.stringify(last.title)}`,'verify and next matching page');
     current=await assertContext(label);assert.equal(current.page,last.id);assert.equal(reviewRows(second.id),otherBefore);assert.equal(pageRows(),pagesBefore);
-    const secondReview=db.prepare('SELECT * FROM document_reviews WHERE page_id=?').get(second.id);assert.equal(secondReview.verified_by,'ui-owner');assert.equal(secondReview.due_at,Date.parse(due+'T00:00:00.000Z'));
+    const secondReview=db.prepare('SELECT * FROM document_reviews WHERE page_id=?').get(second.id);assert.equal(secondReview.verified_by,'ui-owner');assert.equal(secondReview.due_at,Date.parse(due+'T23:59:59.999Z'));
     assert.equal(db.prepare('SELECT verified_at FROM document_reviews WHERE page_id=?').get(last.id).verified_at,null);
     assert.ok(await evaluate(`document.querySelector('[data-testid="review-outcome"]').textContent.includes('next matching document')`));
     await screenshot(`next-${label}`,width);
