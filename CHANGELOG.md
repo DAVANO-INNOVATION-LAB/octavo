@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.10
+
+- Record reading analytics only for pages the caller can currently view, including writer-only drafts. Denied requests retain an empty response without writing telemetry.
+- Keep existing published-page behavior, anonymous aggregation, duplicate-entry limits and retention unchanged. Existing analytics are not rewritten or deleted.
+- Add isolated real-session route and compiled HTTP reading-access regressions to CI and release verification. This protects access boundaries, not against repeated authorized submissions.
+
 ## v0.27.9
 
 - Bind comment moderation and visitor-token revocation to persisted, authorized targets; enforce draft and AI-agent capability boundaries.
