@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { hash, inventory, runGate, verify } from './evidence-bundle.mjs';
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'octavo-evidence-test-'));
+try {
+  const output = path.join(root, 'output'); fs.mkdirSync(output);
+  fs.writeFileSync(path.join(root, 'pass.mjs'), "console.log('synthetic success')");
+  fs.writeFileSync(path.join(root, 'fail.mjs'), "console.error('synthetic failure');process.exit(7)");
+  fs.writeFileSync(path.join(root, 'hang.mjs'), "setInterval(()=>{},1000)");
+  const pass = await runGate({ id:'pass', script:'pass.mjs',root,output });
+  assert.equal(pass.status,'passed'); assert.equal(pass.logSha256,hash(fs.readFileSync(path.join(output,pass.log))));
+  const fail = await runGate({ id:'fail',script:'fail.mjs',root,output });
+  assert.equal(fail.status,'failed'); assert.equal(fail.exitCode,7);
+  assert.match(fs.readFileSync(path.join(output,fail.log),'utf8'),/synthetic failure/);
+  const timeout = await runGate({ id:'timeout',script:'hang.mjs',root,output,timeoutMs:100 });
+  assert.equal(timeout.status,'failed'); assert.equal(timeout.timedOut,true);
+  const missing = await runGate({ id:'missing',script:'absent.mjs',root,output });
+  assert.equal(missing.status,'failed');
+  await assert.rejects(runGate({ id:'pass',script:'pass.mjs',root,output }),/EEXIST/);
+  const files = inventory(output); assert.equal(files.length,4);
+  fs.writeFileSync(path.join(output,'manifest.json'),JSON.stringify({schemaVersion:1,algorithm:'sha256',files}));
+  assert.equal(verify(output),4);
+  fs.writeFileSync(path.join(output,'pass.log'),'tampered');
+  assert.throws(()=>verify(output),/inventory differs/);
+  assert.notEqual(inventory(output).find(f=>f.path==='pass.log').sha256, pass.logSha256);
+  fs.symlinkSync(path.join(root,'pass.mjs'),path.join(output,'link'));
+  assert.throws(()=>inventory(output),/symlink/);
+  console.log('Evidence tests passed: success, failure, timeout, missing command, retained logs, overwrite refusal, tamper detection, symlink rejection');
+} finally { fs.rmSync(root,{recursive:true,force:true}); }
