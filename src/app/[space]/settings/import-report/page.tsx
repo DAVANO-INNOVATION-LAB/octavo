@@ -58,6 +58,25 @@ export default async function ImportReportPage({ params }: { params: Promise<{ s
             {metrics.map(([label, count]) => <div key={label} className="rounded-xl border border-line bg-surface p-4"><dt className="text-xs text-muted">{label}</dt><dd className="mt-2 text-3xl font-semibold tabular-nums text-ink">{count.toLocaleString("en-US")}</dd></div>)}
           </dl>
         </section>
+        <section aria-labelledby="import-provenance" data-testid="import-provenance" className="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h2 id="import-provenance" className="text-lg font-semibold text-ink">Source provenance</h2>
+            <span className="rounded-full border border-line px-2.5 py-1 text-xs text-muted">{report.provenance ? "Recorded at import" : "Not recorded"}</span>
+          </div>
+          {report.provenance ? <>
+            <p className="mt-3 text-sm leading-relaxed text-muted">A fingerprint of the uploaded file and the content created from it. Use the JSON report to compare source and derived-content hashes with your own records.</p>
+            <dl className="mt-5 grid min-w-0 gap-x-5 gap-y-3 text-sm sm:grid-cols-[9rem_minmax(0,1fr)]">
+              <dt className="text-faint">Source SHA-256</dt><dd className="min-w-0 font-mono text-xs leading-6 text-ink [overflow-wrap:anywhere]" data-testid="source-sha256">{report.provenance.source.sha256}</dd>
+              <dt className="text-faint">Upload size</dt><dd className="text-ink">{report.provenance.source.bytes.toLocaleString("en-US")} bytes</dd>
+              <dt className="text-faint">Import identity</dt><dd className="min-w-0 font-mono text-xs leading-6 text-ink [overflow-wrap:anywhere]">{report.provenance.source.id}</dd>
+              <dt className="text-faint">Converter</dt><dd className="min-w-0 text-ink">{report.provenance.converter.name} · {report.provenance.converter.version}</dd>
+              <dt className="text-faint">Captured</dt><dd className="text-ink"><time dateTime={new Date(report.provenance.capturedAt).toISOString()}>{new Date(report.provenance.capturedAt).toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC</time></dd>
+              <dt className="text-faint">Linked outputs</dt><dd className="text-ink">{report.provenance.pages.length.toLocaleString("en-US")} {report.provenance.pages.length === 1 ? "page" : "pages"} · {report.provenance.attachments.length.toLocaleString("en-US")} {report.provenance.attachments.length === 1 ? "attachment" : "attachments"} (hashes in JSON)</dd>
+            </dl>
+            <a href={`/api/spaces/${space.slug}/import-report`} data-testid="provenance-download" className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-accent hover:border-accent"><Download size={15} aria-hidden />Download report with provenance</a>
+            <p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-muted">This is an import-time snapshot, not a check of current content. Page hashes cover stored content, not titles or later revisions. Links identify the whole uploaded source, not individual archive entries. Hashes do not establish authenticity or conversion fidelity, and the original upload is not archived by this record.</p>
+          </> : <p className="mt-3 text-sm leading-relaxed text-muted">No source fingerprint was recorded for this import. Provenance is collected for new file uploads only; older receipts, URL imports and OpenAPI imports are not reconstructed. An absent record does not indicate a failed import.</p>}
+        </section>
         {report.preview && <section aria-labelledby="import-preview" className="rounded-xl border border-dashed border-line p-5">
           <h2 id="import-preview" className="font-semibold text-ink">Preview estimates</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">Before conversion: {report.preview.pages.toLocaleString("en-US")} pages and {report.preview.attachmentEntries.toLocaleString("en-US")} attachment entries. Estimates can differ from saved results and are not a count of successfully converted files.</p>

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       if (!space) throw new Error("Imported space was not found");
       setSpaceMember(space.id, user.id, "admin");
       attributeImportAttachments(space.id, user.id);
-      createImportReport({spaceId:space.id,actorId:user.id,sourceKind:"upload",sourceLabel:file.name,preview:{pages:preview.pages.length,attachmentEntries:preview.attachments,warnings:preview.warnings,...(preview.assetPlan?{assetPlan:preview.assetPlan}:{})}});
+      createImportReport({spaceId:space.id,actorId:user.id,sourceKind:"upload",sourceLabel:file.name,sourceBytes:buf,preview:{pages:preview.pages.length,attachmentEntries:preview.attachments,warnings:preview.warnings,...(preview.assetPlan?{assetPlan:preview.assetPlan}:{})}});
       return space.slug;
     });
   } catch (e) {
