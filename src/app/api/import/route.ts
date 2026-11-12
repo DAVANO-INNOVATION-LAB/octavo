@@ -4,7 +4,7 @@ import { getSpaceBySlug } from "@/lib/data";
 import { revalidatePath } from "next/cache";
 import { isAgent, setSpaceMember } from "@/lib/roles";
 import { previewImport } from "@/lib/import-preview";
-import { getDb } from "@/lib/db";
+import { runImportTransaction } from "@/lib/import-transaction";
 import { importUpload } from "@/lib/transfer";
 
 // Keep the browser on its public origin, including behind container proxies.
@@ -29,21 +29,32 @@ export async function POST(req: NextRequest) {
   if (file.size > MAX_BYTES)
     return localRedirect("/import?error=toolarge");
 
+  let spaceSlug: string;
   try {
     const buf = Buffer.from(await file.arrayBuffer());
     const preview = previewImport(file.name, buf);
     const digest = form.get("previewDigest");
     if (digest && digest !== preview.digest) throw new Error("The file changed after preview; preview it again");
     if (preview.errors.length) throw new Error(preview.errors.join("; "));
-    const result = getDb().transaction(() => importUpload(file.name, buf, name || undefined)).immediate();
-    const space = getSpaceBySlug(result.spaceSlug);
-    if (!space) throw new Error("Imported space was not found");
-    setSpaceMember(space.id, user.id, "admin");
-    revalidatePath("/");
-    revalidatePath(`/${space.slug}`);
-    return localRedirect(`/${result.spaceSlug}`);
+    spaceSlug = runImportTransaction(() => {
+      const result = importUpload(file.name, buf, name || undefined);
+      const space = getSpaceBySlug(result.spaceSlug);
+      if (!space) throw new Error("Imported space was not found");
+      setSpaceMember(space.id, user.id, "admin");
+      return space.slug;
+    });
   } catch (e) {
+    if (e instanceof AggregateError) console.error("Import rollback needs operator attention", e);
     const msg = e instanceof Error ? e.message : "import failed";
     return localRedirect(`/import?error=${encodeURIComponent(msg)}`);
   }
+  // Content and ownership are committed. A cache error must not imply rollback
+  // or encourage the user to import the same content again.
+  try {
+    revalidatePath("/");
+    revalidatePath(`/${spaceSlug}`);
+  } catch (error) {
+    console.error("Import committed; cache revalidation failed", error);
+  }
+  return localRedirect(`/${spaceSlug}`);
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.4
+
+- Roll back uploaded content and importer ownership together; URL imports now atomically create content, ownership, publication and their local audit entry.
+- Track exclusively created XML, HTML and notebook attachments and remove only the failed import’s own files, including partial writes. Report incomplete cleanup rather than silently claiming success.
+- Keep committed imports after cache/response failures, and forward URL-import audit events only after commit.
+- Add isolated database, attachment and route rollback regressions to CI and release verification. See [import rollback](docs/IMPORT-ROLLBACK.md) for recovery limits.
+
 ## v0.27.3
 
 - Resolve and validate every URL import destination, reject mixed public/private DNS answers, and pin each connection to a validated address while preserving HTTPS certificate verification.

@@ -40,6 +40,7 @@ jobs:
       - run: npm run test:restore
       - run: npm run test:auth
       - run: npm run test:url-import
+      - run: npm run test:import-rollback
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs

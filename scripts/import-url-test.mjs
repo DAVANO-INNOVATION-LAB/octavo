@@ -189,6 +189,7 @@ await test('route denies unauthenticated/agent requests and failed fetches make 
     '@/lib/html-blocks': { pageContentToBlocks: () => ({title:'Article',blocks:[{type:'paragraph'}]}) },
     '@/lib/audit': { recordAudit: () => { audited++; } },
     '@/lib/import-url': { fetchGuarded: fetch },
+    '@/lib/import-transaction': { runImportTransaction: operation => operation() },
   };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/api/import/url/route.ts', 'utf8'), {
     compilerOptions: { module:ts.ModuleKind.CommonJS, target:ts.ScriptTarget.ES2022 },
