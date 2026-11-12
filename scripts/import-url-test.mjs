@@ -176,7 +176,7 @@ await test('deadline covers DNS, headers and streaming bodies', async () => {
   fixtures = [{hang:true}]; await assert.rejects(fetch('https://example.test'), /timed out/);
 });
 await test('route denies unauthenticated/agent requests and failed fetches make no writes', async () => {
-  const route = {}; let user = null, writes = 0, audited = 0;
+  const route = {}; let user = null, writes = 0, audited = 0, reports = 0;
   const deps = {
     'next/server': { NextResponse: { json: (body, options = {}) => ({ body, status: options.status ?? 200 }) } },
     '@/lib/auth': { currentUser: async () => user },
@@ -190,6 +190,7 @@ await test('route denies unauthenticated/agent requests and failed fetches make 
     '@/lib/audit': { recordAudit: () => { audited++; } },
     '@/lib/import-url': { fetchGuarded: fetch },
     '@/lib/import-transaction': { runImportTransaction: operation => operation() },
+    '@/lib/import-reports': { createImportReport: () => { reports++; } },
   };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/api/import/url/route.ts', 'utf8'), {
     compilerOptions: { module:ts.ModuleKind.CommonJS, target:ts.ScriptTarget.ES2022 },
@@ -203,10 +204,10 @@ await test('route denies unauthenticated/agent requests and failed fetches make 
   assert.equal((await route.POST(req('http://127.0.0.1'))).status, 400);
   fixtures = [{headers:{'content-length':String(MAX+1)},hang:true}];
   assert.equal((await route.POST(req('https://example.test'))).status, 400);
-  assert.equal(writes, 0); assert.equal(audited, 0);
+  assert.equal(writes, 0); assert.equal(audited, 0); assert.equal(reports, 0);
   fixtures = [{}]; const result = await route.POST(req('https://example.test'));
   assert.equal(result.status, 200); assert.equal(result.body.spaceSlug, 'imported');
-  assert.equal(writes, 4); assert.equal(audited, 1);
+  assert.equal(writes, 4); assert.equal(audited, 1); assert.equal(reports, 1);
 });
 
 await test('IPv6 exclusion boundaries and additional normalized URL variants', async () => {

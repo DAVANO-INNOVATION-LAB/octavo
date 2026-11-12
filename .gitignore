@@ -70,3 +70,6 @@ AGENTS.md
 /integrations/skypilot/__pycache__/
 
 /.next-order/
+
+# Synthetic browser verification screenshots
+/artifacts/import-reports/

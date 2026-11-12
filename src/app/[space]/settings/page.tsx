@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { getImportReport } from "@/lib/import-reports";
 import { DeleteSpaceButton } from "@/components/DeleteSpaceButton";
 import { notFound, redirect } from "next/navigation";
 import { variantGroups } from "@/lib/data";
@@ -22,6 +24,7 @@ export default async function SpaceSettings({
   const { space: spaceSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
   if (!space || !canReadSpace(user, space) || !canAdminSpace(user, space.id)) notFound();
+  const importReport = getImportReport(user, space.id);
   const tree = pageTree(space.id, false);
 
   const groups = variantGroups(scopeFor(user));
@@ -30,6 +33,7 @@ export default async function SpaceSettings({
     <SpaceShell space={space} tree={tree} editing>
       <div className="mx-auto max-w-xl">
         <h1 className="wordmark text-2xl text-ink">Space settings</h1>
+        {importReport && <Link href={`/${space.slug}/settings/import-report`} className="mt-3 inline-flex text-sm text-accent underline underline-offset-4">View import report</Link>}
         <form
           action={updateSpaceAction}
           className="mt-8 space-y-5 rounded-2xl border border-line bg-surface p-8 shadow-card"

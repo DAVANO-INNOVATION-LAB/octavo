@@ -1,3 +1,4 @@
+import { createImportReport } from "@/lib/import-reports";
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { getSpaceBySlug } from "@/lib/data";
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
       if (!space) throw new Error("Imported space was not found");
       setSpaceMember(space.id, user.id, "admin");
       attributeImportAttachments(space.id, user.id);
+      createImportReport({spaceId:space.id,actorId:user.id,sourceKind:"upload",sourceLabel:file.name,preview:{pages:preview.pages.length,attachmentEntries:preview.attachments,warnings:preview.warnings}});
       return space.slug;
     });
   } catch (e) {

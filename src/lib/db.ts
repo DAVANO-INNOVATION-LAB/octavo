@@ -496,6 +496,14 @@ CREATE TABLE IF NOT EXISTS cr_reviews (
 );
 CREATE INDEX IF NOT EXISTS cr_reviews_cr ON cr_reviews(cr_id, at DESC);
 
+CREATE TABLE IF NOT EXISTS import_reports (
+  id TEXT PRIMARY KEY,
+  space_id TEXT NOT NULL UNIQUE REFERENCES spaces(id) ON DELETE CASCADE,
+  actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  completed_at INTEGER NOT NULL,
+  report_json TEXT NOT NULL
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
   page_id UNINDEXED,
   title,
