@@ -49,6 +49,16 @@ function instanceRoleOf(user: User | null): InstanceRole | null {
 /** Everything a principal may do in one space. */
 export function capsFor(user: User | null, spaceId: string): Capability[] {
   if (!user || isSpaceDeleted(spaceId)) return [];
+  const space = getDb().prepare("SELECT visibility, tenant_id FROM spaces WHERE id = ?").get(spaceId) as
+    | { visibility: string; tenant_id: string | null }
+    | undefined;
+  if (!space) return [];
+  // Retained direct/group grants do not bypass a tenant boundary. Check the
+  // actual target before deriving any capability, including direct actions.
+  if (space.tenant_id) {
+    const tenants = tenantIdsFor(user);
+    if (tenants !== "all" && !tenants.includes(space.tenant_id)) return [];
+  }
   // A direct membership and a group grant are unioned, stronger winning.
   // A group must never take access away: someone added to a reader group
   // while holding an editor seat stays an editor.
@@ -56,7 +66,7 @@ export function capsFor(user: User | null, spaceId: string): Capability[] {
   // Being signed in is not membership. Without this, the instance-wide
   // read/comment/propose that a signed-in non-member gets would apply to
   // private spaces too, and one account would open the whole library.
-  if (!role && instanceRoleOf(user) !== "admin" && isPrivateSpace(spaceId)) {
+  if (!role && instanceRoleOf(user) !== "admin" && space.visibility === "private") {
     return [];
   }
   return capabilities(instanceRoleOf(user), role);
@@ -71,14 +81,6 @@ function strongest(a: SpaceRole | null, b: SpaceRole | null): SpaceRole | null {
   // one, because that is the whole point of it.
   if (a === "agent" || b === "agent") return "agent";
   return ROLE_STRENGTH.indexOf(a) >= ROLE_STRENGTH.indexOf(b) ? a : b;
-}
-
-/** Cheap enough to call per check; SQLite reads this from the page cache. */
-function isPrivateSpace(spaceId: string): boolean {
-  const row = getDb()
-    .prepare("SELECT visibility FROM spaces WHERE id = ?")
-    .get(spaceId) as { visibility: string } | undefined;
-  return row?.visibility === "private";
 }
 
 export function may(
@@ -231,6 +233,15 @@ export function isSpaceDeleted(spaceId: string): boolean {
 /** Recovery uses retained grants; ordinary access to a deleted space is denied. */
 export function canRestoreSpace(user: User | null, spaceId: string): boolean {
   if (!user) return false;
+  // Recovery may cross the deleted-space gate, never a tenant boundary.
+  const space = getDb().prepare("SELECT tenant_id FROM spaces WHERE id = ?").get(spaceId) as
+    | { tenant_id: string | null }
+    | undefined;
+  if (!space) return false;
+  if (space.tenant_id) {
+    const tenants = tenantIdsFor(user);
+    if (tenants !== "all" && !tenants.includes(space.tenant_id)) return false;
+  }
   const role = strongest(spaceRole(user.id, spaceId), groupRoleFor(user.id, spaceId));
   return capabilities(instanceRoleOf(user), role).includes("administer");
 }

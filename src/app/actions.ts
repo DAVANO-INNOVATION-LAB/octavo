@@ -95,6 +95,7 @@ import {
 import {
   canAdminSpace,
   canEditSpace,
+  canReadSpace,
   isAgent,
   may,
   reviewersFor,
@@ -272,10 +273,10 @@ export async function createSpaceAction(formData: FormData) {
 }
 
 export async function updateSpaceAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const slug = String(formData.get("slug") ?? "");
   const space = getSpaceBySlug(slug);
-  if (!space) redirect("/");
+  if (!space || !canReadSpace(user, space) || !canAdminSpace(user, space.id)) redirect("/");
   updateSpace(space.id, {
     name: String(formData.get("name") ?? space.name),
     description: String(formData.get("description") ?? space.description),
@@ -465,16 +466,20 @@ export async function setThreadResolvedAction(formData: FormData) {
 // ---- version history ----
 
 export async function restoreVersionAction(formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
   const versionId = String(formData.get("versionId") ?? "");
   const spaceSlug = String(formData.get("space") ?? "");
+  const space = getSpaceBySlug(spaceSlug);
+  if (!space || !canReadSpace(user, space) || !canEditSpace(user, space.id)) redirect("/");
   const version = getVersion(versionId);
-  if (!version) redirect("/");
+  const page = version && getPage(version.page_id);
+  if (!version || !page || page.space_id !== space.id) redirect("/");
   // The state being replaced is always kept, throttle or not.
   snapshotNow(version.page_id);
   const saved = savePage(version.page_id, {
     title: version.title,
     content: version.content,
+    by: user.id,
   });
   revalidatePath(`/${spaceSlug}`);
   redirect(`/${spaceSlug}/${saved?.slug ?? ""}`);
@@ -1632,8 +1637,7 @@ export async function setSpaceVariantAction(formData: FormData) {
   const user = await requireUser();
   const slug = String(formData.get("slug") ?? "");
   const space = getSpaceBySlug(slug);
-  if (!space) redirect("/");
-  if (!canAdminSpace(user, space.id)) redirect(`/${slug}`);
+  if (!space || !canReadSpace(user, space) || !canAdminSpace(user, space.id)) redirect("/");
   setSpaceVariant(space.id, {
     group: String(formData.get("group") ?? ""),
     label: String(formData.get("label") ?? ""),

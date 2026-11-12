@@ -1123,27 +1123,37 @@ export function searchInsights(days = 30): {
  * with the given slug. One query for the group and one for the slugs, rather
  * than a lookup per sibling.
  */
-export function variantSiblings(space: {
-  id: string;
-  variant_group?: string;
-}): { spaces: VariantSpace[]; slugs: Map<string, Set<string>> } {
+export function variantSiblings(
+  space: { id: string; variant_group?: string },
+  scope: SpaceScope,
+  canReadDrafts: (target: Pick<Space, "id" | "visibility" | "tenant_id">) => boolean = () => false
+): { spaces: VariantSpace[]; slugs: Map<string, Set<string>> } {
   const group = (space.variant_group ?? "").trim();
   if (!group) return { spaces: [], slugs: new Map() };
   const db = getDb();
+  const { sql, params } = scopeClause(scope);
+  // The caller has authorized the current space, possibly through a visitor
+  // link. That one-space exception must not open any of its private siblings.
   const spaces = db
     .prepare(
-      `SELECT id, slug, name, variant_group, variant_label, variant_kind, variant_position
-       FROM spaces WHERE id NOT IN (SELECT space_id FROM deleted_spaces) AND variant_group = ? ORDER BY variant_position`
+      `SELECT id, slug, name, variant_group, variant_label, variant_kind, variant_position,
+              visibility, tenant_id
+       FROM spaces WHERE id NOT IN (SELECT space_id FROM deleted_spaces)
+         AND variant_group = ? AND (id = ? OR (${sql})) ORDER BY variant_position`
     )
-    .all(group) as VariantSpace[];
+    .all(group, space.id, ...params) as (VariantSpace & Pick<Space, "visibility" | "tenant_id">)[];
   const slugs = new Map<string, Set<string>>();
   if (spaces.length > 1) {
+    // Draft access belongs to each target sibling, never to the source page.
+    const writableIds = spaces.filter(canReadDrafts).map((s) => s.id);
+    const draftClause = writableIds.length ? ` OR space_id IN (${writableIds.map(() => "?").join(",")})` : "";
     const rows = db
       .prepare(
         `SELECT space_id, slug FROM pages
-         WHERE space_id IN (${spaces.map(() => "?").join(",")})`
+         WHERE space_id IN (${spaces.map(() => "?").join(",")})
+           AND (published = 1${draftClause})`
       )
-      .all(...spaces.map((s) => s.id)) as { space_id: string; slug: string }[];
+      .all(...spaces.map((s) => s.id), ...writableIds) as { space_id: string; slug: string }[];
     for (const r of rows) {
       if (!slugs.has(r.space_id)) slugs.set(r.space_id, new Set());
       slugs.get(r.space_id)!.add(r.slug);
@@ -1153,13 +1163,14 @@ export function variantSiblings(space: {
 }
 
 /** Variant groups an admin can attach a space to, with how many are in each. */
-export function variantGroups(): { group: string; count: number }[] {
+export function variantGroups(scope: SpaceScope): { group: string; count: number }[] {
+  const { sql, params } = scopeClause(scope);
   return getDb()
     .prepare(
       `SELECT variant_group AS "group", COUNT(*) AS count FROM spaces
-       WHERE id NOT IN (SELECT space_id FROM deleted_spaces) AND variant_group != '' GROUP BY variant_group ORDER BY variant_group`
+       WHERE ${sql} AND variant_group != '' GROUP BY variant_group ORDER BY variant_group`
     )
-    .all() as { group: string; count: number }[];
+    .all(...params) as { group: string; count: number }[];
 }
 
 export function setSpaceVariant(

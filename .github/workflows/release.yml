@@ -42,6 +42,7 @@ jobs:
       - run: npm run test:url-import
       - run: npm run test:import-rollback
       - run: npm run test:openapi-import
+      - run: npm run test:space-access
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs

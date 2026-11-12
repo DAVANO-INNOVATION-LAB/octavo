@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.6
+
+- Enforce target-space access for editing, settings, history and restoration, including tenant boundaries in capability checks.
+- Align metadata, variant navigation, reader exports and link cards with publication and access permissions; keep visitor access read-only and responses private.
+- Add isolated route/action authorization regressions to CI and release verification, plus compiled HTTP checks in CI. Existing memberships and grants are unchanged.
+- See [space access](docs/SPACE-ACCESS.md) for the tested scope and deployment guidance.
+
 ## v0.27.5
 
 - Give the creator of a new OpenAPI reference admin membership in its private space, so ordinary members can read, edit and manage the imported reference.
