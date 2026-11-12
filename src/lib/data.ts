@@ -2,6 +2,7 @@ import "server-only";
 import { hasPolicy, publishProblems } from "./quality-checks";
 import { asVariantKind, type VariantSpace } from "./variants";
 import { getDb } from "./db";
+import { syncPageSearchIndex } from "./search-index";
 import { asIconName } from "./icons";
 import { newId, now, slugify } from "./util";
 import { extractText } from "./blocks";
@@ -345,41 +346,45 @@ export function createPage(input: {
   published?: boolean;
 }): Page {
   const db = getDb();
-  const id = newId();
-  const title = input.title?.trim() || "Untitled";
-  const slug = uniquePageSlug(input.spaceId, title === "Untitled" ? id : title);
-  const content = input.content ?? "[]";
-  const t = now();
-  const maxPos = (db
-    .prepare(
-      "SELECT COALESCE(MAX(position), 0) AS p FROM pages WHERE space_id = ? AND parent_id IS ?"
-    )
-    .get(input.spaceId, input.parentId ?? null) as { p: number }).p;
-  db.prepare(
-    `INSERT INTO pages (id, space_id, parent_id, slug, title, content, content_text, position, published, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    id,
-    input.spaceId,
-    input.parentId ?? null,
-    slug,
-    title,
-    content,
-    content === "[]" ? "" : extractText(content),
-    maxPos + 1,
-    input.published && !hasPolicy(input.spaceId) ? 1 : 0,
-    t,
-    t
-  );
-  db.prepare("UPDATE spaces SET updated_at = ? WHERE id = ?").run(t, input.spaceId);
-  // A page created with content already in it — every importer does this —
-  // must register its files too. Doing this only on save meant an imported
-  // attachment belonged to no space and was refused to everyone.
-  if (content && content !== "[]") {
-    rebuildLinks(id, content);
-    syncUploadRefsInline(db, input.spaceId, content);
-  }
-  return getPage(id)!;
+  return db.transaction(() => {
+    const id = newId();
+    const title = input.title?.trim() || "Untitled";
+    const slug = uniquePageSlug(input.spaceId, title === "Untitled" ? id : title);
+    const content = input.content ?? "[]";
+    const t = now();
+    const maxPos = (db
+      .prepare(
+        "SELECT COALESCE(MAX(position), 0) AS p FROM pages WHERE space_id = ? AND parent_id IS ?"
+      )
+      .get(input.spaceId, input.parentId ?? null) as { p: number }).p;
+    db.prepare(
+      `INSERT INTO pages (id, space_id, parent_id, slug, title, content, content_text, position, published, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      id,
+      input.spaceId,
+      input.parentId ?? null,
+      slug,
+      title,
+      content,
+      content === "[]" ? "" : extractText(content),
+      maxPos + 1,
+      input.published && !hasPolicy(input.spaceId) ? 1 : 0,
+      t,
+      t
+    );
+    db.prepare("UPDATE spaces SET updated_at = ? WHERE id = ?").run(t, input.spaceId);
+    // A page created with content already in it — every importer does this —
+    // must register its files too. Doing this only on save meant an imported
+    // attachment belonged to no space and was refused to everyone.
+    if (content && content !== "[]") {
+      rebuildLinks(id, content);
+      syncUploadRefsInline(db, input.spaceId, content);
+    }
+    const created = getPage(id)!;
+    syncPageSearchIndex(db, created, true);
+    return created;
+  })();
 }
 
 const VERSION_INTERVAL_MS = 10 * 60 * 1000;
@@ -466,52 +471,48 @@ export function savePage(
   fields: { title?: string; content?: string; published?: boolean; by?: string }
 ): Page | null {
   const db = getDb();
-  const page = getPage(id);
-  if (!page) return null;
-  const title = fields.title?.trim() || page.title;
-  const content = fields.content ?? page.content;
-  const contentText =
-    fields.content !== undefined ? extractText(content) : page.content_text;
-  let published =
-    fields.published === undefined ? page.published : fields.published ? 1 : 0;
-  if (hasPolicy(page.space_id)) {
-    const problems = publishProblems({ ...page, title, content });
-    if (fields.published === true && problems.length) throw new Error(problems.join("; "));
-    // Editing a governed published document returns it to draft until rechecked.
-    if ((title !== page.title || content !== page.content) && published) published = 0;
-  }
-  if (title !== page.title || content !== page.content) maybeSnapshot(page);
-  // Keep the slug following the title until the page is first published,
-  // then freeze it so public URLs stay stable.
-  const slug =
-    page.published === 0 && fields.title
-      ? uniquePageSlug(page.space_id, title, id)
-      : page.slug;
-  const t = now();
-  db.prepare(
-    `UPDATE pages SET title = ?, slug = ?, content = ?, content_text = ?, published = ?, updated_at = ?,
-       updated_by = COALESCE(NULLIF(?, ''), updated_by),
-       created_by = COALESCE(NULLIF(created_by, ''), ?)
-     WHERE id = ?`
-  ).run(title, slug, content, contentText, published, t, fields.by ?? "", fields.by ?? "", id);
-  db.prepare("UPDATE spaces SET updated_at = ? WHERE id = ?").run(
-    t,
-    page.space_id
-  );
-  if (fields.content !== undefined) {
-    rebuildLinks(id, content);
-    // Any file this page names now belongs to this space, so it stays as
-    // readable as the space is — and no more.
-    syncUploadRefsInline(db, page.space_id, content);
-  }
-  // Sync full-text index.
-  db.prepare("DELETE FROM pages_fts WHERE page_id = ?").run(id);
-  if (published === 1) {
+  return db.transaction(() => {
+    const page = getPage(id);
+    if (!page) return null;
+    const title = fields.title?.trim() || page.title;
+    const content = fields.content ?? page.content;
+    const contentText =
+      fields.content !== undefined ? extractText(content) : page.content_text;
+    let published =
+      fields.published === undefined ? page.published : fields.published ? 1 : 0;
+    if (hasPolicy(page.space_id)) {
+      const problems = publishProblems({ ...page, title, content });
+      if (fields.published === true && problems.length) throw new Error(problems.join("; "));
+      // Editing a governed published document returns it to draft until rechecked.
+      if ((title !== page.title || content !== page.content) && published) published = 0;
+    }
+    if (title !== page.title || content !== page.content) maybeSnapshot(page);
+    // Keep the slug following the title until the page is first published,
+    // then freeze it so public URLs stay stable.
+    const slug =
+      page.published === 0 && fields.title
+        ? uniquePageSlug(page.space_id, title, id)
+        : page.slug;
+    const t = now();
     db.prepare(
-      "INSERT INTO pages_fts (page_id, title, body) VALUES (?, ?, ?)"
-    ).run(id, title, contentText);
-  }
-  return getPage(id);
+      `UPDATE pages SET title = ?, slug = ?, content = ?, content_text = ?, published = ?, updated_at = ?,
+         updated_by = COALESCE(NULLIF(?, ''), updated_by),
+         created_by = COALESCE(NULLIF(created_by, ''), ?)
+       WHERE id = ?`
+    ).run(title, slug, content, contentText, published, t, fields.by ?? "", fields.by ?? "", id);
+    db.prepare("UPDATE spaces SET updated_at = ? WHERE id = ?").run(
+      t,
+      page.space_id
+    );
+    if (fields.content !== undefined) {
+      rebuildLinks(id, content);
+      // Track references for lifecycle bookkeeping; upload provenance and
+      // current access, not pasted references, determine readability.
+      syncUploadRefsInline(db, page.space_id, content);
+    }
+    syncPageSearchIndex(db, { id, title, content_text: contentText, published });
+    return getPage(id);
+  })();
 }
 
 export function deletePage(id: string) {
@@ -606,7 +607,7 @@ export function searchPages(
            FROM pages_fts f
            JOIN pages p ON p.id = f.page_id
            JOIN spaces s ON s.id = p.space_id AND s.id NOT IN (SELECT space_id FROM deleted_spaces)
-           WHERE pages_fts MATCH ?
+           WHERE pages_fts MATCH ? AND p.published = 1
              ${scoped.sql ? `AND ${scoped.sql}` : ""}
              ${conditions.length ? `AND ${conditions.join(" AND ")}` : ""}
            ORDER BY score

@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { repairPageSearchIndex } from "./search-index";
 
 export const DATA_DIR =
   process.env.OCTAVO_DATA_DIR || path.join(process.cwd(), "data");
@@ -522,6 +523,7 @@ function open(): Database.Database {
   }
   db.exec(SCHEMA);
   migrate(db);
+  repairPageSearchIndex(db);
   return db;
 }
 
