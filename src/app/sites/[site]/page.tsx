@@ -12,7 +12,8 @@ export async function generateMetadata({
 }) {
   const { site: slug } = await params;
   const site = getSiteBySlug(slug);
-  return site ? { title: site.name, description: site.tagline } : {};
+  if (!site || (!site.published && !(await currentUser()))) return {};
+  return { title: site.name, description: site.tagline };
 }
 
 export default async function SitePage({

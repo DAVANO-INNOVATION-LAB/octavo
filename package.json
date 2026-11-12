@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.8",
+  "version": "0.27.9",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -43,7 +43,10 @@
     "test:space-access": "node scripts/space-access-test.mjs",
     "test:space-access-http": "node scripts/space-access-http-test.mjs",
     "test:change-request-access": "node scripts/change-request-access-test.mjs",
-    "test:change-request-access-http": "node scripts/change-request-access-http-test.mjs"
+    "test:change-request-access-http": "node scripts/change-request-access-http-test.mjs",
+    "test:resource-access": "node scripts/comment-access-test.mjs && node scripts/visitor-access-test.mjs && node scripts/creation-access-test.mjs && node scripts/notification-access-test.mjs && node scripts/page-surfaces-access-test.cjs && node scripts/api-resource-access-test.mjs",
+    "test:action-boundaries-http": "node scripts/action-boundaries-http-test.mjs",
+    "test:resource-routes-http": "node scripts/resource-routes-http-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

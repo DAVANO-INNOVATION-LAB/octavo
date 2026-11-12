@@ -88,10 +88,11 @@ export function listVisitorTokens(
   ).map((t) => ({ ...t, dead: t.revoked_at !== null || t.expires_at < at }));
 }
 
-export function revokeVisitorToken(id: string): void {
-  getDb()
-    .prepare("UPDATE visitor_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
-    .run(now(), id);
+/** Revoke only an active token belonging to the already-authorized space. */
+export function revokeVisitorToken(id: string, spaceId: string): boolean {
+  return getDb()
+    .prepare("UPDATE visitor_tokens SET revoked_at = ? WHERE id = ? AND space_id = ? AND revoked_at IS NULL")
+    .run(now(), id, spaceId).changes === 1;
 }
 
 /**

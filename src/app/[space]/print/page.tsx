@@ -123,7 +123,7 @@ export default async function SpacePrint({
             </h2>
             <Renderer
               blocks={parseBlocks(page.content)}
-              scenes={scenesForBlocks(parseBlocks(page.content), space.id)}
+              scenes={scenesForBlocks(parseBlocks(page.content), space.id, user)}
               dropCap
             />
           </article>

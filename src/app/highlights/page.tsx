@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Highlighter } from "lucide-react";
 import { currentUser } from "@/lib/auth";
+import { getSpace } from "@/lib/data";
+import { canReadSpace, canEditSpace } from "@/lib/roles";
 import { getDb } from "@/lib/db";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -9,6 +11,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "My highlights" };
 
 type Row = {
+  space_id: string;
+  published: number;
   id: string;
   text: string;
   note: string;
@@ -28,9 +32,9 @@ export default async function MyHighlights() {
   const user = await currentUser();
   if (!user) redirect("/login");
 
-  const rows = getDb()
+  const candidates = getDb()
     .prepare(
-      `SELECT h.id, h.text, h.note, h.created_at, h.block_id,
+      `SELECT p.space_id, p.published, h.id, h.text, h.note, h.created_at, h.block_id,
               p.title AS page_title, p.slug AS page_slug,
               s.slug AS space_slug, s.name AS space_name
          FROM highlights h
@@ -40,6 +44,13 @@ export default async function MyHighlights() {
         ORDER BY h.created_at DESC`
     )
     .all(user.id) as Row[];
+
+  // Saved marks are retained, but current titles and links require current access.
+  const rows = candidates.filter((row) => {
+    const space = getSpace(row.space_id);
+    return !!space && canReadSpace(user, space) &&
+      (!!row.published || canEditSpace(user, space.id));
+  });
 
   // Group by page, keeping page order by most recent mark.
   const groups: { key: string; rows: Row[] }[] = [];

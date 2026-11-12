@@ -773,6 +773,12 @@ export function mentionableUsers(): { id: string; name: string }[] {
     .all() as { id: string; name: string }[];
 }
 
+/** Persisted comment identity, used before any comment-level mutation. */
+export function getComment(id: string): Pick<Comment, "id" | "page_id" | "user_id" | "parent_id" | "body"> | null {
+  return (getDb().prepare("SELECT id, page_id, user_id, parent_id, body FROM comments WHERE id = ?")
+    .get(id) as Pick<Comment, "id" | "page_id" | "user_id" | "parent_id" | "body"> | undefined) ?? null;
+}
+
 /** Who wrote a comment, for authorization checks. */
 export function commentAuthor(id: string): string | null {
   const row = getDb()

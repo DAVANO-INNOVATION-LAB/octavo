@@ -48,6 +48,8 @@ const expectedFor = (instance, direct, grants, accessible, visibility) => {
 try {
   db = load('lib/db.ts').getDb();
   const data = load('lib/data.ts'), roles = load('lib/roles.ts'), groups = load('lib/groups.ts'), tenants = load('lib/tenants.ts');
+  // Initialize the existing lazy SCIM schema before immutable grant snapshots.
+  load('lib/scim.ts').isDeactivated('__synthetic_missing__');
   const actions = load('app/actions.ts');
   const comments = load('app/api/comments/route.ts').POST;
   const patch = load('app/api/pages/[id]/route.ts').PATCH;

@@ -64,6 +64,24 @@ export function writeImportAttachment(name: string, data: Buffer): void {
   }
 }
 
+/** Attribute only files exclusively created by this import attempt. The rows
+ * participate in the same SQLite transaction as content and membership.
+ */
+export function attributeImportAttachments(spaceId: string, userId: string): void {
+  const files = imports.getStore(), db = getDb();
+  if (!files || !db.inTransaction) throw new Error("Import attribution requires an active import transaction");
+  if (!db.prepare("SELECT 1 FROM spaces WHERE id=?").get(spaceId) ||
+      !db.prepare("SELECT 1 FROM users WHERE id=?").get(userId))
+    throw new Error("Import attachment origin is missing");
+  const insert = db.prepare("INSERT INTO uploads(name, uploaded_by, space_id, created_at) VALUES(?,?,?,?)");
+  for (const owned of files) {
+    const stat = fs.lstatSync(owned.file);
+    if (stat.dev !== owned.dev || stat.ino !== owned.ino || !stat.isFile())
+      throw new Error("Import attachment ownership changed before attribution");
+    insert.run(path.basename(owned.file), userId, spaceId, Date.now());
+  }
+}
+
 /** Synchronous, outermost import unit of work. Files finish writing before the
  * SQLite commit. Only files exclusively created by this operation are removed
  * on an exception, including a failed commit. No cleanup runs after commit.
