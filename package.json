@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.1",
+  "version": "0.27.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node scripts/auth-test.mjs && node scripts/test.mjs && node scripts/validate-content.mjs",
+    "test:restore": "node scripts/restore-test.mjs",
     "test:auth": "node scripts/auth-test.mjs",
     "loadtest": "node scripts/loadtest.mjs",
     "validate": "node scripts/validate-content.mjs",

@@ -71,7 +71,9 @@ export default async function AdminBackups({
           is verified as a genuine Octavo database before anything is touched,
           and the database being replaced is saved beside it in{" "}
           <code className="rounded bg-surface-2 px-1">/data</code> so the
-          restore can be undone. You will be signed out.
+          restore can be undone. You will be signed out. Stop other Octavo processes
+          using this database before restoring; restore requires a single writer.
+          Restart with OCTAVO_COLLAB=0 before restoring, then re-enable collaboration afterward.
         </p>
         <p className="mt-3 flex items-start gap-2 text-sm text-accent">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
