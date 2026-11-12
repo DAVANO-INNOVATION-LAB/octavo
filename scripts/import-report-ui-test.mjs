@@ -203,7 +203,7 @@ try {
   Module._load = originalLoad;
   if (originalTs) Module._extensions['.ts'] = originalTs; else delete Module._extensions['.ts'];
   if (oldDataDir === undefined) delete process.env.OCTAVO_DATA_DIR; else process.env.OCTAVO_DATA_DIR = oldDataDir;
-  try { fs.rmSync(temporary, { recursive: true, force: true }); } catch (error) { cleanupErrors.push(error); }
+  try { fs.rmSync(temporary, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch (error) { cleanupErrors.push(error); }
   if (cleanupErrors.length) throw new AggregateError(cleanupErrors, 'Synthetic UI fixture cleanup failed');
 }
 fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(summary, null, 2));
