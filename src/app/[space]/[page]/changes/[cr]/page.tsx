@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { canReadSpace } from "@/lib/roles";
+import { canEditSpace, canReadSpace } from "@/lib/roles";
 import { notFound, redirect } from "next/navigation";
 import { Check, GitMerge, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { currentUser } from "@/lib/auth";
-import { getPage, getSpaceBySlug } from "@/lib/data";
+import { getPageBySlug, getSpaceBySlug } from "@/lib/data";
 import { parseBlocks } from "@/lib/blocks";
 import { blocksToMarkdown } from "@/lib/markdown";
 import { collapseUnchanged, diffLines, diffStat } from "@/lib/diff";
@@ -39,10 +39,11 @@ export default async function ChangeRequestPage({
   // who are signed out: otherwise one account is the whole library.
   if (!canReadSpace(user, space)) redirect(user ? "/" : "/login");
 
-  const cr = getChangeRequest(crId);
-  if (!cr) notFound();
-  const page = getPage(cr.page_id);
+  const page = getPageBySlug(space.id, pageSlug);
   if (!page) notFound();
+  if (page.published === 0 && !canEditSpace(user, space.id)) notFound();
+  const cr = getChangeRequest(crId);
+  if (!cr || cr.space_id !== space.id || cr.page_id !== page.id) notFound();
 
   // Diff the writing, not the storage: both sides render to Markdown first.
   const currentMd = blocksToMarkdown(parseBlocks(page.content));

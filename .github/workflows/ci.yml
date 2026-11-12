@@ -26,11 +26,13 @@ jobs:
       - run: npm run test:openapi-import
       - run: npm run test:space-access
       - run: npm run test:group-grants
+      - run: npm run test:change-request-access
       - run: npx next typegen   # route types tsc needs (LayoutProps etc.)
       - run: npx tsc --noEmit
       - run: npx eslint src
       - run: npm run build
       - run: npm run test:space-access-http
+      - run: npm run test:change-request-access-http
 
   helm:
     runs-on: ubuntu-latest

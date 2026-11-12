@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { canReadSpace } from "@/lib/roles";
+import { canEditSpace, canReadSpace } from "@/lib/roles";
 import { notFound, redirect } from "next/navigation";
 import { GitPullRequest } from "lucide-react";
 import { currentUser } from "@/lib/auth";
@@ -24,6 +24,7 @@ export default async function ChangesList({
   if (!canReadSpace(user, space)) redirect(user ? "/" : "/login");
   const page = getPageBySlug(space.id, pageSlug);
   if (!page) notFound();
+  if (page.published === 0 && !canEditSpace(user, space.id)) notFound();
 
   const all = listChangeRequests({ pageId: page.id });
   const open = all.filter((c) => c.status === "open");

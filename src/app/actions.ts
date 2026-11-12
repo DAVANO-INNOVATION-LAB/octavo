@@ -708,12 +708,27 @@ export async function deleteSpaceConnectorAction(formData: FormData) {
 
 // ---- change requests ----
 
+/** Resolve the persisted target before a proposal action can have side effects. */
+function readableChangeRequest(user: User, id: string) {
+  const cr = getChangeRequest(id);
+  if (!cr) redirect("/");
+  const space = getSpace(cr.space_id);
+  if (!space || !canReadSpace(user, space)) redirect("/");
+  const page = getPage(cr.page_id);
+  if (!page || page.space_id !== space.id) redirect("/");
+  if (page.published === 0 && !canEditSpace(user, space.id)) redirect("/");
+  return { cr, space, page, url: `/${space.slug}/${page.slug}/changes/${cr.id}` };
+}
+
 export async function createChangeRequestAction(formData: FormData) {
   const user = await requireUser();
   const pageId = String(formData.get("pageId") ?? "");
   const page = getPage(pageId);
   if (!page) redirect("/");
-  if (!may(user, page.space_id, "propose")) redirect(`/${String(formData.get("space") ?? "")}`);
+  const space = getSpace(page.space_id);
+  if (!space || !canReadSpace(user, space)) redirect("/");
+  if (!may(user, space.id, "propose")) redirect(`/${space.slug}`);
+  if (page.published === 0 && !canEditSpace(user, space.id)) redirect("/");
   const cr = createChangeRequest({
     pageId,
     authorId: user.id,
@@ -722,7 +737,7 @@ export async function createChangeRequestAction(formData: FormData) {
     proposedTitle: String(formData.get("proposedTitle") ?? page.title),
     proposedContent: String(formData.get("proposedContent") ?? page.content),
   });
-  const spaceSlug = String(formData.get("space") ?? "");
+  const spaceSlug = space.slug;
   if (!cr) redirect(`/${spaceSlug}/${page.slug}`);
   recordAudit({
     actor: user,
@@ -751,40 +766,37 @@ export async function reviewChangeRequestAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const verdict = String(formData.get("verdict") ?? "");
   if (verdict !== "approve" && verdict !== "changes") redirect("/");
-  const cr = getChangeRequest(id);
-  if (!cr) redirect("/");
-  // Reviewing your own proposal is not review. Anyone else signed in may.
-  if (cr.author_id === user.id) {
-    redirect(
-      `/${String(formData.get("space") ?? "")}/${String(formData.get("page") ?? "")}/changes/${id}?error=self`
-    );
-  }
+  const { cr, space, page, url } = readableChangeRequest(user, id);
+  if (cr.status !== "open") redirect(url);
+  // Readable independent reviewers need not be editors or mergers.
+  if (cr.author_id === user.id) redirect(`${url}?error=self`);
   const note = String(formData.get("note") ?? "");
   reviewChangeRequest(id, user.id, verdict, note);
-  const spaceSlug = String(formData.get("space") ?? "");
-  const pageSlug = String(formData.get("page") ?? "");
-  notify({
-    userId: cr.author_id,
-    actor: user,
-    kind: "cr.reviewed",
-    title: `${user.name} ${verdict === "approve" ? "approved" : "asked for changes on"} ${cr.title}`,
-    body: note,
-    url: `/${spaceSlug}/${pageSlug}/changes/${id}`,
-    spaceId: cr.space_id,
-  });
-  revalidatePath(`/${spaceSlug}/${pageSlug}/changes/${id}`);
-  redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
+  // A review can remain valid after its author loses access. Do not send new
+  // private writing to that former reader through their inbox or its webhook.
+  const author = getDb().prepare("SELECT id, email, name, role FROM users WHERE id = ?")
+    .get(cr.author_id) as User | undefined;
+  if (author && canReadSpace(author, space) &&
+      (page.published === 1 || canEditSpace(author, space.id))) {
+    notify({
+      userId: cr.author_id,
+      actor: user,
+      kind: "cr.reviewed",
+      title: `${user.name} ${verdict === "approve" ? "approved" : "asked for changes on"} ${cr.title}`,
+      body: note,
+      url,
+      spaceId: cr.space_id,
+    });
+  }
+  revalidatePath(url);
+  redirect(url);
 }
 
 export async function mergeChangeRequestAction(formData: FormData) {
   const user = await requireUser();
   const id = String(formData.get("id") ?? "");
-  const spaceSlug = String(formData.get("space") ?? "");
-  const pageSlug = String(formData.get("page") ?? "");
-  const cr = getChangeRequest(id);
-  if (!cr) redirect("/");
-  if (!may(user, cr.space_id, "merge"))
-    redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
+  const { cr, space, page, url } = readableChangeRequest(user, id);
+  if (!may(user, space.id, "merge")) redirect(url);
   const merged = mergeChangeRequest(id, user.id);
   if (merged) {
     recordAudit({
@@ -801,12 +813,12 @@ export async function mergeChangeRequestAction(formData: FormData) {
       actor: user,
       kind: "cr.merged",
       title: `${user.name} merged ${cr.title}`,
-      url: `/${spaceSlug}/${pageSlug}`,
+      url: `/${space.slug}/${page.slug}`,
       spaceId: cr.space_id,
     });
   }
-  revalidatePath(`/${spaceSlug}/${pageSlug}`);
-  redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
+  revalidatePath(`/${space.slug}/${page.slug}`);
+  redirect(url);
 }
 
 export async function setChangeRequestStatusAction(formData: FormData) {
@@ -814,9 +826,9 @@ export async function setChangeRequestStatusAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "");
   if (status !== "open" && status !== "closed") redirect("/");
-  const cr = getChangeRequest(id);
-  if (!cr) redirect("/");
-  // Closing belongs to the author and to whoever runs the space.
+  const { cr, url } = readableChangeRequest(user, id);
+  // Closing belongs to the author and to whoever runs the space, while they
+  // still have access to its actual target.
   if (cr.author_id !== user.id && !canAdminSpace(user, cr.space_id)) {
     redirect("/");
   }
@@ -827,7 +839,7 @@ export async function setChangeRequestStatusAction(formData: FormData) {
       actor: user,
       kind: "cr.closed",
       title: `${user.name} closed ${cr.title} without merging`,
-      url: `/${String(formData.get("space") ?? "")}/${String(formData.get("page") ?? "")}/changes/${id}`,
+      url,
       spaceId: cr.space_id,
     });
   recordAudit({
@@ -838,21 +850,16 @@ export async function setChangeRequestStatusAction(formData: FormData) {
     objectLabel: cr.title,
     spaceId: cr.space_id,
   });
-  const spaceSlug = String(formData.get("space") ?? "");
-  const pageSlug = String(formData.get("page") ?? "");
-  redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
+  redirect(url);
 }
 
 export async function rebaseChangeRequestAction(formData: FormData) {
   const user = await requireUser();
   const id = String(formData.get("id") ?? "");
-  const cr = getChangeRequest(id);
-  if (!cr) redirect("/");
+  const { cr, url } = readableChangeRequest(user, id);
   if (cr.author_id !== user.id && !canAdminSpace(user, cr.space_id)) redirect("/");
   rebaseChangeRequest(id);
-  const spaceSlug = String(formData.get("space") ?? "");
-  const pageSlug = String(formData.get("page") ?? "");
-  redirect(`/${spaceSlug}/${pageSlug}/changes/${id}`);
+  redirect(url);
 }
 
 // ---- notifications ----

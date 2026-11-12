@@ -117,7 +117,7 @@ try {
           const proposals = db.prepare('SELECT * FROM change_requests WHERE page_id = ?').all(page.id);
           assert.equal(proposals.length, expected.includes('propose') ? 1 : 0);
           if (expected.includes('propose')) { assert.equal(proposals[0].author_id, user.id); assert.match(location, /\/changes\//); }
-          else assert.equal(location, `/${space.slug}`);
+          else assert.equal(location, "/");
           assert.equal(data.getPage(page.id).title, page.title, 'proposal never changes page');
         });
         await action(`${label}: comment`, expected.includes('comment'), () => comments(new Request('http://localhost/api/comments', {

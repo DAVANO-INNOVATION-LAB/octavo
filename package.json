@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.7",
+  "version": "0.27.8",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -41,7 +41,9 @@
     "test:openapi-import": "node scripts/openapi-import-test.mjs",
     "test:group-grants": "node scripts/group-grants-test.mjs",
     "test:space-access": "node scripts/space-access-test.mjs",
-    "test:space-access-http": "node scripts/space-access-http-test.mjs"
+    "test:space-access-http": "node scripts/space-access-http-test.mjs",
+    "test:change-request-access": "node scripts/change-request-access-test.mjs",
+    "test:change-request-access-http": "node scripts/change-request-access-http-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

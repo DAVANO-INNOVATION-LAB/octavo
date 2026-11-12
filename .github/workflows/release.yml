@@ -44,10 +44,14 @@ jobs:
       - run: npm run test:openapi-import
       - run: npm run test:space-access
       - run: npm run test:group-grants
+      - run: npm run test:change-request-access
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs
       - run: python3 scripts/sky-bridge-test.py
+      - run: npm run build
+      - run: npm run test:space-access-http
+      - run: npm run test:change-request-access-http
 
   build_image:
     needs: verify

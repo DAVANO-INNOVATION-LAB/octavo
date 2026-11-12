@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
-import { getPage } from "@/lib/data";
+import { getPage, getSpace } from "@/lib/data";
 import { createChangeRequest } from "@/lib/change-requests";
 import { recordAudit } from "@/lib/audit";
-import { may } from "@/lib/roles";
+import { canEditSpace, canReadSpace, may } from "@/lib/roles";
 
 /** Submit a proposed edit. The editor holds the document, so it posts it. */
 export async function POST(req: NextRequest) {
@@ -30,7 +30,9 @@ export async function POST(req: NextRequest) {
 
   const page = getPage(String(body.pageId ?? ""));
   if (!page) return NextResponse.json({ error: "no such page" }, { status: 404 });
-  if (!may(user, page.space_id, "propose"))
+  const space = getSpace(page.space_id);
+  if (!space || !canReadSpace(user, space) || !may(user, space.id, "propose") ||
+      (page.published === 0 && !canEditSpace(user, space.id)))
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!Array.isArray(body.proposedContent))
     return NextResponse.json({ error: "bad content" }, { status: 400 });
