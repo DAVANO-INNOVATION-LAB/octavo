@@ -145,7 +145,7 @@ try {
     return result.result.value;
   };
   const waitFor = async (expression, label) => {
-    for (const deadline = Date.now() + 12000; Date.now() < deadline;) { if (await evaluate(expression)) return; await sleep(100); }
+    for (const deadline = Date.now() + 12000; Date.now() < deadline;) { if (await evaluate(`Boolean(${expression})`)) return; await sleep(100); }
     throw new Error(`${label} timed out`);
   };
   const visit = async pathname => {
