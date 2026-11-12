@@ -51,6 +51,7 @@ jobs:
       - run: npm run test:reading-access
       - run: npm run test:import-search
       - run: npm run test:import-report
+      - run: npm run test:import-provenance
       - run: npm run test:markdown-assets
       - run: npm run test:import-plan
       - run: npm run test:import-history
@@ -89,6 +90,13 @@ jobs:
       - run: npm run test:quality-queue-http
       - run: npm run test:review-next-http
       - run: npm run test:import-report-ui
+      - run: npm run test:import-provenance-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: import-provenance-ui
+          path: artifacts/import-provenance/
+          retention-days: 14
       - run: npm run test:import-plan-ui
       - run: npm run test:import-history-ui
       - run: npm run test:markdown-page-links-ui

@@ -102,3 +102,15 @@ History navigation shows up to the newest 20,000 currently accessible reports
 (1,000 pages). Individual saved reports remain available from their destination
 space beyond this navigation window. New imports or access changes between page
 requests can shift offset-based page contents.
+
+## Upload provenance snapshots
+
+New file-upload receipts record a SHA-256 fingerprint and byte length of the submitted upload, the receipt ID as an import-scoped source identity, the Octavo converter version, and capture time. Their provenance manifest links the source to each stored page's content hash and each newly attributed attachment's stored byte hash. The existing administrator-only JSON download includes the manifest; space readers and unrelated users do not gain access to receipts or hashes.
+
+These are **completion snapshots**, not live integrity checks. Later edits, attachment changes and removals do not rewrite the captured hashes. Page hashes cover stored content, not the title or every page metadata field. Importing identical bytes again produces the same content fingerprint but a separate import identity. No global fingerprint lookup or cross-space deduplication is performed.
+
+The manifest describes derivation from the whole uploaded file. It does not claim an exact original archive-entry mapping for each converted page, conversion fidelity, authorship, publisher authenticity or a cryptographic signature. The original uploaded archive/document is not retained by this feature. A hash cannot reconstruct it. Keep an authorized original separately if you need later comparison. Failed conversions do not retain originals or create a successful receipt.
+
+Older receipts, URL imports and OpenAPI imports show provenance as not recorded. Historical identities are not reconstructed from current content. The manifest is saved in the import transaction; capture failure rolls back the import rather than returning partial provenance. No schema migration is needed: existing receipt JSON remains readable. Reverting the application release leaves receipt JSON in place but older code will not display the new field.
+
+Capture is bounded to 10,000 combined pages and attachments and 512 MiB of saved attachment bytes per import, in addition to the existing upload-size limit. Imports exceeding these limits fail and roll back rather than omitting manifest entries. Hashes do not grant file access and are not a cross-tenant matching service.

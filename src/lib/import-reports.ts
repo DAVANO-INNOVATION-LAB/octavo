@@ -1,4 +1,5 @@
 import "server-only";
+import { captureImportProvenance, type ImportProvenance } from "./import-provenance";
 import path from "node:path";
 import type { User } from "./auth";
 import { getDb } from "./db";
@@ -17,12 +18,14 @@ export type ImportReport = {
   preview: { pages: number; attachmentEntries: number; assetPlan?: { files: number; bytes: number } } | null;
   warnings: string[];
   notes: string[];
+  provenance?: ImportProvenance;
 };
 export type ImportReportInput = {
   spaceId: string;
   actorId: string;
   sourceKind: ImportReport["source"]["kind"];
   sourceLabel: string;
+  sourceBytes?: Buffer;
   preview?: { pages: number; attachmentEntries: number; warnings?: string[]; assetPlan?: { files: number; bytes: number } };
 };
 
@@ -61,6 +64,10 @@ export function createImportReport(input: ImportReportInput): ImportReport {
     if ([".zip", ".md", ".markdown", ".txt"].includes(extension)) notes.push("Markdown/Notion conversion may create draft folder pages. ZIP imports copy supported assets referenced by parsed content, not the entire bundle; missing or unsupported references may remain. Standalone Markdown imports do not include companion files. Confluence attachment conversion depends on the export format and available files.");
   }
   const report: ImportReport = {id:newId(),spaceId:input.spaceId,actorId:input.actorId,completedAt:Date.now(),source:{kind:input.sourceKind,label},counts:{pages:pages.length,published,drafts:pages.length-published,indexed,attachmentsSaved},preview:input.preview?{pages:input.preview.pages,attachmentEntries:input.preview.attachmentEntries,...(input.preview.assetPlan?{assetPlan:{files:input.preview.assetPlan.files,bytes:input.preview.assetPlan.bytes}}:{})}:null,warnings:[...new Set(warnings)].slice(0,200),notes};
+  if (input.sourceKind === "upload" && input.sourceBytes) {
+    report.provenance = captureImportProvenance({spaceId:input.spaceId,receiptId:report.id,sourceBytes:input.sourceBytes,capturedAt:report.completedAt});
+    report.notes.push("Provenance fingerprints the original upload and stored results at completion. It links results to the whole upload, not individual archive entries. Original upload bytes are not retained; hashes do not prove authenticity, conversion fidelity or current content integrity.");
+  }
   // Keep actor identity only in the nullable FK, so account erasure removes it.
   db.prepare("INSERT INTO import_reports(id,space_id,actor_id,completed_at,report_json) VALUES(?,?,?,?,?)").run(report.id,report.spaceId,report.actorId,report.completedAt,JSON.stringify({...report, actorId: null}));
   return report;

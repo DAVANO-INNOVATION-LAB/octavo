@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.23
+
+- Record source upload fingerprints and converter identity in new file-import receipts, linked to stored page-content and saved-attachment hashes.
+- Show provenance availability and snapshot boundaries in import reports, with the manifest included in the existing authorized JSON download.
+- Preserve legacy receipts without fabricating historical source identity; URL and OpenAPI receipts remain outside upload provenance coverage.
+
 ## v0.27.22
 
 - Add repeatable synthetic verification bundles with source and lockfile identity, environment metadata, per-gate logs, timings and SHA-256 artifact manifests.

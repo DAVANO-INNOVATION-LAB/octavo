@@ -1,5 +1,7 @@
 // Compiled Next HTTP smoke. Run npm run build first. Uses an isolated database and loopback server.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -78,14 +80,29 @@ try {
   const archiveSpace=data.getSpaceBySlug(archiveLocation.slice(1)); assert.ok(archiveSpace);
   const archiveReport=await reportFor(archiveSpace,'owner');
   assert.equal(archiveReport.source.kind,'upload');assert.equal(archiveReport.source.label,'guide.zip');
+  const manifest=archiveReport.provenance;
+  assert.equal(manifest.schemaVersion,1);assert.equal(manifest.source.id,archiveReport.id);
+  assert.equal(manifest.source.sha256,sha256(archived));assert.equal(manifest.source.bytes,archived.length);
+  assert.equal(manifest.converter.version,JSON.parse(fs.readFileSync('package.json','utf8')).version);
+  assert.equal(manifest.capturedAt,archiveReport.completedAt);
+  const stored=db.prepare('SELECT id,content FROM pages WHERE space_id=? ORDER BY id').all(archiveSpace.id);
+  assert.equal(manifest.pages.length,stored.length);
+  for(const page of stored)assert.equal(manifest.pages.find(p=>p.pageId===page.id).contentSha256,sha256(page.content));
+  assert.equal(manifest.attachments.length,1);assert.equal(manifest.attachments[0].sha256,sha256(Buffer.from('synthetic bytes')));
+  assert.equal(manifest.attachments[0].bytes,Buffer.byteLength('synthetic bytes'));checks+=9;
+
   assert.equal(archiveReport.preview.pages,3);assert.equal(archiveReport.preview.attachmentEntries,1);
   assert.equal(archiveReport.counts.attachmentsSaved,1);assert.ok(archiveReport.counts.drafts>0);
   assert.ok(!archiveReport.warnings.some(w=>w.includes('relative')));assert.equal(archiveReport.preview.pages,archiveReport.counts.pages);assert.ok(!archiveReport.warnings.some(w=>w.includes('Preview estimated')));checks++;
   const persisted=db.prepare('SELECT COUNT(*) n FROM pages WHERE space_id=?').get(archiveSpace.id).n;
   assert.equal(archiveReport.counts.pages,persisted);
+  const duplicateLocation=await upload('guide.zip',archived,'Second independent import');
+  const duplicateReport=await reportFor(data.getSpaceBySlug(duplicateLocation.slice(1)),'owner');
+  assert.equal(duplicateReport.provenance.source.sha256,manifest.source.sha256);
+  assert.notEqual(duplicateReport.provenance.source.id,manifest.source.id);checks+=2;
   const oldSnapshot=JSON.stringify(archiveReport);
   const first=db.prepare('SELECT id FROM pages WHERE space_id=? AND published=1').get(archiveSpace.id);
-  data.savePage(first.id,{published:false,title:'Changed after import'});
+  data.savePage(first.id,{published:false,title:'Changed after import',content:JSON.stringify([{type:'paragraph',content:[{type:'text',text:'Changed after import',styles:{}}],children:[]}])});
   assert.equal(JSON.stringify(await reportFor(archiveSpace,'owner')),oldSnapshot,'Receipt is an immutable completion snapshot');checks++;
   const formResponse=await request('/import/openapi','owner');assert.equal(formResponse.status,200);
   const markup=(await formResponse.text()).match(/<form\b[\s\S]*?<\/form>/g)?.find(f=>f.includes('name="spec"'));
@@ -93,7 +110,7 @@ try {
   const form=new FormData();form.set(actionId,'');form.set('name','Synthetic API report');form.set('spec',JSON.stringify({openapi:'3.0.3',info:{title:'Fixture',version:'1'},paths:{'/fixture':{get:{summary:'Fixture operation',responses:{'200':{description:'OK'}}}}}}));
   const response=await request('/import/openapi','owner',{method:'POST',headers:{origin:base},body:form});assert.equal(response.status,303);
   const apiSpace=data.getSpaceBySlug(new URL(response.headers.get('location'),base).pathname.slice(1));assert.ok(apiSpace);
-  const apiReport=await reportFor(apiSpace,'owner');assert.equal(apiReport.source.kind,'openapi');assert.equal(apiReport.counts.pages,apiReport.counts.indexed);assert.ok(apiReport.notes.some(n=>n.includes('not a lossless')));checks++;
+  const apiReport=await reportFor(apiSpace,'owner');assert.equal(apiReport.provenance,undefined);checks++;assert.equal(apiReport.source.kind,'openapi');assert.equal(apiReport.counts.pages,apiReport.counts.indexed);assert.ok(apiReport.notes.some(n=>n.includes('not a lossless')));checks++;
   for(const space of [archiveSpace,apiSpace]){
     for(const [who,role] of [['editor','editor'],['reader','reader'],['agent','agent'],['excluded','admin']])roles.setSpaceMember(space.id,who,role);
     for(const visibility of ['private','public','tenant']){
@@ -104,7 +121,7 @@ try {
         const page=await request(`/${space.slug}/settings/import-report`,who);const html=await page.text();
         assert.equal(page.status,allowed?200:who?404:307,lastRequest);
         if(allowed){assert.ok(html.includes('Snapshot at import completion'));assert.ok(html.includes('Download JSON'));}
-        else {assert.ok(!html.includes('guide.zip'));assert.ok(!html.includes('Preview estimated'));}
+        else {assert.ok(!html.includes(archiveReport.provenance.source.sha256));assert.ok(!html.includes('guide.zip'));assert.ok(!html.includes('Preview estimated'));}
         checks++;
       }
     }
