@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.22
+
+- Add repeatable synthetic verification bundles with source and lockfile identity, environment metadata, per-gate logs, timings and SHA-256 artifact manifests.
+- Preserve failed gate evidence and distinguish skipped checks and untested target environments from passing checks.
+- Add isolated browser-offline checks against synthetic local content, without implying server-network isolation or deployment certification.
+
 ## v0.27.21
 
 - Preserve structured review-queue filters through quality-screen action redirects.

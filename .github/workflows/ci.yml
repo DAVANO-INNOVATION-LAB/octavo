@@ -15,6 +15,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run evidence -- --source-only
+      - run: npm run test:evidence
       # Development packages are pruned from the standalone image after build.
       - run: npm audit --omit=dev --audit-level=high
       - run: node scripts/test.mjs   # content validation needs a database, run locally
@@ -44,6 +46,13 @@ jobs:
       - run: npx tsc --noEmit
       - run: npx eslint src
       - run: npm run build
+      - run: npm run evidence
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: verification-evidence
+          path: artifacts/evidence/
+          retention-days: 14
       - run: npm run test:space-access-http
       - run: npm run test:change-request-access-http
       - run: npm run test:action-boundaries-http

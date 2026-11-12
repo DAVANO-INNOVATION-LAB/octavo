@@ -33,6 +33,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run evidence -- --source-only
+      - run: npm run test:evidence
       # Development packages are pruned from the standalone image after build.
       - run: npm audit --omit=dev --audit-level=high
       - run: node scripts/test.mjs
@@ -63,6 +65,13 @@ jobs:
       - run: node scripts/jobs-test.mjs
       - run: python3 scripts/sky-bridge-test.py
       - run: npm run build
+      - run: npm run evidence
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: verification-evidence
+          path: artifacts/evidence/
+          retention-days: 14
       - run: npm run test:space-access-http
       - run: npm run test:change-request-access-http
       - run: npm run test:action-boundaries-http

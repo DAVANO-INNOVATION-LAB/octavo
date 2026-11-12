@@ -89,3 +89,6 @@ AGENTS.md
 /artifacts/quality-queue/
 
 /artifacts/review-next/
+
+/artifacts/evidence/
+/artifacts/offline-smoke/
