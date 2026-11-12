@@ -38,7 +38,7 @@ export async function GET(
   const file = path.join(UPLOADS_DIR, name);
   if (!fs.existsSync(file)) return new NextResponse("not found", { status: 404 });
 
-  // A file is as readable as the spaces that reference it. Refused as "not
+  // A file requires access to its recorded origin and publication state. Refused as "not
   // found" rather than "forbidden": whether a particular upload exists is
   // itself something the answer should not reveal.
   if (!canReadUpload(await currentUser(), name))
@@ -48,7 +48,9 @@ export async function GET(
   const size = fs.statSync(file).size;
   const baseHeaders: Record<string, string> = {
     "Content-Type": MIME[ext] ?? "application/octet-stream",
-    "Cache-Control": "public, max-age=31536000, immutable",
+    // Permissions, publication and tenant membership can change at any time.
+    "Cache-Control": "private, no-store",
+    "Vary": "Cookie",
     "X-Content-Type-Options": "nosniff",
     "Accept-Ranges": "bytes",
     // Never render uploaded SVG/HTML-ish content inline from our origin.

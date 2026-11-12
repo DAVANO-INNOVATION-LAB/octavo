@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { canReadSpace, canEditSpace } from "@/lib/roles";
-import { getPage } from "@/lib/data";
-import { getDb } from "@/lib/db";
+import { getPage, getSpace } from "@/lib/data";
 import { pageToMarkdown } from "@/lib/transfer";
 
 export async function GET(
@@ -13,9 +12,7 @@ export async function GET(
   const page = getPage(id);
   if (!page) return new NextResponse("not found", { status: 404 });
 
-  const space = getDb()
-    .prepare("SELECT id, visibility FROM spaces WHERE id = ?")
-    .get(page.space_id) as { id: string; visibility: string } | undefined;
+  const space = getSpace(page.space_id);
   if (!space) return new NextResponse("not found", { status: 404 });
   const user = await currentUser();
   if (!canReadSpace(user, space))
@@ -27,6 +24,8 @@ export async function GET(
   return new NextResponse(md ?? "", {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
+      "Cache-Control": "private, no-store",
+      "Vary": "Cookie",
       "Content-Disposition": `attachment; filename="${page.slug}.md"`,
     },
   });

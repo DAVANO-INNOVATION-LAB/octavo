@@ -119,6 +119,27 @@ try {
     assert.ok(getSpaceBySlug(result.spaceSlug));
     assert.ok(files().length > JSON.parse(before)[1].length, `${name}: attachment fixture actually writes files`);
   }
+  // Actual upload handlers attribute all file-producing parsers, atomically.
+  const access = require('../src/lib/uploads.ts');
+  for (const [name, bytes] of fixtures) {
+    const before = snapshot();
+    trigger('uploads', 'BEFORE INSERT');
+    try {
+      assert.match(location(await upload(request(name, bytes))), /synthetic late failure/);
+      assert.equal(snapshot(), before, `${name}: provenance failure rolls back bytes and content`);
+    } finally { untrigger(); }
+    const response = await upload(request(name, bytes));
+    assert.equal(response.status, 303);
+    const space = getSpaceBySlug(location(response).slice(1));
+    assert.ok(space, `${name}: successful attributed import`);
+    const records = db.prepare('SELECT name, uploaded_by FROM uploads WHERE space_id=?').all(space.id);
+    assert.ok(records.length > 0, `${name}: attachment provenance retained`);
+    for (const record of records) {
+      assert.equal(record.uploaded_by, user.id);
+      assert.equal(access.canReadUpload(user, record.name), true);
+      assert.equal(access.canReadUpload(null, record.name), false);
+    }
+  }
   // Failure while a multi-page parser is still writing, rather than at ownership.
   {
     const before = snapshot();

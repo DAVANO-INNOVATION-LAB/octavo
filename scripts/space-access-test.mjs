@@ -437,7 +437,7 @@ try {
     assert.equal((await raw(null, input(privateFixture, privateFixture.pages[1]))).status, 404);
   }
   db.prepare('UPDATE visitor_tokens SET expires_at = ? WHERE id = ?').run(token.row.expires_at, token.row.id);
-  visitors.revokeVisitorToken(token.row.id);
+  visitors.revokeVisitorToken(token.row.id, token.row.space_id);
   user = actors.outsider;
   if (enabled('metadata')) assert.deepEqual(await metadata(input(privateFixture, privateFixture.pages[1])), {});
   visitorToken = undefined;

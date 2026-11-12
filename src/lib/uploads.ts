@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb } from "./db";
 import { now } from "./util";
-import { canReadSpace } from "./roles";
+import { canEditSpace, canReadSpace } from "./roles";
 import { getSpace } from "./data";
 import type { User } from "./auth";
 
@@ -16,7 +16,7 @@ import type { User } from "./auth";
  * removing a file from a page nor removing a person from a space takes one
  * back.
  *
- * A file therefore inherits the readability of the spaces that reference it.
+ * A file is authorized through its recorded origin and current published references.
  * An image on a public page still loads for a stranger, because the page it
  * is on is public. An attachment in a private space is refused to everyone
  * who could not open that space, by exactly the check the space itself uses.
@@ -26,7 +26,24 @@ const FILE_REF = /\/api\/files\/([0-9a-z]+\.[0-9a-z]+)/g;
 
 /** Every upload named anywhere in a document. */
 export function fileNamesIn(content: string): string[] {
-  return [...new Set([...content.matchAll(FILE_REF)].map((m) => m[1]))];
+  const names = new Set([...content.matchAll(FILE_REF)].map((m) => m[1]));
+  // Model blocks also accept a bare data filename. Treat only that structured
+  // reference as a publication reference, not arbitrary matching prose.
+  try {
+    const parsed: unknown = JSON.parse(content);
+    const pending: unknown[] = Array.isArray(parsed) ? [...parsed] : [];
+    while (pending.length) {
+      const block = pending.pop();
+      if (!block || typeof block !== "object") continue;
+      const value = block as { type?: unknown; props?: { source?: unknown; dataUrl?: unknown }; children?: unknown };
+      if (value.type === "model3d" && value.props?.source === "data" && typeof value.props.dataUrl === "string") {
+        const name = value.props.dataUrl.replace(/^\/api\/files\//, "");
+        if (/^[A-Za-z0-9_-]+\.(csv|tsv|json|txt)$/.test(name)) names.add(name);
+      }
+      if (Array.isArray(value.children)) pending.push(...value.children);
+    }
+  } catch { /* Covers and historical plain references are not JSON. */ }
+  return [...names];
 }
 
 /** Record an upload at the moment it is made. */
@@ -65,40 +82,32 @@ export function syncUploadRefs(spaceId: string, content: string): void {
  */
 export function canReadUpload(user: User | null, name: string): boolean {
   const db = getDb();
-
-  // Someone who runs the instance can read anything in it already.
   if (user?.role === "admin") return true;
-
-  const spaceIds = (
-    db.prepare("SELECT space_id FROM upload_refs WHERE name = ?").all(name) as {
-      space_id: string;
-    }[]
-  ).map((r) => r.space_id);
-
   const record = db.prepare("SELECT uploaded_by, space_id FROM uploads WHERE name = ?").get(name) as
-    | { uploaded_by: string; space_id: string | null }
-    | undefined;
-  if (record?.space_id) spaceIds.push(record.space_id);
+    | { uploaded_by: string; space_id: string | null } | undefined;
 
-  for (const id of [...new Set(spaceIds)]) {
-    const space = getSpace(id);
-    if (space && canReadSpace(user, space)) return true;
+  // The recorded origin is authority. A filename pasted into another space
+  // must never grant access to that space's readers.
+  const origin = record?.space_id ?? null;
+  // Legacy mutable references are not proof of provenance. Keep bytes intact,
+  // but require operator-assisted reupload instead of granting guessed access.
+  if (!origin) {
+    // Unplaced uploads are private to their uploader until explicitly scoped.
+    return !!record && !!user && record.uploaded_by === user.id;
   }
-
-  // A file just uploaded and not yet placed on a page belongs to whoever
-  // uploaded it — otherwise the editor could not show what it just sent.
-  if (record && user && record.uploaded_by === user.id) return true;
-
-  // Anything else is a file no page claims and nobody here owns.
-  return false;
+  const space = getSpace(origin);
+  if (!space || !canReadSpace(user, space)) return false;
+  // Editors may preview drafts/history. Losing source access also revokes the
+  // uploader's fallback; historical ownership is not an evergreen grant.
+  if (canEditSpace(user, origin)) return true;
+  const pages = db.prepare("SELECT content, cover FROM pages WHERE space_id = ? AND published = 1").all(origin) as
+    { content: string; cover: string }[];
+  return pages.some(page => fileNamesIn(page.content).includes(name) || fileNamesIn(page.cover).includes(name));
 }
 
-/**
- * Attribute existing uploads to the spaces already using them.
- *
- * Run once, when the reference table first appears. Without it every file
- * that predates this becomes unreadable, which would empty the images out of
- * a working library — a fix that breaks the thing it protects is not a fix.
+/** Populate historical reference inventory only. These mutable references do
+ * not confer read access or establish an immutable upload origin. Legacy files
+ * remain on disk for explicit administrator-assisted recovery.
  */
 export function backfillUploadRefs(): number {
   const db = getDb();
@@ -112,8 +121,7 @@ export function backfillUploadRefs(): number {
   const rows = db
     .prepare("SELECT space_id, content FROM pages WHERE content LIKE '%/api/files/%'")
     .all() as { space_id: string; content: string }[];
-  // Old versions count: a file referenced only by a superseded revision is
-  // still that space's file, and history should not stop rendering.
+  // Include old versions for inventory and recovery, never authorization.
   const versions = db
     .prepare(
       `SELECT p.space_id, v.content FROM page_versions v JOIN pages p ON p.id = v.page_id

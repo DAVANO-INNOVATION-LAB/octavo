@@ -45,6 +45,7 @@ jobs:
       - run: npm run test:space-access
       - run: npm run test:group-grants
       - run: npm run test:change-request-access
+      - run: npm run test:resource-access
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs
@@ -52,6 +53,8 @@ jobs:
       - run: npm run build
       - run: npm run test:space-access-http
       - run: npm run test:change-request-access-http
+      - run: npm run test:action-boundaries-http
+      - run: npm run test:resource-routes-http
 
   build_image:
     needs: verify

@@ -675,6 +675,13 @@ section("Uploads inherit the readability of their space");
   db.prepare("DELETE FROM uploads WHERE name IN (?, ?)").run(secret, open2);
   db.prepare("INSERT INTO upload_refs (name, space_id) VALUES (?, ?)").run(open2, space.id);
   if (priv) db.prepare("INSERT INTO upload_refs (name, space_id) VALUES (?, ?)").run(secret, priv.id);
+  // Explicit upload origins and current published pages, not mutable refs alone.
+  for (const [name, origin] of [[open2, space], ...(priv ? [[secret, priv]] : [])]) {
+    db.prepare("INSERT INTO uploads(name, uploaded_by, space_id, created_at) VALUES(?,?,?,?)").run(name, "it_editor", origin.id, Date.now());
+    db.prepare("INSERT OR REPLACE INTO pages(id,space_id,slug,title,content,published,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?)")
+      .run("fixture-" + name, origin.id, "fixture-" + name, "Upload fixture", JSON.stringify([{id:"file",type:"file",props:{url:"/api/files/" + name}}]), Date.now(), Date.now());
+  }
+
 
   const fetchFile = async (name, who) => {
     const r = await fetch(`${BASE}/api/files/${name}`, {
@@ -740,6 +747,7 @@ section("Uploads inherit the readability of their space");
     fs.rmSync(path.join(dir, n), { force: true });
     db.prepare("DELETE FROM upload_refs WHERE name = ?").run(n);
     db.prepare("DELETE FROM uploads WHERE name = ?").run(n);
+    db.prepare("DELETE FROM pages WHERE id = ?").run("fixture-" + n);
   }
 }
 

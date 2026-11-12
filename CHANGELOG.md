@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.27.9
+
+- Bind comment moderation and visitor-token revocation to persisted, authorized targets; enforce draft and AI-agent capability boundaries.
+- Gate attachment downloads, model data and bundled exports on immutable upload provenance and current origin access. New imports record provenance transactionally.
+- Fail closed for legacy attachments lacking provenance without deleting bytes; see [resource authorization and recovery](docs/RESOURCE-ACCESS.md) before upgrading.
+- Make full and partial file responses private/no-store; apply tenant-aware page exports and readable-page feedback checks.
+- Filter new content notifications and saved-highlight labels by current access, and hide anonymous unpublished Site metadata.
+- Add isolated actual-session/action/route and compiled HTTP regressions to CI and release verification. Existing data and grants remain unchanged.
+
 ## v0.27.8
 
 - Check actual target-space access before change-request reviews and proposal actions, preserving independent reader reviews and existing role rules.

@@ -59,6 +59,7 @@ import {
 import { generatePages, importInto } from "@/lib/openapi-pages";
 import { runImportTransaction } from "@/lib/import-transaction";
 import { markAllRead, markRead, notify, notifyAll } from "@/lib/notify";
+import { canNotifyPage } from "@/lib/notify-access";
 import { mentionedUserIds } from "@/lib/mentions";
 import {
   createChangeRequest,
@@ -104,7 +105,7 @@ import {
 } from "@/lib/roles";
 import {
   addComment,
-  commentAuthor,
+  getComment,
   mentionableUsers,
   setThreadResolved,
   createPage,
@@ -242,6 +243,7 @@ export async function logoutAction() {
 
 export async function createSpaceAction(formData: FormData) {
   const creator = await requireUser();
+  if (isAgent(creator)) redirect("/");
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const visibility = String(formData.get("visibility") ?? "private");
@@ -335,6 +337,10 @@ export async function createPageAction(formData: FormData) {
   const space = getSpaceBySlug(spaceSlug);
   if (!space) redirect("/");
   if (!may(user, space.id, "write")) redirect(`/${space.slug}`);
+  if (parentId) {
+    const parent = getPage(parentId);
+    if (!parent || parent.space_id !== space.id) redirect("/");
+  }
   const page = createPage({ spaceId: space.id, parentId });
   revalidatePath(`/${space.slug}`);
   redirect(`/${space.slug}/${page.slug}/edit`);
@@ -378,89 +384,90 @@ export async function publishPageAction(formData: FormData) {
 
 // ---- comments ----
 
-/**
- * A thread belongs to whoever started it, and to whoever runs the space.
- * Anyone signed in may join a conversation; not anyone may end one.
- */
-function mayModerate(user: User, commentId: string, spaceId: string) {
-  return commentAuthor(commentId) === user.id || canAdminSpace(user, spaceId);
+/** Resolve the actual page and space before comments or notifications can change. */
+function readableCommentPage(user: User, pageId: string) {
+  const page = getPage(pageId);
+  const space = page && getSpace(page.space_id);
+  if (!page || !space || !canReadSpace(user, space) ||
+      (page.published !== 1 && !canEditSpace(user, space.id))) redirect("/");
+  return { page, space, url: `/${space.slug}/${page.slug}` };
+}
+
+/** Authorship is not authority after access is revoked or for a different page. */
+function moderatableComment(user: User, formData: FormData) {
+  const comment = getComment(String(formData.get("id") ?? ""));
+  if (!comment || comment.page_id !== String(formData.get("pageId") ?? "")) redirect("/");
+  const target = readableCommentPage(user, comment.page_id);
+  if (!may(user, target.space.id, "comment") ||
+      (comment.user_id !== user.id && !canAdminSpace(user, target.space.id))) redirect("/");
+  return { ...target, comment };
 }
 
 export async function addCommentAction(formData: FormData) {
   const user = await requireUser();
-  const pageId = String(formData.get("pageId") ?? "");
-  const body = String(formData.get("body") ?? "");
-  const page = getPage(pageId);
-  if (!page) redirect("/");
-  if (!may(user, page.space_id, "comment"))
-    redirect(`/${String(formData.get("space") ?? "")}/${page.slug}`);
-  const id = addComment(pageId, user.id, body, {
+  const target = readableCommentPage(user, String(formData.get("pageId") ?? ""));
+  const { page, space, url } = target;
+  if (!may(user, space.id, "comment")) redirect("/");
+  const body = String(formData.get("body") ?? "").trim().slice(0, 4000);
+  if (!body) redirect("/");
+  const submittedParent = String(formData.get("parentId") ?? "");
+  let parent = null as ReturnType<typeof getComment>;
+  if (submittedParent) {
+    const replyTarget = getComment(submittedParent);
+    if (!replyTarget || replyTarget.page_id !== page.id) redirect("/");
+    parent = replyTarget.parent_id ? getComment(replyTarget.parent_id) : replyTarget;
+    if (!parent || parent.page_id !== page.id || parent.parent_id !== null) redirect("/");
+  }
+  const id = addComment(page.id, user.id, body, {
     blockId: String(formData.get("blockId") ?? ""),
-    parentId: String(formData.get("parentId") ?? "") || undefined,
+    parentId: parent?.id,
     anchorText: String(formData.get("anchorText") ?? ""),
   });
-  const spaceSlug = String(formData.get("space") ?? "");
-  const parent = String(formData.get("parentId") ?? "");
-  const link = `/${spaceSlug}/${page.slug}#t-${parent || id || ""}`;
-
-  // Anyone named in the body, resolved the same way the comment renders.
-  notifyAll(mentionedUserIds(body, mentionableUsers()), {
+  // Empty/invalid writes must never deliver a notification or invalidate caches.
+  if (!id) redirect("/");
+  const link = `${url}#t-${parent?.id ?? id}`;
+  const recipients = mentionedUserIds(body, mentionableUsers())
+    .filter(userId => canNotifyPage(userId, page, space));
+  notifyAll(recipients, {
     actor: user,
     kind: "mention",
     title: `${user.name} mentioned you on ${page.title}`,
     body,
     url: link,
-    spaceId: page.space_id,
+    spaceId: space.id,
   });
-
-  // And whoever started the thread, if this is a reply and they were not
-  // already reached by the mention above.
-  if (parent) {
-    const rootAuthor = commentAuthor(parent);
-    if (rootAuthor && !mentionedUserIds(body, mentionableUsers()).includes(rootAuthor)) {
-      notify({
-        userId: rootAuthor,
-        actor: user,
-        kind: "reply",
-        title: `${user.name} replied on ${page.title}`,
-        body,
-        url: link,
-        spaceId: page.space_id,
-      });
-    }
+  if (parent && !recipients.includes(parent.user_id) && canNotifyPage(parent.user_id, page, space)) {
+    notify({
+      userId: parent.user_id,
+      actor: user,
+      kind: "reply",
+      title: `${user.name} replied on ${page.title}`,
+      body,
+      url: link,
+      spaceId: space.id,
+    });
   }
-
-  revalidatePath(`/${spaceSlug}/${page.slug}`);
-  // Land on the thread that was just joined rather than the top of the list.
-  const anchor = parent || id || "discussion";
-  redirect(`/${spaceSlug}/${page.slug}#t-${anchor}`);
+  revalidatePath(url);
+  redirect(link);
 }
 
 export async function deleteCommentAction(formData: FormData) {
   const user = await requireUser();
-  const id = String(formData.get("id") ?? "");
-  const spaceSlug = String(formData.get("space") ?? "");
-  const pageSlug = String(formData.get("page") ?? "");
-  const pageId = String(formData.get("pageId") ?? "");
-  const page = getPage(pageId);
-  if (page && mayModerate(user, id, page.space_id)) deleteComment(id);
-  revalidatePath(`/${spaceSlug}/${pageSlug}`);
-  redirect(`/${spaceSlug}/${pageSlug}#discussion`);
+  const { comment, url } = moderatableComment(user, formData);
+  deleteComment(comment.id);
+  revalidatePath(url);
+  redirect(`${url}#discussion`);
 }
 
 export async function setThreadResolvedAction(formData: FormData) {
   const user = await requireUser();
-  const id = String(formData.get("id") ?? "");
+  const { comment, url } = moderatableComment(user, formData);
+  // Only roots carry the thread state; a reply ID must not imply another target.
+  if (comment.parent_id !== null) redirect("/");
   const resolved = String(formData.get("resolved") ?? "") === "1";
-  const spaceSlug = String(formData.get("space") ?? "");
-  const pageSlug = String(formData.get("page") ?? "");
-  const pageId = String(formData.get("pageId") ?? "");
-  const page = getPage(pageId);
-  if (page && mayModerate(user, id, page.space_id)) {
-    setThreadResolved(id, user.id, resolved);
-  }
-  revalidatePath(`/${spaceSlug}/${pageSlug}`);
-  redirect(`/${spaceSlug}/${pageSlug}#t-${id}`);
+  setThreadResolved(comment.id, user.id, resolved);
+  revalidatePath(url);
+  redirect(`${url}#t-${comment.id}`);
 }
 
 // ---- version history ----
@@ -749,7 +756,7 @@ export async function createChangeRequestAction(formData: FormData) {
     detail: { page: page.title },
   });
   // Whoever can act on the proposal is who hears about it.
-  notifyAll(reviewersFor(page.space_id), {
+  notifyAll(reviewersFor(page.space_id).filter(id => canNotifyPage(id, page, space)), {
     actor: user,
     kind: "cr.opened",
     title: `${user.name} proposed changes to ${page.title}`,
@@ -774,10 +781,7 @@ export async function reviewChangeRequestAction(formData: FormData) {
   reviewChangeRequest(id, user.id, verdict, note);
   // A review can remain valid after its author loses access. Do not send new
   // private writing to that former reader through their inbox or its webhook.
-  const author = getDb().prepare("SELECT id, email, name, role FROM users WHERE id = ?")
-    .get(cr.author_id) as User | undefined;
-  if (author && canReadSpace(author, space) &&
-      (page.published === 1 || canEditSpace(author, space.id))) {
+  if (canNotifyPage(cr.author_id, page, space)) {
     notify({
       userId: cr.author_id,
       actor: user,
@@ -808,7 +812,7 @@ export async function mergeChangeRequestAction(formData: FormData) {
       spaceId: cr.space_id,
       detail: { page: cr.page_title, author: cr.author },
     });
-    notify({
+    if (canNotifyPage(cr.author_id, getPage(page.id) ?? page, space)) notify({
       userId: cr.author_id,
       actor: user,
       kind: "cr.merged",
@@ -826,14 +830,14 @@ export async function setChangeRequestStatusAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "");
   if (status !== "open" && status !== "closed") redirect("/");
-  const { cr, url } = readableChangeRequest(user, id);
+  const { cr, space, page, url } = readableChangeRequest(user, id);
   // Closing belongs to the author and to whoever runs the space, while they
   // still have access to its actual target.
   if (cr.author_id !== user.id && !canAdminSpace(user, cr.space_id)) {
     redirect("/");
   }
   setChangeRequestStatus(id, status);
-  if (status === "closed")
+  if (status === "closed" && canNotifyPage(cr.author_id, page, space))
     notify({
       userId: cr.author_id,
       actor: user,
@@ -1145,7 +1149,8 @@ export async function createVisitorTokenAction(formData: FormData) {
 export async function revokeVisitorTokenAction(formData: FormData) {
   const slug = String(formData.get("space") ?? "");
   const { user, space } = await requireSpaceAdmin(slug);
-  revokeVisitorToken(String(formData.get("id") ?? ""));
+  const revoked = revokeVisitorToken(String(formData.get("id") ?? ""), space.id);
+  if (!revoked) redirect(`/${space.slug}/members`);
   recordAudit({
     actor: user,
     action: "visit.token_revoked",

@@ -30,7 +30,7 @@ export async function GET(
   // directory, only the points that came out of one.
   const scene =
     q.get("source") === "data"
-      ? dataScene(q.get("data") ?? "", "")
+      ? dataScene(q.get("data") ?? "", "", user)
       : kind === "pipeline"
         ? pipelineScene(space.id)
         : architectureScene(space.id);

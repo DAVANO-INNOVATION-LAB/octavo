@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { User } from "./auth";
 import { getDb, UPLOADS_DIR } from "./db";
+import { canReadUpload } from "./uploads";
 import { getSpace, type Space } from "./data";
 import { canEditSpace,canReadSpace } from "./roles";
 import { requireQualityUser } from "./quality";
@@ -34,6 +35,7 @@ export function releaseBundle(user:User|null,space:Space,version:string):Buffer 
     if(!ref.value.startsWith('/api/files/'))continue;
     const name=ref.value.slice('/api/files/'.length).split(/[?#]/)[0];
     if(!/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/.test(name))throw new Error('Invalid attachment path');
+    if(!canReadUpload(user,name))throw new Error("An attachment is inaccessible; ask an administrator to verify its origin or reupload it into this space");
     if(!files.has(name)){const file=path.join(UPLOADS_DIR,name);if(!fs.existsSync(file))throw new Error('Missing attachment: '+name);if(fs.statSync(file).size>100*1024*1024)throw new Error('Attachment exceeds 100 MB');add('attachments/'+name,fs.readFileSync(file));files.add(name);}
    }
    const local=(s:string)=>s.replace(/\/api\/files\//g,'../attachments/');

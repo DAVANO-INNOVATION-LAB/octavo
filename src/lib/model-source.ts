@@ -1,5 +1,7 @@
 import "server-only";
 import { getDb } from "./db";
+import type { User } from "./auth";
+import { canReadUpload } from "./uploads";
 import fs from "node:fs";
 import path from "node:path";
 import { UPLOADS_DIR } from "./db";
@@ -27,7 +29,7 @@ export function architectureScene(spaceId: string): ModelScene {
     | undefined;
   const rows = db
     .prepare(
-      `SELECT p.id, p.title, p.slug, (SELECT title FROM pages WHERE id = p.parent_id) AS parentTitle
+      `SELECT p.id, p.title, p.slug, (SELECT title FROM pages parent WHERE parent.id = p.parent_id AND parent.space_id = p.space_id AND parent.published = 1) AS parentTitle
          FROM pages p WHERE p.space_id = ? AND p.published = 1
         ORDER BY p.position LIMIT 300`
     )
@@ -85,9 +87,10 @@ export function pipelineScene(spaceId: string): ModelScene {
  * the upload route names them. A model block is authored content, so its data
  * reference is untrusted input: "../../etc/passwd" must not be a data source.
  */
-export function dataScene(url: string, caption: string): ModelScene | null {
+export function dataScene(url: string, caption: string, user: User | null = null): ModelScene | null {
   const name = url.replace(/^\/api\/files\//, "");
   if (!/^[A-Za-z0-9_-]+\.(csv|tsv|json|txt)$/.test(name)) return null;
+  if (!canReadUpload(user, name)) return null;
   const full = path.join(UPLOADS_DIR, name);
   if (path.dirname(path.resolve(full)) !== path.resolve(UPLOADS_DIR)) return null;
   let text: string;
@@ -108,10 +111,11 @@ export function sceneFor(
   kind: string,
   spaceId: string,
   declaration: string,
-  dataUrl = ""
+  dataUrl = "",
+  user: User | null = null
 ): ModelScene | null {
   if (source === "declared") return parseDeclaredModel(declaration);
-  if (source === "data") return dataUrl ? dataScene(dataUrl, "") : null;
+  if (source === "data") return dataUrl ? dataScene(dataUrl, "", user) : null;
   if (source === "space") {
     if (kind === "pipeline") return pipelineScene(spaceId);
     return architectureScene(spaceId);
@@ -128,7 +132,8 @@ export function sceneFor(
  */
 export function scenesForBlocks(
   blocks: { id?: string; type?: string; props?: Record<string, unknown>; children?: unknown[] }[],
-  spaceId: string
+  spaceId: string,
+  user: User | null = null
 ): Map<string, ModelScene> {
   const out = new Map<string, ModelScene>();
   const derived = new Map<string, ModelScene>();
@@ -141,7 +146,7 @@ export function scenesForBlocks(
           const s = parseDeclaredModel(String(b.props?.declaration ?? ""));
           if (s) out.set(b.id, s);
         } else if (source === "data") {
-          const s = dataScene(String(b.props?.dataUrl ?? ""), String(b.props?.title ?? ""));
+          const s = dataScene(String(b.props?.dataUrl ?? ""), String(b.props?.title ?? ""), user);
           if (s) out.set(b.id, s);
         } else if (source === "space") {
           const key = kind === "pipeline" ? "pipeline" : "architecture";

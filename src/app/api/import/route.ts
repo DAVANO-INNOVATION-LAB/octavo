@@ -4,7 +4,7 @@ import { getSpaceBySlug } from "@/lib/data";
 import { revalidatePath } from "next/cache";
 import { isAgent, setSpaceMember } from "@/lib/roles";
 import { previewImport } from "@/lib/import-preview";
-import { runImportTransaction } from "@/lib/import-transaction";
+import { attributeImportAttachments, runImportTransaction } from "@/lib/import-transaction";
 import { importUpload } from "@/lib/transfer";
 
 // Keep the browser on its public origin, including behind container proxies.
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       const space = getSpaceBySlug(result.spaceSlug);
       if (!space) throw new Error("Imported space was not found");
       setSpaceMember(space.id, user.id, "admin");
+      attributeImportAttachments(space.id, user.id);
       return space.slug;
     });
   } catch (e) {

@@ -346,7 +346,7 @@ export default async function ReaderPage({
           slides
           slideTitle={page.title}
           blocks={rendered}
-          scenes={scenesForBlocks(rendered, space.id)}
+          scenes={scenesForBlocks(rendered, space.id, user)}
           threads={commentable ? blockThreadCounts(page.id) : undefined}
           dropCap
           run={

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Globe, Lock } from "lucide-react";
+import { isAgent } from "@/lib/roles";
 import { currentUser } from "@/lib/auth";
 import { createSpaceAction } from "@/app/actions";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -41,6 +42,7 @@ export const metadata = { title: "New space" };
 export default async function NewSpacePage() {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (isAgent(user)) redirect("/");
 
   return (
     <div className="flex min-h-screen flex-col">
