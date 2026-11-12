@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.27.13
+
+- Preserve referenced bundled Markdown and Notion assets using original archive-relative paths, including nested folders and distinct same-named files; reuse one saved upload for repeated references.
+- Rewrite parsed resource/link fields to generated upload URLs without changing code or prose. Copy only referenced bundled files; do not fetch external resources or claim complete Markdown conversion.
+- Validate archive paths and copy budgets before attachment writes: 20 MiB per file, 100 MiB total copied and 1,000 unique assets. Reject ambiguous/escaping paths, keep existing ZIP expansion limits, and use a download-oriented extension for unsupported file types.
+- Keep attachment bytes, origin records, pages and completion reports in existing import exception rollback; access follows the destination space and publication rules. Existing imports are not backfilled. See [Markdown assets](docs/MARKDOWN-ASSETS.md).
+- Add isolated source and compiled HTTP regressions for preserved bytes, references, budgets, current access and rollback.
+
 ## v0.27.12
 
 - Save a durable completion report for new file, URL and OpenAPI imports, inside the same transaction as their content. A failed import cannot leave a success receipt.

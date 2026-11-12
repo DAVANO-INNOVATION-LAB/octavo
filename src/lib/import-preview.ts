@@ -4,6 +4,8 @@ import { unzip } from "./zip";
 import { looksLikeConfluence,readConfluenceExport } from "./confluence";
 import { looksLikeConfluenceHtml,readConfluenceHtmlExport } from "./confluence-html";
 import { markdownToBlocks,splitFrontmatter } from "./markdown";
+import { planMarkdownAssets } from "./markdown-assets";
+import type { MarkdownAssetDocument } from "./markdown-assets";
 import { cleanNotionPath } from "./notion";
 import { documentReferences,contentDigest } from "./quality-core";
 
@@ -30,14 +32,19 @@ export function previewImport(name:string,data:Buffer):ImportPreview {
     } else {
       const manifest=entries.find(e=>e.name.endsWith("octavo.json"));
       if(manifest) readManifest(manifest.data);
-      else for(const e of entries.filter(e=>/\.md$/i.test(e.name)&&!e.name.split("/").some(p=>p.startsWith(".")))) {
+      else {
+      const assetDocuments:MarkdownAssetDocument[]=[];
+      for(const e of entries.filter(e=>/\.md$/i.test(e.name)&&!e.name.split("/").some(p=>p.startsWith(".")))) {
         const [meta,body]=splitFrontmatter(e.data.toString("utf8"));const blocks=markdownToBlocks(body);
         add(meta.title||cleanNotionPath(e.name).replace(/\.md$/i,""),blocks);
+        assetDocuments.push({sourcePath:e.name,blocks});
         for(const ref of documentReferences(JSON.stringify(blocks))) {
           if(ref.kind==="synced"||/^(#|\/|[a-z]+:)/i.test(ref.value))continue;
           let target:string;try{target=decodeURIComponent(ref.value.split(/[?#]/)[0]);}catch{result.warnings.push(`Invalid link: ${ref.value}`);continue;}
           if(!names.has(path.posix.normalize(path.posix.join(path.posix.dirname(e.name),target))))result.warnings.push(`Missing local reference in ${e.name}: ${ref.value}`);
         }
+      }
+      planMarkdownAssets(entries,assetDocuments);
       }
       result.attachments=entries.filter(e=>!e.name.match(/\.(md|json)$/i)).length;
     }

@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.12",
+  "version": "0.27.13",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -53,7 +53,9 @@
     "test:import-search-http": "node scripts/import-search-http-test.mjs",
     "test:import-report": "node scripts/import-report-test.mjs",
     "test:import-report-http": "node scripts/import-report-http-test.mjs",
-    "test:import-report-ui": "node scripts/import-report-ui-test.mjs"
+    "test:import-report-ui": "node scripts/import-report-ui-test.mjs",
+    "test:markdown-assets": "node scripts/markdown-assets-test.mjs",
+    "test:markdown-assets-http": "node scripts/markdown-assets-http-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",
