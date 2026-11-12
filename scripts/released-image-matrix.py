@@ -19,7 +19,8 @@ def start(v):
  run('docker','run','-d','--name',name,'--cpus','2','--memory','2g','-p','127.0.0.1:18549:3000','-e','OCTAVO_COLLAB=0','-v',str(data)+':/data',image(v))
  for _ in range(90):
   try:
-   if request('/login')[0]==200:return
+   status=request('/login')[0]
+   if status==200 or (status==307 and request('/setup')[0]==200):return
   except Exception:pass
   time.sleep(1)
  raise RuntimeError('Readiness timeout: '+run('docker','logs',name)[-6000:])
