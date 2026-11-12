@@ -25,11 +25,20 @@ const bounded = (promise, ms, label) => {
 };
 const exited = child => !child || child.exitCode !== null || child.signalCode !== null;
 async function stop(child) {
-  if (exited(child)) return;
-  const done = new Promise(resolve => child.once('exit', resolve));
-  child.kill('SIGTERM');
+  if (!child?.pid) return;
+  // Chrome launchers can exit before their descendants. Each fixture child owns
+  // a dedicated process group, so cleanup never targets unrelated processes.
+  const signal = value => {
+    try { process.kill(process.platform === 'win32' ? child.pid : -child.pid, value); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+  };
+  const done = exited(child) ? Promise.resolve() : new Promise(resolve => child.once('exit', resolve));
+  signal('SIGTERM');
   try { await bounded(done, 3000, 'process shutdown'); }
-  catch { child.kill('SIGKILL'); await bounded(done, 3000, 'forced shutdown'); }
+  catch { signal('SIGKILL'); await bounded(done, 3000, 'forced shutdown'); }
+  // Reap remaining browser workers before removing their writable profile.
+  signal('SIGKILL');
+  await sleep(200);
 }
 function browserBinary() {
   const candidates = process.env.OCTAVO_BROWSER_BIN ? [process.env.OCTAVO_BROWSER_BIN] : ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'];
@@ -65,7 +74,7 @@ try {
   const base = `http://127.0.0.1:${port}`;
   const spawnLogged = (binary, args, options, name) => {
     const fd = fs.openSync(path.join(output, name), 'w');
-    const child = spawn(binary, args, { ...options, stdio: ['ignore', fd, fd] }); fs.closeSync(fd);
+    const child = spawn(binary, args, { ...options, detached: process.platform !== 'win32', stdio: ['ignore', fd, fd] }); fs.closeSync(fd);
     child.on('error', error => { child.launchError = error; });
     return child;
   };
