@@ -31,7 +31,7 @@ try{
  db=load('lib/db.ts').getDb();const data=load('lib/data.ts'),{NextRequest}=require('next/server'),{zip}=load('lib/zip.ts');
  db.prepare('INSERT INTO users(id,email,name,password_hash,role,created_at) VALUES(?,?,?,?,?,?)').run(owner.id,owner.email,owner.name,'!',owner.role,Date.now());
  const upload=load('app/api/import/route.ts').POST,url=load('app/api/import/url/route.ts').POST,openapi=load('app/actions.ts').importOpenApiAction,search=load('app/api/search/route.ts').GET;
- const uploadFile=async(name,bytes)=>{const f=new FormData();f.set('file',new File([bytes],name));return decodeURIComponent((await upload({formData:async()=>f})).headers.get('location'));};
+ const uploadFile=async(name,bytes)=>{const f=new FormData();f.set('file',new File([bytes],name));return decodeURIComponent((await upload({headers:new Headers(),formData:async()=>f})).headers.get('location'));};
  const apiForm=()=>{const f=new FormData();f.set('spec',JSON.stringify({openapi:'3.0.3',info:{title:'Apititlemarker',version:'1.0',description:'Apibodymarker documentation'},paths:{'/widgets':{get:{summary:'Operationtitlemarker',description:'Operationbodymarker endpoint documentation',responses:{200:{description:'Success'}}}}}}));return f;};
  const invokeApi=async()=>{try{await openapi(apiForm());throw Error('Expected redirect');}catch(e){if(!(e instanceof Redirect))throw e;return e.location;}};
  db.prepare('INSERT INTO users(id,email,name,password_hash,role,created_at) VALUES(?,?,?,?,?,?)').run(outsider.id,outsider.email,outsider.name,'!',outsider.role,Date.now());

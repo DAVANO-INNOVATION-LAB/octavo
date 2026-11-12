@@ -505,6 +505,17 @@ CREATE TABLE IF NOT EXISTS import_reports (
 );
 CREATE INDEX IF NOT EXISTS import_reports_completed ON import_reports(completed_at DESC, id DESC);
 
+-- Durable completed requests. Keep a null target after permanent space deletion
+-- so an old key cannot silently create a second import. User erasure removes keys.
+CREATE TABLE IF NOT EXISTS import_idempotency (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  request_key TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  space_id TEXT REFERENCES spaces(id) ON DELETE SET NULL,
+  completed_at INTEGER NOT NULL,
+  PRIMARY KEY(user_id, request_key)
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
   page_id UNINDEXED,
   title,

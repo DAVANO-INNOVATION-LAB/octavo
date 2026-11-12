@@ -95,7 +95,7 @@ try {
   const request = (name, bytes) => {
     const form = new FormData();
     form.set('file', new File([bytes], name));
-    return { formData: async () => form };
+    return { headers: new Headers(), formData: async () => form };
   };
   const requestUrl = () => ({ json: async () => ({ url: 'https://example.test/page.md' }) });
   const location = response => decodeURIComponent(response.headers.get('location') ?? '');
