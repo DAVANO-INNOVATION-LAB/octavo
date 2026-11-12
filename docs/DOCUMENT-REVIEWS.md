@@ -34,6 +34,13 @@ include accessible published synced sources, and fail on missing local assets.
 External URLs/interactive embeds may still need network access. Review metadata
 reflects export time. Import previews for Word and notebooks report structural
 counts; complex formatting and notebook outputs are converted on confirmation.
+ZIP and Word archives are checked before preview or import: local/central headers,
+entry boundaries, expanded sizes and CRC32 must agree. Stored and deflated
+archives (including streaming data descriptors) are supported; encrypted, split
+and ZIP64 archives are not. Limits are 10,000 entries, 100 MB per expanded entry
+and 200 MB total expanded data. CRC32 detects accidental corruption; it does not
+authenticate the sender.
+
 A failed import rolls back database content; attachment files already written
 may remain orphaned and can be handled by the existing upload sweep.
 

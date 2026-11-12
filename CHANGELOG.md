@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.27.1
+
+- Reject corrupted ZIP and Word archives before preview or import writes using CRC32, size, header, boundary and data-descriptor validation.
+- Bound declared and actual decompression, reject overlapping entries and trailing compressed data, and return clear errors for unsupported encrypted, split-disk and ZIP64 archives.
+- Preserve ordinary stored/deflated archives and signed or unsigned streaming descriptors.
+- Add 21 archive regression cases and database-backed checks that rejected imports create no pages, spaces or attachments.
+
+CRC32 detects accidental corruption; it does not authenticate an archive's sender. This release does not change raw SQLite backup/restore behavior.
+
 ## v0.27.0
 
 - Add document ownership and reviews, publishing policies, local link checks, reusable sources, and feedback triage.

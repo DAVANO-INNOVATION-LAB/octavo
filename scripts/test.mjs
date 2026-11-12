@@ -4,6 +4,8 @@ import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as nodeCrypto from "node:crypto";
+import assert from "node:assert/strict";
+import { deflateRawSync } from "node:zlib";
 
 // Node can strip types but not resolve extensionless TS imports, so stage
 // the pure libs with rewritten import specifiers.
@@ -148,6 +150,154 @@ test("rejects non-zip", () => {
   let threw = false;
   try { zip.unzip(Buffer.from("not a zip at all, definitely not")); } catch { threw = true; }
   ok(threw);
+});
+
+// Independent fixture builder covers ordinary deflated archives and streaming
+// writers whose local headers defer CRC/sizes to a data descriptor.
+function archiveFixture({ name = "guide.md", data = Buffer.from("SAFE GUIDE"), method = 0, descriptor = false, signed = true, tail = Buffer.alloc(0) } = {}) {
+  const nameBytes = Buffer.from(name), raw = method === 8 ? Buffer.concat([deflateRawSync(data), tail]) : data;
+  const local = Buffer.alloc(30), central = Buffer.alloc(46), end = Buffer.alloc(22);
+  const flags = 0x800 | (descriptor ? 8 : 0), crc = zip.crc32(data);
+  local.writeUInt32LE(0x04034b50); local.writeUInt16LE(20, 4); local.writeUInt16LE(flags, 6);
+  local.writeUInt16LE(method, 8); local.writeUInt16LE(nameBytes.length, 26);
+  if (!descriptor) { local.writeUInt32LE(crc, 14); local.writeUInt32LE(raw.length, 18); local.writeUInt32LE(data.length, 22); }
+  const dd = Buffer.alloc(descriptor ? (signed ? 16 : 12) : 0);
+  if (descriptor) { const at = signed ? 4 : 0; if (signed) dd.writeUInt32LE(0x08074b50); dd.writeUInt32LE(crc, at); dd.writeUInt32LE(raw.length, at + 4); dd.writeUInt32LE(data.length, at + 8); }
+  const centralOffset = local.length + nameBytes.length + raw.length + dd.length;
+  central.writeUInt32LE(0x02014b50); central.writeUInt16LE(20, 6); central.writeUInt16LE(flags, 8);
+  central.writeUInt16LE(method, 10); central.writeUInt32LE(crc, 16); central.writeUInt32LE(raw.length, 20);
+  central.writeUInt32LE(data.length, 24); central.writeUInt16LE(nameBytes.length, 28);
+  end.writeUInt32LE(0x06054b50); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length + nameBytes.length, 12); end.writeUInt32LE(centralOffset, 16);
+  return { bytes: Buffer.concat([local, nameBytes, raw, dd, central, nameBytes, end]), centralOffset, dataOffset: local.length + nameBytes.length };
+}
+test("reads deflated UTF-8 names and data descriptors", () => {
+  for (const descriptor of [false, true]) {
+    const f = archiveFixture({ name: "dóc/日本語.md", data: Buffer.from("# Hello\n".repeat(100)), method: 8, descriptor });
+    eq(zip.unzip(f.bytes)[0].data.toString(), "# Hello\n".repeat(100));
+    eq(zip.unzip(f.bytes)[0].name, "dóc/日本語.md");
+  }
+});
+test("reads empty archives, empty files, and directory entries", () => {
+  eq(zip.unzip(zip.zip([])), []);
+  eq(zip.unzip(zip.zip([{ name: "folder/", data: Buffer.alloc(0) }, { name: "empty.md", data: Buffer.alloc(0) }])).map(e => e.name), ["empty.md"]);
+  eq(zip.unzip(archiveFixture({ data: Buffer.alloc(0), method: 8 }).bytes)[0].data.length, 0);
+});
+test("rejects corrupted stored content instead of importing it", () => {
+  const f = archiveFixture(); f.bytes[f.dataOffset] ^= 1;
+  assert.throws(() => zip.unzip(f.bytes), /checksum/i);
+});
+test("rejects incorrect CRC for deflated data", () => {
+  const f = archiveFixture({ method: 8 });
+  f.bytes.writeUInt32LE(123, 14); f.bytes.writeUInt32LE(123, f.centralOffset + 16);
+  assert.throws(() => zip.unzip(f.bytes), /checksum/i);
+});
+test("rejects incorrect expanded size, including streaming headers", () => {
+  for (const descriptor of [false, true]) {
+    const f = archiveFixture({ method: 8, descriptor });
+    f.bytes.writeUInt32LE(100, f.centralOffset + 24);
+    if (!descriptor) f.bytes.writeUInt32LE(100, 22);
+    assert.throws(() => zip.unzip(f.bytes), /size/i);
+  }
+});
+test("rejects stored-size mismatches", () => {
+  const f = archiveFixture();
+  f.bytes.writeUInt32LE(1, 22); f.bytes.writeUInt32LE(1, f.centralOffset + 24);
+  assert.throws(() => zip.unzip(f.bytes), /size/i);
+});
+test("rejects truncated data spans instead of clamping Buffer slices", () => {
+  const f = archiveFixture();
+  f.bytes.writeUInt32LE(100000, 18); f.bytes.writeUInt32LE(100000, f.centralOffset + 20);
+  assert.throws(() => zip.unzip(f.bytes), /archive|truncated|size/i);
+});
+test("rejects truncated central and local headers with readable errors", () => {
+  const f = archiveFixture(); f.bytes.writeUInt32LE(f.centralOffset - 2, f.centralOffset + 42);
+  assert.throws(() => zip.unzip(f.bytes), e => e instanceof Error && !(e instanceof RangeError));
+  const g = archiveFixture(); g.bytes.writeUInt16LE(65535, g.centralOffset + 28);
+  assert.throws(() => zip.unzip(g.bytes), e => e instanceof Error && !(e instanceof RangeError));
+});
+test("rejects central directory offsets outside the archive", () => {
+  const f = archiveFixture(); f.bytes.writeUInt32LE(0xffffff00, f.bytes.length - 6);
+  assert.throws(() => zip.unzip(f.bytes), e => e instanceof Error && !(e instanceof RangeError));
+});
+test("rejects local and central filename or method mismatches", () => {
+  const f = archiveFixture(); f.bytes[30] ^= 1;
+  assert.throws(() => zip.unzip(f.bytes), /header|name/i);
+  const g = archiveFixture(); g.bytes.writeUInt16LE(8, 8);
+  assert.throws(() => zip.unzip(g.bytes), /header|method/i);
+});
+test("rejects encrypted, split and ZIP64 archives explicitly", () => {
+  const f = archiveFixture(); f.bytes.writeUInt16LE(0x801, 6); f.bytes.writeUInt16LE(0x801, f.centralOffset + 8);
+  assert.throws(() => zip.unzip(f.bytes), /encrypt/i);
+  const g = archiveFixture(); g.bytes.writeUInt16LE(1, g.bytes.length - 18);
+  assert.throws(() => zip.unzip(g.bytes), /split|disk/i);
+  const h = archiveFixture(); h.bytes.writeUInt32LE(0xffffffff, h.centralOffset + 24);
+  assert.throws(() => zip.unzip(h.bytes), /ZIP64/i);
+  const local = archiveFixture({ descriptor: true }); local.bytes.writeUInt32LE(0xffffffff, 18);
+  assert.throws(() => zip.unzip(local.bytes), /ZIP64/i);
+});
+test("checks declared expansion limits before inflating", () => {
+  const f = archiveFixture({ method: 8 });
+  f.bytes.writeUInt32LE(101 * 1024 * 1024, 22); f.bytes.writeUInt32LE(101 * 1024 * 1024, f.centralOffset + 24);
+  assert.throws(() => zip.unzip(f.bytes), /100 MB/i);
+});
+test("caps actual expansion when declared sizes lie", () => {
+  const f = archiveFixture({ method: 8, data: Buffer.from("a".repeat(10000)) });
+  f.bytes.writeUInt32LE(1, 22); f.bytes.writeUInt32LE(1, f.centralOffset + 24);
+  assert.throws(() => zip.unzip(f.bytes), /size|expand/i);
+});
+test("reads ZIP comments containing misleading end signatures", () => {
+  const f = archiveFixture(), comment = Buffer.alloc(30);
+  comment.writeUInt32LE(0x06054b50, 0);
+  f.bytes.writeUInt16LE(comment.length, f.bytes.length - 2);
+  eq(zip.unzip(Buffer.concat([f.bytes, comment]))[0].data.toString(), "SAFE GUIDE");
+});
+
+test("accepts unsigned data descriptors", () => {
+  const f = archiveFixture({ method: 8, descriptor: true, signed: false });
+  eq(zip.unzip(f.bytes)[0].data.toString(), "SAFE GUIDE");
+});
+test("rejects missing or corrupt data descriptors", () => {
+  const f = archiveFixture({ descriptor: true }); f.bytes.writeUInt32LE(123, f.centralOffset - 12);
+  assert.throws(() => zip.unzip(f.bytes), /descriptor/i);
+  const g = archiveFixture(); g.bytes.writeUInt16LE(0x808, 6); g.bytes.writeUInt16LE(0x808, g.centralOffset + 8);
+  assert.throws(() => zip.unzip(g.bytes), /descriptor/i);
+});
+test("rejects trailing bytes inside a compressed entry", () => {
+  const f = archiveFixture({ method: 8, tail: Buffer.from("unexpected") });
+  assert.throws(() => zip.unzip(f.bytes), /compressed|size/i);
+});
+test("checks total expansion budget before decoding any entry", () => {
+  const b = zip.zip(["a", "b", "c"].map(name => ({ name, data: Buffer.from("x") })));
+  let p = b.readUInt32LE(b.length - 6);
+  for (let i = 0; i < 3; i++) {
+    const local = b.readUInt32LE(p + 42);
+    b.writeUInt16LE(8, local + 8); b.writeUInt16LE(8, p + 10);
+    b.writeUInt32LE(100 * 1024 * 1024, local + 22); b.writeUInt32LE(100 * 1024 * 1024, p + 24);
+    p += 46 + b.readUInt16LE(p + 28);
+  }
+  assert.throws(() => zip.unzip(b), /200 MB/i);
+});
+test("rejects duplicate references to overlapping local entries", () => {
+  const b = zip.zip(["same", "same"].map(name => ({ name, data: Buffer.from("x") })));
+  const p = b.readUInt32LE(b.length - 6);
+  b.writeUInt32LE(0, p + 46 + 4 + 42);
+  assert.throws(() => zip.unzip(b), /overlap/i);
+});
+
+test("accepts stored entries with signed and unsigned descriptors", () => {
+  for (const signed of [true, false]) {
+    const f = archiveFixture({ descriptor: true, signed });
+    eq(zip.unzip(f.bytes)[0].data.toString(), "SAFE GUIDE");
+  }
+});
+test("rejects too many entries and inconsistent end-record counts", () => {
+  const f = archiveFixture(); f.bytes.writeUInt16LE(10001, f.bytes.length - 14); f.bytes.writeUInt16LE(10001, f.bytes.length - 12);
+  assert.throws(() => zip.unzip(f.bytes), /too many entries/i);
+  const g = archiveFixture(); g.bytes.writeUInt16LE(0, g.bytes.length - 14);
+  assert.throws(() => zip.unzip(g.bytes), /disk/i);
+  const h = archiveFixture(); h.bytes.writeUInt16LE(0, h.bytes.length - 14); h.bytes.writeUInt16LE(0, h.bytes.length - 12);
+  assert.throws(() => zip.unzip(h.bytes), /directory/i);
 });
 
 console.log("templates:");
