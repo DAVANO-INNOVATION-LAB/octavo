@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { getPage, getSpace } from "@/lib/data";
-import { canReadSpace } from "@/lib/roles";
+import { canEditSpace, canReadSpace } from "@/lib/roles";
 import { parseBlocks } from "@/lib/blocks";
 import { readablePassages, recordReading, readingEnabled } from "@/lib/reading";
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   const space = getSpace(page.space_id);
   const user = await currentUser();
-  if (!space || !canReadSpace(user, space))
+  if (!space || !canReadSpace(user, space) || (!page.published && !canEditSpace(user, space.id)))
     return new NextResponse(null, { status: 204 });
 
   if (!Array.isArray(body.blocks))
