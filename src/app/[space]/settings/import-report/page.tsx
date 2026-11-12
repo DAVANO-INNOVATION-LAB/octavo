@@ -61,6 +61,7 @@ export default async function ImportReportPage({ params }: { params: Promise<{ s
         {report.preview && <section aria-labelledby="import-preview" className="rounded-xl border border-dashed border-line p-5">
           <h2 id="import-preview" className="font-semibold text-ink">Preview estimates</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">Before conversion: {report.preview.pages.toLocaleString("en-US")} pages and {report.preview.attachmentEntries.toLocaleString("en-US")} attachment entries. Estimates can differ from saved results and are not a count of successfully converted files.</p>
+          {report.preview.assetPlan && <p className="mt-3 text-sm leading-relaxed text-muted">Estimated asset copy plan before conversion: {report.preview.assetPlan.files.toLocaleString("en-US")} distinct referenced files, {report.preview.assetPlan.bytes.toLocaleString("en-US")} bytes. This plan is separate from archive attachment entries and the actual attachments saved above; conversion can change the result.</p>}
         </section>}
         <section aria-labelledby="import-warnings">
           <h2 id="import-warnings" className="text-lg font-semibold text-ink">Warnings <span className="ml-1 text-sm font-normal text-faint">({report.warnings.length})</span></h2>

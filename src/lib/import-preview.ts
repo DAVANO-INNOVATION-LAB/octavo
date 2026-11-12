@@ -10,7 +10,7 @@ import { cleanNotionPath } from "./notion";
 import { documentReferences,contentDigest } from "./quality-core";
 
 const KNOWN=new Set(["paragraph","heading","bulletListItem","numberedListItem","checkListItem","quote","codeBlock","table","image","video","audio","file","pageBreak","toggleListItem","callout","expandable","step","math","drawio","themeImage","model3d","apiRequest","sketch","syncedPage","ifvar"]);
-export type ImportPreview={digest:string;pages:{title:string;blocks:number}[];warnings:string[];errors:string[];attachments:number};
+export type ImportPreview={digest:string;pages:{title:string;blocks:number}[];warnings:string[];errors:string[];attachments:number;assetPlan?:{files:number;bytes:number}};
 /** Uses import parsers without creating spaces, pages, or attachment files. */
 export function previewImport(name:string,data:Buffer):ImportPreview {
   const result:ImportPreview={digest:contentDigest(data),pages:[],warnings:[],errors:[],attachments:0};
@@ -44,7 +44,8 @@ export function previewImport(name:string,data:Buffer):ImportPreview {
           if(!names.has(path.posix.normalize(path.posix.join(path.posix.dirname(e.name),target))))result.warnings.push(`Missing local reference in ${e.name}: ${ref.value}`);
         }
       }
-      planMarkdownAssets(entries,assetDocuments);
+      const plan=planMarkdownAssets(entries,assetDocuments);
+      result.assetPlan={files:plan.assets.size,bytes:plan.bytes};
       }
       result.attachments=entries.filter(e=>!e.name.match(/\.(md|json)$/i)).length;
     }

@@ -10,7 +10,12 @@ Reports are not available through public or visitor access.
 
 The report counts actual stored pages, published pages, drafts, published pages
 present in the local search index and saved upload records at completion. Preview
-page and attachment-entry counts are shown separately as estimates. Folder pages
+page and attachment-entry counts are shown separately as estimates. Before
+confirmation, Markdown/Notion ZIP previews also show an optional referenced-asset
+copy plan: distinct files and their total bytes. This is different from the
+archive attachment-entry estimate, and preview writes no files. Human-readable
+sizes include exact byte counts. When no plan is returned, the UI says it is
+unavailable rather than displaying zero. Folder pages
 can increase actual page counts; notebook output images can increase saved files.
 Search indexing does not mean the content is public.
 
