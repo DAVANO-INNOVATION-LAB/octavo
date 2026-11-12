@@ -203,6 +203,8 @@ try {
     }
     await visit(pagePath(rootPage));await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent.trim()==='Explore the cluster').click()`);
     await waitFor(`location.pathname===${JSON.stringify(pagePath(nested))} && document.body.innerText.includes('NESTED INDEX:')`,'root to nested link');
+    // Let the real cross-document transition finish before changing viewport.
+    await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))).then(async () => { if (document.activeViewTransition) await document.activeViewTransition.finished; await Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished)); return true; })');
     results.push({viewport:label,bodies:4,links:['root README','root backlink','nested README','nested backlink','root to nested']});
     console.log(`PASS ${label}: root/nested index and README bodies preserved, actual link/backlink navigation, four screenshots`);
   }
