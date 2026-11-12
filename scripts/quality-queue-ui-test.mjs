@@ -183,10 +183,10 @@ try {
   const results=[];
   for(const [label,width,height] of [['desktop',1440,1100],['mobile',390,844]]){
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:label==='mobile'},sessionId);
-    await visit('/quality');await waitFor(`document.querySelector('[data-testid="queue-match-count"]').textContent.includes('36 matched of 36')`,'all editable pages');
+    await visit('/quality');await waitFor(`document.querySelector('[data-testid="queue-match-count"]')?.textContent?.includes('36 matched of 36')`,'all editable pages');
     const before=snapshot();
     await typeInto('input[name="search"]','Deploy guide');await selectValue('state','unreviewed');await selectValue('owner','me');await apply();
-    await waitFor(`document.querySelector('[data-testid="queue-match-count"]').textContent.includes('35 matched of 36')`,'combined filters');
+    await waitFor(`document.querySelector('[data-testid="queue-match-count"]')?.textContent?.includes('35 matched of 36')`,'combined filters');
     assert.equal(await evaluate(`document.querySelectorAll('ul[aria-label="Filtered review queue"] li').length`),30);
     assert.ok(!await evaluate(`document.body.innerText.includes('HIDDEN queue page')`));
     const nextHref=await evaluate(`document.querySelector('nav[aria-label="Review queue pages"] a').getAttribute('href')`);
@@ -195,7 +195,7 @@ try {
     await evaluate(`[...document.querySelectorAll('nav[aria-label="Review queue pages"] a')].find(a=>a.textContent==='Next').click()`);
     await waitFor(`new URLSearchParams(location.search).get('queue')==='2' && document.querySelectorAll('ul[aria-label="Filtered review queue"] li').length===5`,'next filtered page');
     await evaluate(`document.querySelectorAll('ul[aria-label="Filtered review queue"] a')[1].click()`);
-    await waitFor(`document.querySelector('[data-testid="quality-selected-page"] h2').textContent==='Deploy guide 31'`,'select filtered document');
+    await waitFor(`document.querySelector('[data-testid="quality-selected-page"] h2')?.textContent==='Deploy guide 31'`,'select filtered document');
     assert.equal(await evaluate(`new URLSearchParams(location.search).get('owner')`),'me');
     // A selected page outside the matching set cannot leak into detail.
     await visit('/quality?'+new URLSearchParams({search:'Deploy guide',state:'unreviewed',owner:'me',page:other.id}));
@@ -211,12 +211,12 @@ try {
       assert.equal(completed.suggestedFilename,`octavo-quality-queue.${format}`);
     }
     await typeInto('input[name="search"]','zz-no-match-9384');await apply();
-    await waitFor(`document.body.innerText.includes('No documents match these filters')`,'empty matching state');assert.equal(await evaluate(`document.querySelector('[data-testid="quality-selected-page"]')===null`),true);
+    await waitFor(`document.body?.innerText.includes('No documents match these filters')`,'empty matching state');assert.equal(await evaluate(`document.querySelector('[data-testid="quality-selected-page"]')===null`),true);
     assert.ok(await evaluate(`document.querySelector('form[aria-label="Review queue filters"]')!==null`));
     await screenshot(`empty-${label}`,width);
     await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent==='Clear filters').click()`);
-    await waitFor(`document.querySelector('[data-testid="queue-match-count"]').textContent.includes('36 matched of 36')`,'reset filters');
-    await selectValue('owner','unassigned');await apply();await waitFor(`document.querySelector('[data-testid="queue-match-count"]').textContent.includes('1 matched of 36')`,'unassigned owner');
+    await waitFor(`document.querySelector('[data-testid="queue-match-count"]')?.textContent?.includes('36 matched of 36')`,'reset filters');
+    await selectValue('owner','unassigned');await apply();await waitFor(`document.querySelector('[data-testid="queue-match-count"]')?.textContent?.includes('1 matched of 36')`,'unassigned owner');
     assert.equal(await evaluate(`document.querySelector('[data-testid="quality-selected-page"] h2').textContent`),'Network notes');
     await visit('/quality?state=invalid');assert.ok(await evaluate(`document.body.innerText.includes('Some filters were invalid')`));assert.equal(await evaluate(`document.querySelector('a[href^="/api/quality/queue"]')===null`),true);assert.equal(await evaluate(`document.querySelector('[data-testid="quality-selected-page"]')===null`),true);
     assert.equal(snapshot(),before,'Filters, navigation and downloads do not mutate review or document state');await settle();

@@ -198,12 +198,12 @@ try {
     await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:label==='mobile'},sessionId);
     const [first,second,last]=fixtures[label];
     await visit('/quality?'+new URLSearchParams({search:`${label} review`,state:'unreviewed',owner:'me',queue:'1',page:first.id}));
-    await waitFor(`document.querySelector('[data-testid="quality-selected-page"] h2').textContent===${JSON.stringify(first.title)}`,'selected synthetic review');
+    await waitFor(`document.querySelector('[data-testid="quality-selected-page"] h2')?.textContent===${JSON.stringify(first.title)}`,'selected synthetic review');
     const hidden=await evaluate(`Object.fromEntries([...${verifyForm}.querySelectorAll('input[type="hidden"]')].filter(i=>i.name.startsWith('queue')).map(i=>[i.name,i.value]))`);
     assert.deepEqual(hidden,{queueSearch:`${label} review`,queueState:'unreviewed',queueOwner:'me',queuePage:'1'});
     // Ordinary verification keeps queue context without asking to advance.
     let otherBefore=reviewRows(first.id),pagesBefore=pageRows();await submit(false);
-    await waitFor(`new URLSearchParams(location.search).get('reviewed')==='1' && document.querySelector('[data-testid="quality-selected-page"] h2').textContent===${JSON.stringify(second.title)}`,'ordinary verify preserving filtered queue');
+    await waitFor(`new URLSearchParams(location.search).get('reviewed')==='1' && document.querySelector('[data-testid="quality-selected-page"] h2')?.textContent===${JSON.stringify(second.title)}`,'ordinary verify preserving filtered queue');
     let current=await assertContext(label);assert.equal(current.advanced,undefined);assert.ok(await evaluate(`document.querySelector('[data-testid="review-outcome"]').textContent.includes('verified')`));
     assert.equal(reviewRows(first.id),otherBefore);assert.equal(pageRows(),pagesBefore);assert.equal(db.prepare('SELECT verified_by FROM document_reviews WHERE page_id=?').get(first.id).verified_by,'ui-owner');
     await screenshot(`ready-${label}`,width);
@@ -215,14 +215,14 @@ try {
     current=await assertContext(label);assert.equal(current.page,second.id);assert.equal(current.advanced,undefined);assert.equal(current.saved,undefined);assert.equal(snapshot(),staleBefore,'Stale review does not write or advance');
     assert.equal(await evaluate(`document.querySelector('[data-testid="quality-selected-page"] h2').textContent`),second.title);
     otherBefore=reviewRows(second.id);pagesBefore=pageRows();await submit(true);
-    await waitFor(`new URLSearchParams(location.search).get('advanced')==='1' && document.querySelector('[data-testid="quality-selected-page"] h2').textContent===${JSON.stringify(last.title)}`,'verify and next matching page');
+    await waitFor(`new URLSearchParams(location.search).get('advanced')==='1' && document.querySelector('[data-testid="quality-selected-page"] h2')?.textContent===${JSON.stringify(last.title)}`,'verify and next matching page');
     current=await assertContext(label);assert.equal(current.page,last.id);assert.equal(reviewRows(second.id),otherBefore);assert.equal(pageRows(),pagesBefore);
     const secondReview=db.prepare('SELECT * FROM document_reviews WHERE page_id=?').get(second.id);assert.equal(secondReview.verified_by,'ui-owner');assert.equal(secondReview.due_at,Date.parse(due+'T00:00:00.000Z'));
     assert.equal(db.prepare('SELECT verified_at FROM document_reviews WHERE page_id=?').get(last.id).verified_at,null);
     assert.ok(await evaluate(`document.querySelector('[data-testid="review-outcome"]').textContent.includes('next matching document')`));
     await screenshot(`next-${label}`,width);
     otherBefore=reviewRows(last.id);pagesBefore=pageRows();await submit(true);
-    await waitFor(`new URLSearchParams(location.search).get('completed')==='1' && document.querySelector('[data-testid="quality-selected-page"]')===null`,'queue exhausted');
+    await waitFor(`new URLSearchParams(location.search).get('completed')==='1' && document.querySelector('[data-testid="review-outcome"]')?.textContent?.includes('No other documents') && document.querySelector('[data-testid="quality-selected-page"]')===null`,'queue exhausted');
     current=await assertContext(label);assert.equal(current.page,last.id);assert.equal(reviewRows(last.id),otherBefore);assert.equal(pageRows(),pagesBefore);
     assert.ok(await evaluate(`document.body.innerText.includes('No other matching documents')`));assert.ok(await evaluate(`document.body.innerText.includes('nothing else has been verified or published')`));
     assert.equal(db.prepare('SELECT COUNT(*) n FROM pages WHERE space_id=? AND published!=0').get(space.id).n,0,'No review action publishes documents');
@@ -230,7 +230,7 @@ try {
     const added=data.createPage({spaceId:space.id,title:`${label} review new arrival`});
     db.prepare('INSERT INTO document_reviews(page_id,owner_id,due_at) VALUES(?,?,?)').run(added.id,'ui-owner',Date.now()+30*86400000);
     const refreshPath=await evaluate('location.pathname+location.search');await visit(refreshPath);
-    await waitFor(`document.querySelector('[data-testid="review-outcome"]').textContent.includes('The queue has changed') && document.querySelector('[data-testid="quality-selected-page"] h2').textContent===${JSON.stringify(`${label} review new arrival`)}`,'completion refresh reflects current queue');
+    await waitFor(`document.querySelector('[data-testid="review-outcome"]')?.textContent?.includes('The queue has changed') && document.querySelector('[data-testid="quality-selected-page"] h2')?.textContent===${JSON.stringify(`${label} review new arrival`)}`,'completion refresh reflects current queue');
     assert.ok(!await evaluate(`document.body.innerText.includes('No other matching documents')`));await settle();
     results.push({viewport:label,ordinaryContext:true,verified:3,staleRejected:true,oneReviewAtATime:true,bodyAndPublicationUnchanged:true,completed:true});
     console.log(`PASS ${label}: ordinary context, stale rejection, verify-next one at a time, unchanged writing/publication, completion and screenshots`);
