@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.21
+
+- Preserve structured review-queue filters through quality-screen action redirects.
+- Add an explicit Verify and review next action that records only the selected revision, then navigates within the matching editable queue without publishing or verifying another page.
+- Recheck matching pages after each review, wrap through the stable queue order, and distinguish no-other-page outcomes from an all-reviewed claim.
+- Preserve stale-revision failures without advancing; report an already-saved result explicitly if subsequent navigation fails.
+
 ## v0.27.20
 
 - Add title/space search and review-owner filters to the document-quality queue, combined with existing review states and matched counts.

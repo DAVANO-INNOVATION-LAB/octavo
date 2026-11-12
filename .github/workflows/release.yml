@@ -57,6 +57,7 @@ jobs:
       - run: npm run test:markdown-import-plan
       - run: npm run test:template-catalog
       - run: npm run test:quality-queue
+      - run: npm run test:review-next
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs
@@ -77,6 +78,7 @@ jobs:
       - run: npm run test:markdown-import-plan-http
       - run: npm run test:template-chooser-http
       - run: npm run test:quality-queue-http
+      - run: npm run test:review-next-http
       - run: npm run test:import-report-ui
       - run: npm run test:import-plan-ui
       - run: npm run test:import-history-ui
@@ -85,6 +87,14 @@ jobs:
       - run: npm run test:markdown-import-plan-ui
       - run: npm run test:template-chooser-ui
       - run: npm run test:quality-queue-ui
+      - run: npm run test:review-next-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: review-next-ui
+          path: artifacts/review-next/
+          if-no-files-found: warn
+          retention-days: 7
       - uses: actions/upload-artifact@v7
         if: always()
         with:
