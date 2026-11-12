@@ -198,6 +198,8 @@ try {
     await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent.trim()==='Open second workload').click()`);
     await waitFor(`location.pathname===${JSON.stringify(pagePath(second))} && document.body.innerText.includes('SECOND WORKLOAD: Batch worker handoff instructions.')`,'second imported link');
     assert.ok(!await evaluate(`document.body.innerText.includes('FIRST WORKLOAD:')`));
+    // Let the real cross-document transition finish before changing viewport.
+    await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))).then(async () => { if (document.activeViewTransition) await document.activeViewTransition.finished; await Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished)); return true; })');
     results.push({viewport:label,links:['forward actual slug','duplicate-title destination','backlink'],suffixPreserved:true});
     console.log(`PASS ${label}: real imported source link clicks, heading/file mismatch, duplicate-title destinations, backlink, screenshots`);
   }
