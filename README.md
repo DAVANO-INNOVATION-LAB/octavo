@@ -128,3 +128,7 @@ No ORM, no message queue, no cache server. `data/` is the whole state.
 
 AGPL-3.0. Free to run, free to host, free forever — improvements to hosted
 copies come back to everyone.
+
+### Database restore safeguards
+
+Restore from Admin → Backups checks SQLite integrity and saves a verified outgoing snapshot before atomically replacing the database. If backup, staging or checkpointing fails, restore stops without replacing live data. Keep enough free disk space for the incoming file and outgoing snapshot. Restores briefly block requests while SQLite snapshots and swaps the database. Run restore with only one Octavo process accessing that database; stop other writers first. Restart with `OCTAVO_COLLAB=0` before restoring so the collaboration server closes its separate database connection and cached rooms, then re-enable it afterward. Restore refuses to proceed without that setting. Validation checks SQLite integrity, the required users/spaces/pages tables and a nonempty accounts table; it does not prove full application-schema compatibility or that an account can sign in. Use snapshots from compatible Octavo versions. This protects the database only, not uploaded files. Keep independent backups and test recovery on a separate instance. Atomic replacement protects against ordinary staging/swap errors; this release does not claim power-loss or filesystem-failure recovery guarantees.

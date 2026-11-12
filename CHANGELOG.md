@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.2
+
+- Fail closed if a verified rollback snapshot cannot be saved before database restore.
+- Check full SQLite integrity, stage on the data filesystem, and atomically replace the live file only after a successful WAL checkpoint.
+- Preserve outgoing data on staging and swap failures, clean temporary files, and reject overlapping restore requests.
+- Restore requires a single writer process; stop other processes accessing the database and restart with `OCTAVO_COLLAB=0` before restoring.
+
 ## v0.27.1
 
 - Reject corrupted ZIP and Word archives before preview or import writes using CRC32, size, header, boundary and data-descriptor validation.
