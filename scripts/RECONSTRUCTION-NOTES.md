@@ -1,0 +1,9 @@
+# Reconstruction upgrade lane
+
+This isolated test branch is not a product release. Synthetic data only, no production, no image push.
+
+The inventory pins the Git source SHA for every historical tag and the OCI digest where an original published image exists. Seven historical tags have no published image. Each missing version is first built from its exact Git archive, original Dockerfile and lockfile. The build provenance records SHA-256 hashes and image identity. Rebuilt images are not claimed to be the original release artifacts: base-image tags and apk repositories are mutable.
+
+The exact source build of v0.24.2 fails because the prebuild command requires scripts/stamp-version.mjs but .dockerignore excludes that file. The same original exclusion exists in v0.25.0 and v0.25.1. Only for those three versions, and only after observing that exact error, this lane permits a second build with one appended Docker-context exception: `!scripts/stamp-version.mjs`. No application code, Dockerfile, dependency lockfile, or historical Git tag is changed. Exact failures remain in build logs and provenance. Successful patched images are explicitly labelled patched-context rebuilds, never exact-source builds or original releases.
+
+Runtime coverage comprises synthetic HTTP read/access smoke, SQLite integrity and content/history/membership/session/upload preservation, fresh installs, adjacent upgrades involving missing images, target restart, offline backup restore, and a full forward mixed-artifact sequential chain. Containers expose only loopback, use 2 CPUs and 2 GiB RAM, and disable collaboration. This does not validate browser editing, collaboration, Kubernetes/Helm, HA/rolling upgrades, or production workloads. A green patched-context lane does not repair or certify unavailable original release artifacts.

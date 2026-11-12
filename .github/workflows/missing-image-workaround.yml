@@ -1,0 +1,32 @@
+name: Explicit minimal Docker-context workaround upgrade evidence
+on:
+  push:
+    branches: [test/missing-image-context-workaround]
+permissions:
+  contents: read
+concurrency:
+  group: missing-image-context-workaround
+  cancel-in-progress: true
+jobs:
+  reconstructed-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Rebuild only missing images from pinned release source and original lockfiles
+        run: python3 scripts/build-missing-images.py
+      - name: Fresh deployments, missing adjacent edges, restart, restore, full mixed-artifact chain
+        run: python3 scripts/released-image-matrix.py
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: patched-context-upgrade-evidence
+          path: |
+            container-evidence/results.json
+            container-evidence/rebuild-provenance.json
+            container-evidence/*.log
+            scripts/released-image-inventory.json
+          retention-days: 14
