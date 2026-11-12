@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
+import { canEditSpace, canReadSpace, may } from "@/lib/roles";
 import { getPageBySlug, getSpaceBySlug } from "@/lib/data";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ProposeShell } from "@/components/editor/ProposeShell";
@@ -17,8 +18,10 @@ export default async function ProposePage({
   if (!user) redirect("/login");
   const space = getSpaceBySlug(spaceSlug);
   if (!space) notFound();
+  if (!canReadSpace(user, space) || !may(user, space.id, "propose")) redirect("/");
   const page = getPageBySlug(space.id, pageSlug);
   if (!page) notFound();
+  if (page.published === 0 && !canEditSpace(user, space.id)) notFound();
 
   return (
     <div className="flex min-h-screen flex-col">

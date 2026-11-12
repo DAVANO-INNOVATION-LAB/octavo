@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.27.8
+
+- Check actual target-space access before change-request reviews and proposal actions, preserving independent reader reviews and existing role rules.
+- Bind change-request views to their requested space and page, authorize the proposal editor before loading content, and derive action navigation and notification links from persisted targets.
+- Match existing writer-only draft visibility across proposal and review workflows, while preserving reader reviews for published targets.
+- Send new review notifications only while the author retains target access. Existing notifications are unchanged.
+- Accept reviews only while requests are open. Add real-session action/route and compiled HTTP/RSC/form regressions to CI and release verification.
+- Existing requests, reviews and grants are unchanged. See [change-request access](https://github.com/DAVANO-INNOVATION-LAB/octavo/blob/v0.27.8/docs/CHANGE-REQUEST-ACCESS.md) for scope and upgrade guidance.
+
 ## v0.27.7
 
 - Make agent-only group grants consistently read/propose in private and public spaces, fixing denied private proposals and unintended public commenting.
