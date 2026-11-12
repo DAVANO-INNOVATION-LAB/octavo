@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.14
+
+- Show a read-only copy plan for Markdown/Notion ZIP previews: distinct referenced files and their total bytes, separate from raw archive attachment-entry estimates.
+- Retain that optional estimate in completion reports alongside actual saved counts. Other formats and older reports do not invent a zero-file plan.
+- Clarify onboarding and conversion caveats before confirmation; preview does not create content or save attachments, and the confirmed file digest is rechecked.
+- Add synthetic preview/confirmation/report regressions and desktop/mobile browser tests with real file selection and screenshots.
+
 ## v0.27.13
 
 - Preserve referenced bundled Markdown and Notion assets using original archive-relative paths, including nested folders and distinct same-named files; reuse one saved upload for repeated references.

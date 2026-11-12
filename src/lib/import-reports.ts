@@ -14,7 +14,7 @@ export type ImportReport = {
   completedAt: number;
   source: { kind: "upload" | "url" | "openapi"; label: string };
   counts: { pages: number; published: number; drafts: number; indexed: number; attachmentsSaved: number };
-  preview: { pages: number; attachmentEntries: number } | null;
+  preview: { pages: number; attachmentEntries: number; assetPlan?: { files: number; bytes: number } } | null;
   warnings: string[];
   notes: string[];
 };
@@ -23,7 +23,7 @@ export type ImportReportInput = {
   actorId: string;
   sourceKind: ImportReport["source"]["kind"];
   sourceLabel: string;
-  preview?: { pages: number; attachmentEntries: number; warnings?: string[] };
+  preview?: { pages: number; attachmentEntries: number; warnings?: string[]; assetPlan?: { files: number; bytes: number } };
 };
 
 /** A completion snapshot, committed with the import, never a fidelity certificate. */
@@ -60,7 +60,7 @@ export function createImportReport(input: ImportReportInput): ImportReport {
     if (extension === ".docx") notes.push("Word conversion extracts paragraph text, headings and lists; formatting, embedded objects and media are not fully preserved.");
     if ([".zip", ".md", ".markdown", ".txt"].includes(extension)) notes.push("Markdown/Notion conversion may create draft folder pages. ZIP imports copy supported assets referenced by parsed content, not the entire bundle; missing or unsupported references may remain. Standalone Markdown imports do not include companion files. Confluence attachment conversion depends on the export format and available files.");
   }
-  const report: ImportReport = {id:newId(),spaceId:input.spaceId,actorId:input.actorId,completedAt:Date.now(),source:{kind:input.sourceKind,label},counts:{pages:pages.length,published,drafts:pages.length-published,indexed,attachmentsSaved},preview:input.preview?{pages:input.preview.pages,attachmentEntries:input.preview.attachmentEntries}:null,warnings:[...new Set(warnings)].slice(0,200),notes};
+  const report: ImportReport = {id:newId(),spaceId:input.spaceId,actorId:input.actorId,completedAt:Date.now(),source:{kind:input.sourceKind,label},counts:{pages:pages.length,published,drafts:pages.length-published,indexed,attachmentsSaved},preview:input.preview?{pages:input.preview.pages,attachmentEntries:input.preview.attachmentEntries,...(input.preview.assetPlan?{assetPlan:{files:input.preview.assetPlan.files,bytes:input.preview.assetPlan.bytes}}:{})}:null,warnings:[...new Set(warnings)].slice(0,200),notes};
   // Keep actor identity only in the nullable FK, so account erasure removes it.
   db.prepare("INSERT INTO import_reports(id,space_id,actor_id,completed_at,report_json) VALUES(?,?,?,?,?)").run(report.id,report.spaceId,report.actorId,report.completedAt,JSON.stringify({...report, actorId: null}));
   return report;

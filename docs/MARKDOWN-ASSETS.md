@@ -60,6 +60,20 @@ reach a sibling directory inside the archive, but a decoded reference that escap
 the archive root is rejected. Unsafe decoded references are rejected too. Fix the
 source archive rather than relying on conflicting names or escaping paths.
 
+## Preview before confirmation
+
+For Markdown/Notion ZIPs, the preview may include `assetPlan: { files, bytes }`.
+It describes distinct referenced files planned for copying and their total bytes,
+not all archive entries and not files already saved. Preview performs planning
+without writing uploads. The UI shows a readable size with the exact byte count.
+
+The attachment-entry estimate is separate: an archive can contain many unused
+files but have a small referenced-asset plan. A returned plan with `files: 0` is a
+zero-file plan; an absent `assetPlan` means no plan is available for that preview,
+not zero eventual attachments. Other import formats can still save attachments.
+Review warnings before confirming and inspect actual results afterward. A plan
+is neither a complete syntax-coverage check nor a conversion-fidelity guarantee.
+
 ## Reports and recovery
 
 The import report distinguishes preview attachment-entry estimates from actual
