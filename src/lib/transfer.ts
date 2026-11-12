@@ -235,14 +235,15 @@ export function importMarkdownEntries(
     visibility: "private",
   });
 
-  // Sort so folders' index.md come before their children, and files in order.
+  // Start with a deterministic source order; folder-document priority is
+  // resolved explicitly after parsing, rather than relying on archive order.
   const files = mdFiles
     .map((e, i) => ({
       path: parts[i].join("/"),
       sourcePath: e.name,
       data: e.data,
     }))
-    .sort((a, b) => a.path.localeCompare(b.path));
+    .sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : a.sourcePath < b.sourcePath ? -1 : a.sourcePath > b.sourcePath ? 1 : 0);
 
   // Prepare the exact document conversion before planning any attachment writes.
   const prepared = files.map(f => {
@@ -288,6 +289,27 @@ export function importMarkdownEntries(
 
     return { ...f, meta, isIndex, title, blocks };
   });
+  const directoryOf = (file: (typeof prepared)[number]) => file.path.split("/").slice(0,-1).join("/");
+  const compareText = (a: string,b: string) => a < b ? -1 : a > b ? 1 : 0;
+  // One source document owns each folder holder. index.md wins over README.md;
+  // exact lowercase spelling wins ties, then original paths break ties. Other
+  // index/readme documents remain separate children, never overwritten bodies.
+  const primaryByDirectory = new Map<string,(typeof prepared)[number]>();
+  const rankIndex = (file: (typeof prepared)[number]) => {
+    const name=file.path.split("/").pop()!;
+    return (name.toLowerCase()==="index.md"?0:2)+(name===name.toLowerCase()?0:1);
+  };
+  for(const file of prepared.filter(file=>file.isIndex).sort((a,b)=>rankIndex(a)-rankIndex(b)||compareText(a.sourcePath,b.sourcePath))) {
+    const dir=directoryOf(file);
+    if(!primaryByDirectory.has(dir))primaryByDirectory.set(dir,file);
+  }
+  prepared.sort((a,b)=>{
+    const aDir=directoryOf(a),bDir=directoryOf(b);
+    const depth=(dir:string)=>dir?dir.split("/").length:0;
+    return depth(aDir)-depth(bDir)||compareText(aDir,bDir)||
+      Number(primaryByDirectory.get(aDir)!==a)-Number(primaryByDirectory.get(bDir)!==b)||
+      compareText(a.path,b.path)||compareText(a.sourcePath,b.sourcePath);
+  });
   const assetPlan = planMarkdownAssets(entries, prepared);
 
   const dirParent = new Map<string, string | null>(); // dir path -> page id
@@ -316,9 +338,10 @@ export function importMarkdownEntries(
       acc = next;
     }
 
-    const { isIndex, title } = f;
+    const { title } = f;
+    const isPrimary = primaryByDirectory.get(dir) === f;
 
-    if (isIndex && dir !== "") {
+    if (isPrimary && dir !== "") {
       // This file IS the container page for its directory.
       const existing = dirParent.get(dir);
       if (existing) {
@@ -333,20 +356,18 @@ export function importMarkdownEntries(
       title,
     });
     staged.push({ document: f, pageId: page.id });
-    if (isIndex) dirParent.set(dir, page.id);
+    if (isPrimary) dirParent.set(dir, page.id);
     count++;
   }
 
-  // Every destination now has its actual final title/unique slug. Multiple
-  // index/readme sources may reuse a holder; preserve the existing last-wins
-  // content behavior while mapping each source to that same final destination.
+  // Every source now has a distinct destination and its actual final unique
+  // slug. Only the selected primary source occupies each folder holder.
   const destinations = staged.map(({document,pageId}) => ({
     sourcePath: document.sourcePath,
     href: `/${space.slug}/${getPage(pageId)!.slug}`,
   }));
   const rewritePageLinks = createMarkdownPageLinkRewriter(destinations,notion);
-  const finalDocuments = new Map(staged.map(item => [item.pageId,item.document]));
-  for (const [pageId,document] of finalDocuments) {
+  for (const {pageId,document} of staged) {
     const linked = rewritePageLinks(document.blocks,document.sourcePath);
     const blocks = rewriteMarkdownAssets(linked,document.sourcePath,assetPlan);
     savePage(pageId,{content:JSON.stringify(blocks),published:document.meta.published !== "false"});

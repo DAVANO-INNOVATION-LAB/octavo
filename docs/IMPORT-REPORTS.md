@@ -32,10 +32,12 @@ Known examples:
   can remain. Recognized relative `.md` links to imported pages are resolved in a
   second pass to the pages' actual assigned slugs, including forward links and
   duplicate-title cases. Preserved query strings or fragments do not guarantee
-  matching rendered heading anchors. Competing nested `index.md`/`README.md`
-  documents can share one folder page with last-wins content; rename or remove
-  competing index documents when each needs its own page. Existing imports are
-  not rewritten. See
+  matching rendered heading anchors. New imports select one primary index
+  document per folder deterministically, preferring `index.md` over `README.md`;
+  competing documents are retained as separate child pages with distinct links,
+  including at the import root. Actual page counts can therefore differ from
+  older imports that overwrote competing folder documents. Existing imports and
+  previously overwritten content are not reconstructed. See
   [Markdown assets and page links](MARKDOWN-ASSETS.md) for limits and scope.
 - Notebook raw cells and unsupported rich outputs are omitted.
 - Word formatting, embedded objects and media may not be fully preserved.

@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:import-plan
       - run: npm run test:import-history
       - run: npm run test:markdown-page-links
+      - run: npm run test:markdown-index-collision
       - run: npx next typegen   # route types tsc needs (LayoutProps etc.)
       - run: npx tsc --noEmit
       - run: npx eslint src
@@ -50,10 +51,19 @@ jobs:
       - run: npm run test:import-plan-http
       - run: npm run test:import-history-http
       - run: npm run test:markdown-page-links-http
+      - run: npm run test:markdown-index-collision-http
       - run: npm run test:import-report-ui
       - run: npm run test:import-plan-ui
       - run: npm run test:import-history-ui
       - run: npm run test:markdown-page-links-ui
+      - run: npm run test:markdown-index-collision-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: markdown-index-collision-ui
+          path: artifacts/markdown-index-collision/
+          if-no-files-found: warn
+          retention-days: 7
       - uses: actions/upload-artifact@v7
         if: always()
         with:

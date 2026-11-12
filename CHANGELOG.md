@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.17
+
+- Preserve competing Markdown/Notion index documents as distinct pages instead of allowing a later source to replace a folder page's content.
+- Select a primary index document deterministically, preferring `index.md` over `README.md`; retain additional index/README variants as separate child pages, including at the import root.
+- Keep each recognized internal link mapped to its source document's actual destination page, with existing title, publication, attachment and search behavior.
+- Apply the new behavior only to new imports. Previous imports and overwritten historical content are not reconstructed; parser and heading-fragment limitations still apply.
+
 ## v0.27.16
 
 - Preserve parsed Markdown/Notion bundle links to imported `.md` pages using actual destination slugs, including forward references, duplicate titles and titles that differ from filenames.
