@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.27.11
+
+- Make published OpenAPI imports immediately searchable by page title and body, without requiring an edit or republish.
+- Commit page creation/saves and derived search-index updates atomically; keep governed documents as drafts until approved for publication.
+- Repair missing, stale, duplicate and orphaned search-index rows once on writable startup without changing source pages or history. Large libraries should schedule this initial rebuild in a maintenance window; see [search indexing](docs/SEARCH-INDEX.md).
+- Exclude unpublished pages explicitly from search, retaining existing tenant, private-space and deleted-space filters.
+- Add isolated import, rollback, migration and compiled HTTP regressions to CI and release verification.
+
 ## v0.27.10
 
 - Record reading analytics only for pages the caller can currently view, including writer-only drafts. Denied requests retain an empty response without writing telemetry.

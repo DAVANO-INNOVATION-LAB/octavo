@@ -47,6 +47,7 @@ jobs:
       - run: npm run test:change-request-access
       - run: npm run test:resource-access
       - run: npm run test:reading-access
+      - run: npm run test:import-search
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs
@@ -57,6 +58,7 @@ jobs:
       - run: npm run test:action-boundaries-http
       - run: npm run test:resource-routes-http
       - run: npm run test:reading-access-http
+      - run: npm run test:import-search-http
 
   build_image:
     needs: verify
