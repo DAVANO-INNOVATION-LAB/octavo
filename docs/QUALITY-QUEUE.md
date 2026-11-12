@@ -18,8 +18,8 @@ pages assigned to other editors as well as unassigned pages.
 The matched count describes the currently editable pages satisfying all active
 filters. Pagination changes which matching queue rows are shown, not the filter
 scope. Rows are ordered by space name, page title and page ID, with 30 per screen
-page. Queue links preserve the filters. Existing quality-action redirects are
-unchanged and can return to the unfiltered queue after an action.
+page. Queue links preserve the filters. Forms on the quality screen also carry
+the search, state, owner and queue-page context through quality-action redirects.
 The detail panel selects a page from the filtered set; a previously
 selected page that no longer matches does not keep displaying as if it matched.
 An empty result is a reason to adjust filters, not proof that no review work
@@ -39,6 +39,46 @@ These are workflow states, not a guarantee of factual accuracy, completeness or
 production readiness. Filtering, pagination and export do not verify a document
 or alter its assignment, publication state or content. Existing review and quality
 actions remain separate.
+
+## Review without losing the queue
+
+Quality-screen actions retain structured queue filters rather than accepting an
+arbitrary return address. This covers review assignment, revision verification,
+approval, space policy, reusable content, feedback triage, runbook checks and
+execution evidence submitted from this screen. Existing permissions and action
+requirements still apply. If an action changes whether a page matches the filters,
+the refreshed detail must come from the remaining matching queue.
+
+**Mark this revision verified** records the selected revision. **Verify and review
+next** explicitly records that same revision and then navigates within the
+currently matching editable pages. It does not verify another page, publish a
+draft, or approve content automatically. Read the selected document before
+verifying it; recording a review is not an automated factual check.
+
+Continuation follows the pre-action queue order after the selected page, wrapping
+to earlier matching pages when necessary. It rechecks the post-action queue and
+skips pages no longer editable or matching. Newly matching pages are fallback
+candidates after the surviving earlier candidates. The selected page itself is
+never the next candidate; the destination opens on its computed 30-row queue page.
+This is not a remembered list of pages visited: with **All statuses** or
+**Verified**, previously reviewed pages can remain eligible and appear again.
+Use an appropriate review-state filter to work down a particular backlog.
+
+If there is no other matching page, the screen shows **No other matching
+documents** instead of automatically reopening the processed detail. This means
+no other candidate was available, not that every document is verified or that
+work elsewhere is complete. Refresh checks the current queue again; newly
+matching pages produce a queue-changed notice and make detail available again.
+The processed document can still be opened explicitly from its queue link.
+
+Invalid queue context, a stale revision, a page no longer matching the requested
+continuation, or an unsuccessful review prevents advancement. Correct the error
+and review the current revision rather than assuming the save succeeded. If the
+save committed but navigation or cache refresh failed afterward, the error
+explicitly says **Changes saved** and does not claim advancement; refresh the
+queue rather than blindly submitting the review again. Ordinary verification
+keeps the selected-page context instead of requesting the next page, although a
+page that no longer matches is not retained in the filtered detail.
 
 ## Export a filtered snapshot
 
@@ -69,8 +109,8 @@ commands, execution evidence or account emails are exported.
 
 The endpoint is `/api/quality/queue`, with `search`, `state`, `owner` and
 `format=json|csv`. Invalid export filters or formats are rejected. The screen
-instead displays an explicit warning and resets invalid filters to all editable
-documents. Downloads use private, no-store caching.
+instead displays an explicit warning and withholds matching rows, selected detail
+and export links until valid filters are applied. Downloads use private, no-store caching.
 
 Exports are intended for review tracking, not backups or full document transfer.
 Treat titles, space labels and review assignments as potentially private when
