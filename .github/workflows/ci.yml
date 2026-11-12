@@ -33,6 +33,7 @@ jobs:
       - run: npm run test:import-report
       - run: npm run test:markdown-assets
       - run: npm run test:import-plan
+      - run: npm run test:import-history
       - run: npx next typegen   # route types tsc needs (LayoutProps etc.)
       - run: npx tsc --noEmit
       - run: npx eslint src
@@ -46,13 +47,22 @@ jobs:
       - run: npm run test:import-report-http
       - run: npm run test:markdown-assets-http
       - run: npm run test:import-plan-http
+      - run: npm run test:import-history-http
       - run: npm run test:import-report-ui
       - run: npm run test:import-plan-ui
+      - run: npm run test:import-history-ui
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: import-plan-ui
           path: artifacts/import-plan/
+          if-no-files-found: warn
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: import-history-ui
+          path: artifacts/import-history/
           if-no-files-found: warn
           retention-days: 7
       - uses: actions/upload-artifact@v7

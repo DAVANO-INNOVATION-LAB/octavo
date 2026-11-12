@@ -503,6 +503,7 @@ CREATE TABLE IF NOT EXISTS import_reports (
   completed_at INTEGER NOT NULL,
   report_json TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS import_reports_completed ON import_reports(completed_at DESC, id DESC);
 
 CREATE VIRTUAL TABLE IF NOT EXISTS pages_fts USING fts5(
   page_id UNINDEXED,

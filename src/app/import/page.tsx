@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -30,6 +31,7 @@ export default async function ImportPage({
           formatting, links, or attachments may need attention.
           Imported content is saved in a new private space.
         </p>
+        <Link href="/import/history" className="mt-4 inline-flex min-h-10 items-center text-sm text-accent underline underline-offset-4">Recent imports</Link>
         {error && (
           <p className="mt-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
             {error === "nofile"

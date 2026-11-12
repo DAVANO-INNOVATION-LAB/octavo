@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.15
+
+- Add a recent-imports screen linked from Import so administrators can find completed reports after closing the destination tab.
+- Show completion snapshots, saved page/file counts and warning totals with direct report and space links, stable pagination and a clear empty state.
+- List only reports for spaces the current user can still read and administer; omit unavailable spaces and avoid exposing unfiltered totals. Historical spaces without saved reports are not reconstructed.
+- Add isolated source, compiled HTTP and desktop/mobile browser regressions.
+
 ## v0.27.14
 
 - Show a read-only copy plan for Markdown/Notion ZIP previews: distinct referenced files and their total bytes, separate from raw archive attachment-entry estimates.

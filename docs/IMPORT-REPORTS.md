@@ -55,6 +55,24 @@ which is why current read/admin authorization applies to both HTML and JSON.
 JSON downloads use private, no-store caching. Soft-deleted spaces are inaccessible;
 hard deletion of a space also removes its receipt.
 
+## Recent import history
+
+Open **Recent imports** from the Import screen to find saved completion reports,
+newest first. The list includes only destination spaces you can currently read
+and administer, not every import on the instance and not necessarily only imports
+you performed. A past importer has no permanent right to see a report.
+
+Cards show the source method and label, completion time in UTC, actual saved page
+and attachment counts, and the number of recorded warnings. These are completion
+snapshots, not current space totals or fidelity guarantees. Each card links to the
+full report and destination space. Historical imports without saved reports are
+not reconstructed.
+
+Older/Newer navigation shows up to 20 accessible reports per page. Pagination is
+based on accessible reports; the screen does not display totals for unavailable
+spaces. Changes in access or new imports can change the list between visits.
+An empty page does not mean the instance has never imported anything.
+
 ## Verification
 
 The source and compiled HTTP suites use isolated synthetic imports, sessions,
@@ -63,3 +81,8 @@ success and rollback, postcommit errors, snapshot preservation, access changes,
 historical absence and JSON export. Browser QA covers desktop/mobile presentation
 of both clean and warning-bearing reports. This does not certify conversion
 fidelity for every document or external format.
+
+History navigation shows up to the newest 20,000 currently accessible reports
+(1,000 pages). Individual saved reports remain available from their destination
+space beyond this navigation window. New imports or access changes between page
+requests can shift offset-based page contents.

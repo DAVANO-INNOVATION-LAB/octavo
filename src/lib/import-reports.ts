@@ -73,3 +73,50 @@ export function getImportReport(user: User | null, spaceId: string): ImportRepor
   if (!row) return null;
   return {...JSON.parse(row.report_json) as ImportReport,actorId:row.actor_id};
 }
+
+export type ImportHistoryItem = {
+  report: ImportReport;
+  space: { id: string; slug: string; name: string };
+};
+export type ImportHistoryPage = {
+  items: ImportHistoryItem[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+/** Offset counts only currently accessible reports, never hidden records.
+ * Read bounded metadata batches first; parse receipt JSON only for the chosen
+ * authorized page. There is intentionally no global or inaccessible total.
+ */
+export function listImportReports(
+  user: User | null,
+  options: { offset?: number; limit?: number } = {}
+): ImportHistoryPage {
+  const offset = Number.isSafeInteger(options.offset) && options.offset! >= 0 ? options.offset! : 0;
+  const limit = Number.isFinite(options.limit) ? Math.max(1, Math.min(50, Math.floor(options.limit!))) : 20;
+  const result: ImportHistoryPage = { items: [], offset, limit, hasMore: false };
+  if (!user) return result;
+  const db = getDb();
+  type Candidate = { id: string; space_id: string; completed_at: number };
+  let cursor: Candidate | undefined;
+  let skipped = 0;
+  for (;;) {
+    const candidates = db.prepare(`SELECT r.id, r.space_id, r.completed_at
+      FROM import_reports r JOIN spaces s ON s.id = r.space_id
+      WHERE NOT EXISTS (SELECT 1 FROM deleted_spaces d WHERE d.space_id = s.id)
+      ${cursor ? "AND (r.completed_at < ? OR (r.completed_at = ? AND r.id < ?))" : ""}
+      ORDER BY r.completed_at DESC, r.id DESC LIMIT 100`).all(...(cursor ? [cursor.completed_at,cursor.completed_at,cursor.id] : [])) as Candidate[];
+    if (!candidates.length) return result;
+    for (const candidate of candidates) {
+      const space = getSpace(candidate.space_id);
+      if (!space || !canReadSpace(user,space) || !canAdminSpace(user,space.id)) continue;
+      if (skipped < offset) { skipped++; continue; }
+      if (result.items.length === limit) { result.hasMore = true; return result; }
+      const report = getImportReport(user,space.id);
+      if (report) result.items.push({report,space:{id:space.id,slug:space.slug,name:space.name}});
+    }
+    cursor = candidates[candidates.length-1];
+    if (candidates.length < 100) return result;
+  }
+}
