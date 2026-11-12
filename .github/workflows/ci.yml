@@ -35,6 +35,7 @@ jobs:
       - run: npm run test:import-report
       - run: npm run test:import-provenance
       - run: npm run test:import-idempotency
+      - run: npm run test:import-source-matches
       - run: npm run test:provenance-verification
       - run: npm run test:markdown-assets
       - run: npm run test:import-plan
@@ -64,6 +65,7 @@ jobs:
       - run: npm run test:import-search-http
       - run: npm run test:import-report-http
       - run: npm run test:import-idempotency-http
+      - run: npm run test:import-source-matches-http
       - run: npm run test:provenance-verification-http
       - run: npm run test:markdown-assets-http
       - run: npm run test:import-plan-http
@@ -77,6 +79,13 @@ jobs:
       - run: npm run test:import-report-ui
       - run: npm run test:import-provenance-ui
       - run: npm run test:import-idempotency-ui
+      - run: npm run test:import-source-matches-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: import-source-matches-ui
+          path: artifacts/import-source-matches/
+          retention-days: 14
       - uses: actions/upload-artifact@v7
         if: always()
         with:

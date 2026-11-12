@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.26
+
+- Show exact recorded source-byte matches in file-import preview, limited to receipts the current user can read and administer.
+- Link existing destinations and offer an explicit separate-copy import without merging, deleting or silently deduplicating anything.
+- Distinguish source matches from current content equivalence and report bounded lookup coverage; historical imports without fingerprints are not reconstructed.
+
 ## v0.27.25
 
 - Add durable user-scoped retry keys for file uploads so replaying the same keyed request returns its original accessible import without creating another space.

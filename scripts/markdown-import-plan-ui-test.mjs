@@ -192,7 +192,7 @@ try {
     await send('DOM.setFileInputFiles',{nodeId,files:[fixture]},sessionId);
     await waitFor(`document.querySelector('input[type="file"]').files.length===1`,'actual fixture selection');
     await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Preview import').click()`);
-    await waitFor(`document.body.innerText.includes('Nothing has been imported yet') && [...document.querySelectorAll('button')].some(b=>b.textContent==='Confirm and import')`,'preview plan');
+    await waitFor(`document.body?.innerText.includes('Nothing has been imported yet') && [...document.querySelectorAll('button')].some(b=>['Confirm and import','Confirm and import another copy'].includes(b.textContent))`,'preview plan');
     const oldDigest=await evaluate(`document.querySelector('input[name="previewDigest"]').value`);
     assert.equal(oldDigest,require('node:crypto').createHash('sha256').update(archive).digest('hex'));
     await send('DOM.setFileInputFiles',{nodeId,files:[replacement]},sessionId);
@@ -213,7 +213,7 @@ try {
     assert.match(row('Worker instructions'),/Parent: orphan/);assert.match(row('Worker instructions'),/orphan\/worker.md/);
     assert.equal(snapshot(),before,'Actual detailed browser preview is read-only');assert.deepEqual(files(),filesBefore);
     await screenshot(`preview-${label}`,width);
-    await evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent==='Confirm and import').click()`);
+    await evaluate(`[...document.querySelectorAll('button')].find(b=>['Confirm and import','Confirm and import another copy'].includes(b.textContent)).click()`);
     await waitFor(`location.pathname!=='/import' && document.readyState==='complete'`,'confirmed import');
     const pathname=await evaluate('location.pathname');assert.match(pathname,/^\/[^/]+$/);
     const space=db.prepare('SELECT * FROM spaces WHERE slug=?').get(pathname.slice(1));assert.ok(space);

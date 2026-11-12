@@ -214,7 +214,7 @@ try {
     await waitFor(`[...document.querySelectorAll('button')].some(b=>b.textContent==='Checking import…')`,'preview busy state');
     assert.equal(await evaluate(`document.querySelector('input[name="idempotencyKey"]').value`),nameKey,'Busy preview preserves attempt key');
 
-    await waitFor(`document.body?.innerText.includes('Nothing has been imported yet') && [...document.querySelectorAll('button')].some(b=>b.textContent==='Confirm and import')`,'preview plan');
+    await waitFor(`document.body?.innerText.includes('Nothing has been imported yet') && [...document.querySelectorAll('button')].some(b=>['Confirm and import','Confirm and import another copy'].includes(b.textContent))`,'preview plan');
     await evaluate('window.fetch=window.savedFetch;delete window.savedFetch');
     const previewText=await evaluate('document.body.innerText');
     const estimates=await evaluate(`Object.fromEntries([...document.querySelectorAll('#import-preview-heading ~ * dt, section[aria-labelledby="import-preview-heading"] dt')].map(dt=>[dt.textContent,dt.nextElementSibling.textContent]))`);
@@ -232,7 +232,7 @@ try {
     const spacesBefore=db.prepare('SELECT COUNT(*) n FROM spaces').get().n;
     const reportsBefore=db.prepare('SELECT COUNT(*) n FROM import_reports').get().n;
 
-    await evaluate(`{const button=[...document.querySelectorAll('button')].find(b=>b.textContent==='Confirm and import');button.click();button.click();}`);
+    await evaluate(`{const button=[...document.querySelectorAll('button')].find(b=>['Confirm and import','Confirm and import another copy'].includes(b.textContent));button.click();button.click();}`);
     await waitFor(`location.pathname!=='/import' && document.readyState==='complete'`,'confirmed import');
     const pathname=await evaluate('location.pathname');assert.match(pathname,/^\/[^/]+$/);
     const space=db.prepare('SELECT * FROM spaces WHERE slug=?').get(pathname.slice(1));assert.ok(space);

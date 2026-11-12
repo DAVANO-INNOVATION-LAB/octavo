@@ -73,6 +73,20 @@ export function ImportPreviewForm() {
         <h2 id="import-preview-heading" className="text-lg font-semibold text-ink">Import preview</h2>
         <p role="status" className="mt-1 text-sm text-muted">Nothing has been imported yet.</p>
       </div>
+      <section aria-labelledby="source-matches-heading" data-testid="source-matches" className="rounded-xl border border-line bg-bg p-4">
+        <h3 id="source-matches-heading" className="font-semibold text-ink">Existing imports with matching source bytes</h3>
+        {preview.sourceMatches?.candidates.length ? <>
+          <p className="mt-2 text-sm leading-relaxed text-muted">The original uploaded bytes match these saved receipts. Their current pages and attachments may have changed. Open an existing import, or explicitly import another copy below.</p>
+          <ul className="mt-3 space-y-3">{preview.sourceMatches.candidates.map(match => <li key={match.receiptId} className="min-w-0 rounded-lg border border-line bg-surface p-3 [overflow-wrap:anywhere]">
+            <a href={`/${encodeURIComponent(match.spaceSlug)}`} data-testid="source-match-space" className="font-medium text-accent underline">{match.spaceName}</a>
+            <p className="mt-1 text-xs text-muted">Source: {match.sourceLabel} · <time dateTime={new Date(match.completedAt).toISOString()}>{new Date(match.completedAt).toLocaleString("en-US", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" })} UTC</time></p>
+            <a href={`/${encodeURIComponent(match.spaceSlug)}/settings/import-report`} data-testid="source-match-receipt" className="mt-2 inline-flex min-h-10 items-center text-xs text-accent underline">Open import report</a>
+          </li>)}</ul>
+        </> : <p className="mt-2 text-sm leading-relaxed text-muted">{preview.sourceMatches?.status === "complete" ? "No matching source was found in the eligible receipts checked. This does not mean the file is unique." : "No matching source is shown. The receipt check was incomplete or unavailable; this does not mean there are no matches."}</p>}
+        {preview.sourceMatches?.status === "limited" && <p role="status" className="mt-3 text-sm text-muted">Limited results: {preview.sourceMatches.reason || "The bounded receipt search did not examine every eligible receipt."}</p>}
+        {(!preview.sourceMatches || preview.sourceMatches.status === "unavailable") && <p role="status" className="mt-3 text-sm text-muted">Source comparison unavailable{preview.sourceMatches?.reason ? `: ${preview.sourceMatches.reason}` : "."}</p>}
+        <p className="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-muted">Only receipts you can currently read and administer are checked. Older receipts without source fingerprints are not covered. Matching source bytes do not prove authenticity or conversion fidelity. Nothing is merged, replaced or automatically deduplicated.</p>
+      </section>
       <dl className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-line bg-bg p-3">
           <dt className="text-xs leading-relaxed text-muted">Preview pages</dt>
@@ -127,6 +141,6 @@ export function ImportPreviewForm() {
       <p id="import-confirmation-guidance" className="text-xs leading-relaxed text-muted">Review the estimates, copy plan and warnings before confirming. Conversion may simplify formatting or omit unsupported features. Confirmation creates a new private space; review its saved import report and important pages afterward.</p>
       <input type="hidden" name="previewDigest" value={preview.digest} />
     </section>}
-    <button disabled={busy || Boolean(preview?.errors.length)} aria-describedby={preview ? "import-confirmation-guidance" : undefined} className="w-full rounded-lg bg-accent p-3 text-sm font-medium text-accent-ink disabled:opacity-50">{busy ? "Checking import…" : preview ? "Confirm and import" : "Preview import"}</button>
+    <button disabled={busy || Boolean(preview?.errors.length)} aria-describedby={preview ? "import-confirmation-guidance" : undefined} className="w-full rounded-lg bg-accent p-3 text-sm font-medium text-accent-ink disabled:opacity-50">{busy ? "Checking import…" : preview ? preview.sourceMatches?.candidates.length ? "Confirm and import another copy" : "Confirm and import" : "Preview import"}</button>
   </form>;
 }
