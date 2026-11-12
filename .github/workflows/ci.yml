@@ -34,6 +34,7 @@ jobs:
       - run: npm run test:import-search
       - run: npm run test:import-report
       - run: npm run test:import-provenance
+      - run: npm run test:provenance-verification
       - run: npm run test:markdown-assets
       - run: npm run test:import-plan
       - run: npm run test:import-history
@@ -61,6 +62,7 @@ jobs:
       - run: npm run test:reading-access-http
       - run: npm run test:import-search-http
       - run: npm run test:import-report-http
+      - run: npm run test:provenance-verification-http
       - run: npm run test:markdown-assets-http
       - run: npm run test:import-plan-http
       - run: npm run test:import-history-http
@@ -72,6 +74,13 @@ jobs:
       - run: npm run test:review-next-http
       - run: npm run test:import-report-ui
       - run: npm run test:import-provenance-ui
+      - run: npm run test:provenance-verification-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: provenance-verification-ui
+          path: artifacts/provenance-verification/
+          retention-days: 14
       - uses: actions/upload-artifact@v7
         if: always()
         with:

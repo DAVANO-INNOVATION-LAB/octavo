@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.23",
+  "version": "0.27.24",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -84,7 +84,10 @@
     "evidence": "node scripts/evidence-bundle.mjs",
     "test:offline-smoke": "node scripts/offline-smoke-test.mjs",
     "test:import-provenance": "node scripts/import-provenance-test.mjs",
-    "test:import-provenance-ui": "node scripts/import-provenance-ui-test.mjs"
+    "test:import-provenance-ui": "node scripts/import-provenance-ui-test.mjs",
+    "test:provenance-verification": "node scripts/provenance-verification-test.mjs",
+    "test:provenance-verification-http": "node scripts/provenance-verification-http-test.mjs",
+    "test:provenance-verification-ui": "node scripts/provenance-verification-ui-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

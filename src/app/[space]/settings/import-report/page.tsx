@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ImportProvenanceVerification } from "@/components/ImportProvenanceVerification";
 import { notFound, redirect } from "next/navigation";
 import { Download, ArrowLeft, FileCheck2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
@@ -75,6 +76,7 @@ export default async function ImportReportPage({ params }: { params: Promise<{ s
             </dl>
             <a href={`/api/spaces/${space.slug}/import-report`} data-testid="provenance-download" className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm text-accent hover:border-accent"><Download size={15} aria-hidden />Download report with provenance</a>
             <p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-muted">This is an import-time snapshot, not a check of current content. Page hashes cover stored content, not titles or later revisions. Links identify the whole uploaded source, not individual archive entries. Hashes do not establish authenticity or conversion fidelity, and the original upload is not archived by this record.</p>
+            <ImportProvenanceVerification key={report.id} slug={space.slug} />
           </> : <p className="mt-3 text-sm leading-relaxed text-muted">No source fingerprint was recorded for this import. Provenance is collected for new file uploads only; older receipts, URL imports and OpenAPI imports are not reconstructed. An absent record does not indicate a failed import.</p>}
         </section>
         {report.preview && <section aria-labelledby="import-preview" className="rounded-xl border border-dashed border-line p-5">
