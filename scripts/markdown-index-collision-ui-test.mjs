@@ -190,20 +190,20 @@ try {
       ['nested',nested,nestedNotes,'NESTED INDEX:','NESTED README:','Read cluster runbook','Return to cluster'],
     ]){
       await visit(pagePath(primary));
-      await waitFor(`document.body.innerText.includes(${JSON.stringify(primaryMarker)})`,'primary index body');
+      await waitFor(`document.body?.innerText.includes(${JSON.stringify(primaryMarker)})`,'primary index body');
       assert.ok(!await evaluate(`document.body.innerText.includes(${JSON.stringify(secondaryMarker)})`),'Secondary content not overwriting primary');
       const href=await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent.trim()===${JSON.stringify(forward)})?.getAttribute('href')`);
       assert.equal(href,pagePath(secondary));
       await screenshot(`${kind}-index-${label}`,width);
       await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent.trim()===${JSON.stringify(forward)}).click()`);
-      await waitFor(`location.pathname===${JSON.stringify(pagePath(secondary))} && document.body.innerText.includes(${JSON.stringify(secondaryMarker)})`,'secondary readme link');
+      await waitFor(`location.pathname===${JSON.stringify(pagePath(secondary))} && document.body?.innerText.includes(${JSON.stringify(secondaryMarker)})`,'secondary readme link');
       assert.ok(!await evaluate(`document.body.innerText.includes(${JSON.stringify(primaryMarker)})`),'Primary content not overwriting secondary');
       await screenshot(`${kind}-readme-${label}`,width);
       await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent.trim()===${JSON.stringify(back)}).click()`);
-      await waitFor(`location.pathname===${JSON.stringify(pagePath(primary))} && document.body.innerText.includes(${JSON.stringify(primaryMarker)})`,'primary backlink');
+      await waitFor(`location.pathname===${JSON.stringify(pagePath(primary))} && document.body?.innerText.includes(${JSON.stringify(primaryMarker)})`,'primary backlink');
     }
     await visit(pagePath(rootPage));await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent.trim()==='Explore the cluster').click()`);
-    await waitFor(`location.pathname===${JSON.stringify(pagePath(nested))} && document.body.innerText.includes('NESTED INDEX:')`,'root to nested link');
+    await waitFor(`location.pathname===${JSON.stringify(pagePath(nested))} && document.body?.innerText.includes('NESTED INDEX:')`,'root to nested link');
     // Let the real cross-document transition finish before changing viewport.
     await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))).then(async () => { if (document.activeViewTransition) await document.activeViewTransition.finished; await Promise.all(document.getAnimations().filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished)); return true; })');
     results.push({viewport:label,bodies:4,links:['root README','root backlink','nested README','nested backlink','root to nested']});
