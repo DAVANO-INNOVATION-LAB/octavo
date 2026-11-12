@@ -1,0 +1,30 @@
+name: Released image upgrade matrix
+on:
+  push:
+    branches: [test/released-images-020-02727]
+permissions:
+  contents: read
+concurrency:
+  group: released-image-upgrade-matrix
+  cancel-in-progress: false
+jobs:
+  container-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        shard: ['0', '1', '2', '3', '4', '5', '6', chain]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test immutable published images with synthetic isolated volumes
+        run: python3 scripts/released-image-matrix.py '${{ matrix.shard }}'
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: released-image-evidence-${{ matrix.shard }}
+          path: |
+            container-evidence/results.json
+            container-evidence/*.log
+          retention-days: 14
