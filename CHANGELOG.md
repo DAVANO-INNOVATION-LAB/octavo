@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.19
+
+- Add searchable, category-filtered template selection to New space, with a selected page outline and recursive page count before creation.
+- Derive chooser metadata and page titles from the actual template catalog without sending template document bodies to the client chooser.
+- Keep the current selection when filters hide it, provide a clear no-results state, and retain existing space creation, visibility and draft-page behavior.
+- Document the difference between page outlines and page content; add functional and desktop/mobile keyboard interaction coverage.
+
 ## v0.27.18
 
 - Use one read-only Markdown/Notion destination planner for preview and import, reducing differences between the preview page list and the resulting space.
