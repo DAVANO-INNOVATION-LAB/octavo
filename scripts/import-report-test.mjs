@@ -64,11 +64,11 @@ try{
  }
  const historical=data.createSpace({name:'Historical synthetic space'});roles.setSpaceMember(historical.id,'owner','admin');check(reports.getImportReport(users.owner,historical.id),null);check((await api(historical.slug)).status,404);
  assert.throws(()=>reports.createImportReport({spaceId:historical.id,actorId:'owner',sourceKind:'upload',sourceLabel:'history.md'}),/transaction/);checks++;
- // Real Markdown ZIP creates folder pages beyond preview's estimated documents.
+ // Shared Markdown ZIP plan includes generated folder pages in preview counts.
  const zip=load('lib/zip.ts').zip;
  const archive=zip([{name:'root.md',data:Buffer.from('# Root')},{name:'folder/page.md',data:Buffer.from('# Nested\n\n[Relative](other.md)')},{name:'image.png',data:Buffer.from('synthetic image')}]);
  const archiveResponse=await upload(uploadRequest('folders.zip',archive));const archiveSpace=data.getSpaceBySlug(archiveResponse.headers.get('location').split('/')[1]);assert.ok(archiveSpace);const archiveReport=reports.getImportReport(users.owner,archiveSpace.id);
- check(archiveReport.counts.pages,3);check(archiveReport.counts.drafts,1);check(archiveReport.counts.published,2);check(archiveReport.counts.attachmentsSaved,0);assert.ok(archiveReport.warnings.some(w=>w.includes('Preview estimated')));checks++;assert.ok(archiveReport.warnings.some(w=>w.includes('relative')));checks++;
+ check(archiveReport.counts.pages,3);check(archiveReport.counts.drafts,1);check(archiveReport.counts.published,2);check(archiveReport.counts.attachmentsSaved,0);assert.equal(archiveReport.preview.pages,archiveReport.counts.pages);assert.ok(!archiveReport.warnings.some(w=>w.includes('Preview estimated')));checks++;assert.ok(archiveReport.warnings.some(w=>w.includes('relative')));checks++;
  const notebook=JSON.stringify({cells:[{cell_type:'code',source:['print(1)'],outputs:[{data:{'image/png':Buffer.from('synthetic notebook image').toString('base64')}}]}]});
  const notebookResponse=await upload(uploadRequest('report.ipynb',notebook));const notebookSpace=data.getSpaceBySlug(notebookResponse.headers.get('location').split('/')[1]);const notebookReport=reports.getImportReport(users.owner,notebookSpace.id);check(notebookReport.counts.attachmentsSaved,1);check(db.prepare('SELECT COUNT(*) n FROM uploads WHERE space_id=?').get(notebookSpace.id).n,1);
  // Failure writing the report rolls back content, index, ownership and newly created files.

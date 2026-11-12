@@ -123,6 +123,24 @@ conversion, and complete link validation are not implied.
 
 ## Preview before confirmation
 
+Markdown/Notion ZIP preview and import use the same read-only destination planner.
+The preview lists planned destination page titles and their hierarchy, including
+publication state and generated folder pages. Each row identifies its planned
+parent (or top-level position), and source-backed rows retain their original
+archive path. Generated folders have no source document, start as drafts and
+contain no content blocks. It is a plan of pages Octavo intends to create, not
+just a list of archive filenames.
+
+The planner applies the same title selection, common-root handling, Notion name
+cleanup, and primary-index rules used by the importer. Displayed block counts
+use converted content, including removal of a redundant leading title heading and
+Notion property-table conversion. They are not original source-line counts.
+Generated folder pages are identified separately from source documents. Preview does not create the space,
+allocate saved page URLs, copy assets, or publish content. The later import still
+has to succeed before these pages exist. Publication labels describe the planned
+page state, not public visibility of the private destination space.
+
+
 For Markdown/Notion ZIPs, the preview may include `assetPlan: { files, bytes }`.
 It describes distinct referenced files planned for copying and their total bytes,
 not all archive entries and not files already saved. Preview performs planning
@@ -132,7 +150,8 @@ The attachment-entry estimate is separate: an archive can contain many unused
 files but have a small referenced-asset plan. A returned plan with `files: 0` is a
 zero-file plan; an absent `assetPlan` means no plan is available for that preview,
 not zero eventual attachments. Other import formats can still save attachments.
-Review warnings before confirming and inspect actual results afterward. A plan
+Review the planned tree, draft labels, generated folders and warnings before
+confirming, then inspect actual results afterward. A plan
 is neither a complete syntax-coverage check nor a conversion-fidelity guarantee.
 
 ## Reports and recovery

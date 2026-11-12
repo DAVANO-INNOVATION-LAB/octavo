@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.18
+
+- Use one read-only Markdown/Notion destination planner for preview and import, reducing differences between the preview page list and the resulting space.
+- Preview planned page titles, hierarchy, publication state and generated folder pages instead of treating every source filename as a finished page title.
+- Retain separate referenced-asset estimates and actual completion counts. Preview creates no pages or uploads, and planned structure is not a claim of lossless conversion or validated heading anchors.
+- Apply planning to new imports only; existing spaces and historical reports are not reconstructed.
+
 ## v0.27.17
 
 - Preserve competing Markdown/Notion index documents as distinct pages instead of allowing a later source to replace a folder page's content.

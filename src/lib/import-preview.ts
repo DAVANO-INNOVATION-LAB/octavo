@@ -5,12 +5,11 @@ import { looksLikeConfluence,readConfluenceExport } from "./confluence";
 import { looksLikeConfluenceHtml,readConfluenceHtmlExport } from "./confluence-html";
 import { markdownToBlocks,splitFrontmatter } from "./markdown";
 import { planMarkdownAssets } from "./markdown-assets";
-import type { MarkdownAssetDocument } from "./markdown-assets";
-import { cleanNotionPath } from "./notion";
+import { planMarkdownImport } from "./markdown-import-plan";
 import { documentReferences,contentDigest } from "./quality-core";
 
 const KNOWN=new Set(["paragraph","heading","bulletListItem","numberedListItem","checkListItem","quote","codeBlock","table","image","video","audio","file","pageBreak","toggleListItem","callout","expandable","step","math","drawio","themeImage","model3d","apiRequest","sketch","syncedPage","ifvar"]);
-export type ImportPreview={digest:string;pages:{title:string;blocks:number}[];warnings:string[];errors:string[];attachments:number;assetPlan?:{files:number;bytes:number}};
+export type ImportPreview={digest:string;pages:{title:string;blocks:number;sourcePath?:string;parentIndex?:number|null;published?:boolean;generated?:boolean}[];warnings:string[];errors:string[];attachments:number;assetPlan?:{files:number;bytes:number}};
 /** Uses import parsers without creating spaces, pages, or attachment files. */
 export function previewImport(name:string,data:Buffer):ImportPreview {
   const result:ImportPreview={digest:contentDigest(data),pages:[],warnings:[],errors:[],attachments:0};
@@ -33,18 +32,20 @@ export function previewImport(name:string,data:Buffer):ImportPreview {
       const manifest=entries.find(e=>e.name.endsWith("octavo.json"));
       if(manifest) readManifest(manifest.data);
       else {
-      const assetDocuments:MarkdownAssetDocument[]=[];
-      for(const e of entries.filter(e=>/\.md$/i.test(e.name)&&!e.name.split("/").some(p=>p.startsWith(".")))) {
-        const [meta,body]=splitFrontmatter(e.data.toString("utf8"));const blocks=markdownToBlocks(body);
-        add(meta.title||cleanNotionPath(e.name).replace(/\.md$/i,""),blocks);
-        assetDocuments.push({sourcePath:e.name,blocks});
-        for(const ref of documentReferences(JSON.stringify(blocks))) {
+      const markdownPlan=planMarkdownImport(entries);
+      const indices=new Map(markdownPlan.nodes.map((node,index)=>[node.key,index]));
+      for(const node of markdownPlan.nodes){
+        add(node.title,node.blocks);
+        Object.assign(result.pages[result.pages.length-1],{parentIndex:node.parentKey?indices.get(node.parentKey):null,published:node.published,generated:node.sourcePath===undefined,...(node.sourcePath!==undefined?{sourcePath:node.sourcePath}:{})});
+      }
+      for(const document of markdownPlan.documents) {
+        for(const ref of documentReferences(JSON.stringify(document.blocks))) {
           if(ref.kind==="synced"||/^(#|\/|[a-z]+:)/i.test(ref.value))continue;
           let target:string;try{target=decodeURIComponent(ref.value.split(/[?#]/)[0]);}catch{result.warnings.push(`Invalid link: ${ref.value}`);continue;}
-          if(!names.has(path.posix.normalize(path.posix.join(path.posix.dirname(e.name),target))))result.warnings.push(`Missing local reference in ${e.name}: ${ref.value}`);
+          if(!names.has(path.posix.normalize(path.posix.join(path.posix.dirname(document.sourcePath),target))))result.warnings.push(`Missing local reference in ${document.sourcePath}: ${ref.value}`);
         }
       }
-      const plan=planMarkdownAssets(entries,assetDocuments);
+      const plan=planMarkdownAssets(entries,markdownPlan.documents);
       result.assetPlan={files:plan.assets.size,bytes:plan.bytes};
       }
       result.attachments=entries.filter(e=>!e.name.match(/\.(md|json)$/i)).length;
