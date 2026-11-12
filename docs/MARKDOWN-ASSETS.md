@@ -82,11 +82,33 @@ when exact path lookup fails, a unique exported page ID can identify the target;
 ambiguous IDs are not guessed. Existing reports use the general remaining-relative-
 reference warning rather than a new per-link resolution report.
 
-**Competing index documents:** multiple `index.md`/`README.md` sources that map to
-the same nested folder container retain the importer's existing last-wins content
-behavior. Both sources can resolve to that single final page; this does not mean
-both documents' contents were preserved. Rename or remove competing index
-sources before import when each document needs its own page.
+### Competing index and README documents
+
+For new imports, each folder has at most one primary index document. Selection
+is deterministic rather than dependent on ZIP entry order:
+
+1. An `index.md` name, matched case-insensitively, takes priority over `README.md`.
+2. Within the same name type, exact lowercase spelling takes priority over other
+   case variants.
+3. Remaining ties are ordered by the original archive path.
+
+The primary document supplies the folder's page. Other index/README documents,
+including additional case variants, are retained as separate child pages instead
+of overwriting that content. The same rule applies at the import root: its primary
+document becomes the parent of other root documents and nested folder pages.
+Without a root primary, those pages remain at the top level.
+
+Each retained source gets its own destination page and assigned slug. Recognized
+links to `index.md`, `README.md`, or their case variants therefore resolve to the
+corresponding source document, not all to one shared page. Normal title selection
+and duplicate-title slug disambiguation still apply; source filenames need not
+become displayed titles. Source publication settings remain in effect, so a
+retained draft may still be unavailable to readers.
+
+This replaces the older last-wins behavior for competing folder index documents.
+It does not recover previously overwritten content or change an existing import.
+Import the original archive into a new space to use this behavior, then review the
+page tree and links before replacing older content.
 
 Only recognized links with an imported target are rewritten. Unresolved links and
 external URLs remain unchanged; the feature does not make every link in every
