@@ -57,6 +57,7 @@ import {
   verify as verifyRepo,
 } from "@/lib/repo-sync";
 import { generatePages, importInto } from "@/lib/openapi-pages";
+import { runImportTransaction } from "@/lib/import-transaction";
 import { markAllRead, markRead, notify, notifyAll } from "@/lib/notify";
 import { mentionedUserIds } from "@/lib/mentions";
 import {
@@ -94,6 +95,7 @@ import {
 import {
   canAdminSpace,
   canEditSpace,
+  isAgent,
   may,
   reviewersFor,
   removeSpaceMember,
@@ -1659,36 +1661,53 @@ export async function setSpaceVariantAction(formData: FormData) {
 
 export async function importOpenApiAction(formData: FormData) {
   const user = await requireUser();
+  if (isAgent(user)) redirect("/");
   const spec = String(formData.get("spec") ?? "");
   const given = String(formData.get("name") ?? "").trim();
 
-  let result;
+  let spaceSlug: string;
+  let forwardCommittedAudit: (() => void) | undefined;
   try {
-    // Read it before creating anything: a space left behind by a failed
-    // import is worse than a message saying the document could not be read.
+    // Validate and generate before writing. The new private space, creator's
+    // ownership, published reference and local audit must commit together.
     const preview = generatePages(spec);
-    const space = createSpace({
-      name: given || preview.api.title || "API",
-      description: preview.api.version ? `Version ${preview.api.version}` : "",
-      kind: "docs",
+    spaceSlug = runImportTransaction(() => {
+      const space = createSpace({
+        name: given || preview.api.title || "API",
+        description: preview.api.version ? `Version ${preview.api.version}` : "",
+        kind: "docs",
+        visibility: "private",
+      });
+      setSpaceMember(space.id, user.id, "admin");
+      importInto(space.id, spec, createPage);
+      recordAudit({
+        actor: user,
+        action: "space.created",
+        objectType: "space",
+        objectId: space.id,
+        objectLabel: space.name,
+        spaceId: space.id,
+        detail: { from: "openapi", operations: preview.api.operations.length },
+      }, { strict: true, deferForward: (forward) => { forwardCommittedAudit = forward; } });
+      return space.slug;
     });
-    result = importInto(space.id, spec, createPage);
-    recordAudit({
-      actor: user,
-      action: "space.created",
-      objectType: "space",
-      objectId: space.id,
-      objectLabel: space.name,
-      spaceId: space.id,
-      detail: { from: "openapi", operations: preview.api.operations.length },
-    });
-    revalidatePath("/");
-    redirect(`/${space.slug}`);
-  } catch (err) {
-    if (err && typeof err === "object" && "digest" in err) throw err; // redirect
-    const why = err instanceof Error ? err.message : "the document could not be read";
+  } catch (error) {
+    if (error instanceof AggregateError) console.error("Import rollback needs operator attention", error);
+    const why = error instanceof Error ? error.message : "the document could not be read";
     redirect(`/import/openapi?error=${encodeURIComponent(why)}`);
   }
+
+  // These effects cannot roll back committed content. Keep redirect outside
+  // the import catch: Next implements it by throwing a control-flow signal.
+  try { forwardCommittedAudit?.(); }
+  catch (error) { console.error("Import committed; audit forwarding failed", error); }
+  try {
+    revalidatePath("/");
+    revalidatePath(`/${spaceSlug}`);
+  } catch (error) {
+    console.error("Import committed; cache revalidation failed", error);
+  }
+  redirect(`/${spaceSlug}`);
 }
 
 export async function saveAskAction(formData: FormData) {

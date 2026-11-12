@@ -1,8 +1,8 @@
 # Import rollback
 
-This release covers `/api/import` upload confirmation and `/api/import/url`.
-OpenAPI and benchmark server actions and repository synchronization are separate
-flows and are not covered by this transaction boundary.
+Covered entry points are `/api/import` upload confirmation, `/api/import/url`,
+and the OpenAPI import server action. Benchmark server actions and repository
+synchronization remain separate flows outside this transaction boundary.
 
 Upload confirmation runs content creation, publication and importer ownership in
 one outermost immediate SQLite transaction. URL import fetches and converts the
@@ -25,8 +25,22 @@ functions are rejected before invocation; returned thenables are rejected too.
 Callbacks must not schedule later work: arbitrary asynchronous side effects
 cannot be cancelled or included in a synchronous SQLite transaction.
 
+OpenAPI import validates and generates the reference before any writes, then
+creates a private space, grants its signed-in human creator admin membership,
+and creates the published overview, tag and operation pages with the local audit
+entry in one outermost transaction. A page, publication, membership, local audit
+or commit failure leaves no partial space, membership, page, index, history or
+reference rows. Audit forwarding runs only after commit. Anonymous users are
+sent to sign in and instance-level agents are refused by both the page and the
+action. An agent grant in an unrelated space is not an instance-wide restriction.
+Existing space/group/instance permissions and visibility defaults are unchanged;
+this release does not infer owners or change grants for older imports. OpenAPI
+local-reference handling, remote references (not fetched) and generated request
+panels remain unchanged. Importing does not execute those request panels.
+
 Cache revalidation and response construction occur after the commit boundary.
-Cache failures are logged and the upload still redirects to the imported space.
+Cache failures are logged and upload/OpenAPI imports still redirect to the
+imported space. OpenAPI redirect signals are outside the import error handler.
 A response/connection failure cannot undo committed content: inspect the space
 list before retrying to avoid creating a duplicate import.
 
@@ -50,3 +64,9 @@ SQLite errors as requiring investigation, not assume every rollback succeeded.
 `npm run test:import-rollback` uses synthetic imports and isolated temporary
 SQLite/filesystem fixtures. No user database, deployed server or external URL is
 needed. It is required by both CI and release verification.
+
+`npm run test:openapi-import` exercises the real OpenAPI server action, page guard
+and database helpers with synthetic JSON/YAML specifications, isolated SQLite
+and local files. It injects page, membership, audit and deferred-commit failures,
+checks access boundaries and post-commit failures, and makes no external requests.
+It is required by both CI and release verification.

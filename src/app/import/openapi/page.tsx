@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Braces } from "lucide-react";
 import { currentUser } from "@/lib/auth";
+import { isAgent } from "@/lib/roles";
 import { importOpenApiAction } from "@/app/actions";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -14,6 +15,7 @@ export default async function ImportOpenApi({
 }) {
   const user = await currentUser();
   if (!user) redirect("/login");
+  if (isAgent(user)) redirect("/");
   const { error } = await searchParams;
 
   return (

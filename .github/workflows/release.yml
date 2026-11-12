@@ -41,6 +41,7 @@ jobs:
       - run: npm run test:auth
       - run: npm run test:url-import
       - run: npm run test:import-rollback
+      - run: npm run test:openapi-import
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs
