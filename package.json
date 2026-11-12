@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.15",
+  "version": "0.27.16",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -61,7 +61,10 @@
     "test:import-plan-ui": "node scripts/import-plan-ui-test.mjs",
     "test:import-history": "node scripts/import-history-test.mjs",
     "test:import-history-http": "node scripts/import-history-http-test.mjs",
-    "test:import-history-ui": "node scripts/import-history-ui-test.mjs"
+    "test:import-history-ui": "node scripts/import-history-ui-test.mjs",
+    "test:markdown-page-links": "node scripts/markdown-page-links-test.mjs",
+    "test:markdown-page-links-http": "node scripts/markdown-page-links-http-test.mjs",
+    "test:markdown-page-links-ui": "node scripts/markdown-page-links-ui-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

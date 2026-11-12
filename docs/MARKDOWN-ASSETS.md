@@ -1,4 +1,4 @@
-# Referenced assets in Markdown and Notion ZIP imports
+# Referenced assets and page links in Markdown and Notion ZIP imports
 
 New Markdown/Notion ZIP imports preserve supported, locally bundled assets that
 Octavo's parser recognizes as references in imported content. This is not a copy
@@ -60,6 +60,45 @@ reach a sibling directory inside the archive, but a decoded reference that escap
 the archive root is rejected. Unsafe decoded references are rejected too. Fix the
 source archive rather than relying on conflicting names or escaping paths.
 
+## Links between imported Markdown pages
+
+New Markdown/Notion ZIP imports resolve recognized relative `.md` page links
+using the source document's original archive path. The importer first creates the
+destination pages, then rewrites matching links using their **actual assigned
+slugs**. It does not guess a destination slug from the filename or heading.
+
+This supports forward links to pages appearing later in the archive, filenames
+that differ from page headings, and pages with duplicate titles whose assigned
+slugs differ. Notion-style exported filenames are resolved before their display
+names are cleaned. For example, a parsed link from `guides/start.md` to
+`../reference/options.md` points to the page created from that exact archive
+entry, even if its title generates a different destination URL.
+
+Page-link rewriting uses the same parsed URL fields as the asset walker: block
+`props.url` and inline link `href`, including nested content and table cells. It
+handles `.md` destinations, not arbitrary Markdown-like extensions, raw prose or
+code examples. Paths are percent-decoded once for lookup. For Notion exports,
+when exact path lookup fails, a unique exported page ID can identify the target;
+ambiguous IDs are not guessed. Existing reports use the general remaining-relative-
+reference warning rather than a new per-link resolution report.
+
+**Competing index documents:** multiple `index.md`/`README.md` sources that map to
+the same nested folder container retain the importer's existing last-wins content
+behavior. Both sources can resolve to that single final page; this does not mean
+both documents' contents were preserved. Rename or remove competing index
+sources before import when each document needs its own page.
+
+Only recognized links with an imported target are rewritten. Unresolved links and
+external URLs remain unchanged; the feature does not make every link in every
+Markdown dialect work. Markdown page links are not copied as attachment files.
+Query strings and fragments are preserved on rewritten links, but preservation
+does **not** prove that an imported heading's rendered anchor matches the source
+fragment. Open important links and check the intended section after import.
+
+The operation applies to new imports only. Existing pages and previous imports
+are not rewritten automatically. Full CommonMark support, lossless Notion
+conversion, and complete link validation are not implied.
+
 ## Preview before confirmation
 
 For Markdown/Notion ZIPs, the preview may include `assetPlan: { files, bytes }`.
@@ -91,4 +130,4 @@ failure can still require operator recovery.
 No historical import is reconstructed and no old page is silently rewritten.
 Previously imported bundles retain their existing content and references. Import
 the original archive again into a new space when you want to use the new asset
-handling, then review the result before replacing an existing space.
+and internal-link handling, then review the result before replacing an existing space.

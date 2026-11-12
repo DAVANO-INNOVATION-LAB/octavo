@@ -29,7 +29,14 @@ Known examples:
 - Markdown/Notion ZIP imports can create draft folder pages. Supported assets
   referenced by parsed content are copied and deduplicated by resolved archive
   entry; unreferenced bundle files are not copied. Missing or unsupported references
-  can remain. See [Markdown asset handling](MARKDOWN-ASSETS.md) for limits and scope.
+  can remain. Recognized relative `.md` links to imported pages are resolved in a
+  second pass to the pages' actual assigned slugs, including forward links and
+  duplicate-title cases. Preserved query strings or fragments do not guarantee
+  matching rendered heading anchors. Competing nested `index.md`/`README.md`
+  documents can share one folder page with last-wins content; rename or remove
+  competing index documents when each needs its own page. Existing imports are
+  not rewritten. See
+  [Markdown assets and page links](MARKDOWN-ASSETS.md) for limits and scope.
 - Notebook raw cells and unsupported rich outputs are omitted.
 - Word formatting, embedded objects and media may not be fully preserved.
 - URL imports convert readable text; linked media is not archived.

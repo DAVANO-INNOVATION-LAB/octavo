@@ -1,11 +1,11 @@
 import "server-only";
-import { planMarkdownAssets, rewriteMarkdownAssets, transformMarkdownUrls } from "./markdown-assets";
+import { planMarkdownAssets, rewriteMarkdownAssets } from "./markdown-assets";
+import { createMarkdownPageLinkRewriter } from "./markdown-page-links";
 import { looksLikeConfluence, readConfluenceExport } from "./confluence";
 import { looksLikeConfluenceHtml, readConfluenceHtmlExport } from "./confluence-html";
 import {
   cleanNotionPath,
   looksLikeNotion,
-  notionId,
   splitNotionPage,
 } from "./notion";
 import {
@@ -218,13 +218,6 @@ export function importMarkdownEntries(
   // Imported as-is it arrives with unreadable titles and broken links, which
   // is worse than refusing it, because it looks like it worked.
   const notion = looksLikeNotion(entries.map((e) => e.name));
-  const notionIdByPath = new Map<string, string>();
-  if (notion) {
-    for (const e of mdFiles) {
-      const id = notionId(e.name);
-      if (id) notionIdByPath.set(e.name, id);
-    }
-  }
 
   // Strip a common root directory if every file shares one.
   const parts = mdFiles.map((e) => (notion ? cleanNotionPath(e.name) : e.name).split("/"));
@@ -248,22 +241,8 @@ export function importMarkdownEntries(
       path: parts[i].join("/"),
       sourcePath: e.name,
       data: e.data,
-      notionId: notionIdByPath.get(e.name) ?? "",
     }))
     .sort((a, b) => a.path.localeCompare(b.path));
-
-  // Notion links by exported filename, so the id is the join key. The map has
-  // to be complete before any body is converted, or a page would only ever
-  // link to pages that happened to import before it.
-  const notionHref = new Map<string, string>();
-  if (notion) {
-    for (const f of files) {
-      if (!f.notionId) continue;
-      const stem = f.path.replace(/\.md$/i, "");
-      const name = stem.split("/").pop() ?? stem;
-      notionHref.set(f.notionId, `/${space.slug}/${slugify(name)}`);
-    }
-  }
 
   // Prepare the exact document conversion before planning any attachment writes.
   const prepared = files.map(f => {
@@ -286,15 +265,7 @@ export function importMarkdownEntries(
     const bodyNoH1 = body.replace(/^#\s+.+\n+/, (m) =>
       m.slice(2).trim() === title ? "" : m
     );
-    let blocks = markdownToBlocks(bodyNoH1);
-    if (notion) blocks = transformMarkdownUrls(blocks, url => {
-      if (/^(?:#|\/|[a-z][a-z0-9+.-]*:)/i.test(url)) return url;
-      const boundary=url.search(/[?#]/), target=boundary<0?url:url.slice(0,boundary);
-      let decoded: string;try{decoded=decodeURIComponent(target);}catch{return url;}
-      if (!/\.md$/i.test(decoded)) return url;
-      const id=notionId(decoded), href=id?notionHref.get(id):undefined;
-      return href ? href+(boundary<0?"":url.slice(boundary)) : url;
-    });
+    const blocks = markdownToBlocks(bodyNoH1);
     // Database properties are real content — owner, status, dates — but read
     // as a broken paragraph inline. A table keeps them, and keeps them apart.
     if (notionProps.length > 0) {
@@ -322,6 +293,7 @@ export function importMarkdownEntries(
   const dirParent = new Map<string, string | null>(); // dir path -> page id
   dirParent.set("", null);
   let count = 0;
+  const staged: { document: (typeof prepared)[number]; pageId: string }[] = [];
 
   for (const f of prepared) {
     const segs = f.path.split("/");
@@ -344,18 +316,14 @@ export function importMarkdownEntries(
       acc = next;
     }
 
-    const { meta, isIndex, title } = f;
-    const blocks = rewriteMarkdownAssets(f.blocks, f.sourcePath, assetPlan);
+    const { isIndex, title } = f;
 
     if (isIndex && dir !== "") {
       // This file IS the container page for its directory.
       const existing = dirParent.get(dir);
       if (existing) {
-        savePage(existing, {
-          title,
-          content: JSON.stringify(blocks),
-          published: meta.published !== "false",
-        });
+        savePage(existing, { title });
+        staged.push({ document: f, pageId: existing });
         continue;
       }
     }
@@ -363,11 +331,25 @@ export function importMarkdownEntries(
       spaceId: space.id,
       parentId: dirParent.get(dir) ?? null,
       title,
-      content: JSON.stringify(blocks),
     });
-    savePage(page.id, { published: meta.published !== "false" });
+    staged.push({ document: f, pageId: page.id });
     if (isIndex) dirParent.set(dir, page.id);
     count++;
+  }
+
+  // Every destination now has its actual final title/unique slug. Multiple
+  // index/readme sources may reuse a holder; preserve the existing last-wins
+  // content behavior while mapping each source to that same final destination.
+  const destinations = staged.map(({document,pageId}) => ({
+    sourcePath: document.sourcePath,
+    href: `/${space.slug}/${getPage(pageId)!.slug}`,
+  }));
+  const rewritePageLinks = createMarkdownPageLinkRewriter(destinations,notion);
+  const finalDocuments = new Map(staged.map(item => [item.pageId,item.document]));
+  for (const [pageId,document] of finalDocuments) {
+    const linked = rewritePageLinks(document.blocks,document.sourcePath);
+    const blocks = rewriteMarkdownAssets(linked,document.sourcePath,assetPlan);
+    savePage(pageId,{content:JSON.stringify(blocks),published:document.meta.published !== "false"});
   }
 
   return { spaceSlug: space.slug, pages: count };

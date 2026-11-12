@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.16
+
+- Preserve parsed Markdown/Notion bundle links to imported `.md` pages using actual destination slugs, including forward references, duplicate titles and titles that differ from filenames.
+- Resolve against original archive paths before display-name conversion; keep query/fragment suffixes and leave unresolved/external links unchanged. Code and prose are not rewritten.
+- Create destination pages before final content conversion, retaining existing publication rules, attachment handling, search indexing and import exception rollback. Historical imports are not rewritten.
+- Document remaining parser/fragment and competing index-document limitations; add isolated source, compiled HTTP and desktop/mobile navigation regressions.
+
 ## v0.27.15
 
 - Add a recent-imports screen linked from Import so administrators can find completed reports after closing the destination tab.
