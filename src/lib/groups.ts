@@ -125,15 +125,15 @@ export function setGroupGrant(
   ).run(groupId, spaceId, asSpaceRole(role));
 }
 
-/** Strongest first, so a union can be resolved by index. */
+/** Weakest first, so the highest index wins a group union. */
 const STRENGTH: SpaceRole[] = ["agent", "reader", "editor", "admin"];
 
 /**
  * The role a person's groups give them in one space, or null.
  *
- * Agent is deliberately at the weak end: an agent grant must never be
- * strengthened by another membership, and the ceiling in ./capabilities
- * enforces that separately for the instance role. Here it simply loses.
+ * An agent-only group grants read/propose. Stronger human group grants win;
+ * a group never removes another grant. Direct and instance agent ceilings
+ * are enforced separately by ./roles and ./capabilities.
  */
 export function groupRoleFor(userId: string, spaceId: string): SpaceRole | null {
   const rows = getDb()
@@ -146,7 +146,6 @@ export function groupRoleFor(userId: string, spaceId: string): SpaceRole | null 
   let best: SpaceRole | null = null;
   for (const { role } of rows) {
     const r = asSpaceRole(role);
-    if (r === "agent") continue;
     if (!best || STRENGTH.indexOf(r) > STRENGTH.indexOf(best)) best = r;
   }
   return best;

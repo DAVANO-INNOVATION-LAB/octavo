@@ -36,7 +36,10 @@ export default async function AdminGroups({
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
         A group grants a role in one or more spaces to a set of people at
         once. Someone in two groups gets the stronger role; a group never
-        takes away what a direct membership already grants.
+        takes away what a direct membership already grants. An AI Agent group
+        grants reading and proposing, without comments or direct edits. Stronger
+        human grants still win. To cap an account, use its instance AI Agent role
+        or a direct AI Agent space membership; groups cannot lift those limits.
       </p>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
         Give a group a <em>claim value</em> and single sign-on takes over its
