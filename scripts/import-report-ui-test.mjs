@@ -124,13 +124,19 @@ try {
   await bounded(new Promise((resolve, reject) => { ws.onopen = resolve; ws.onerror = reject; }), 5000, 'CDP connection');
   let sequence = 0;
   const pending = new Map(), errors = [], downloads = new Map();
+  let canceledInterceptions = 0;
   ws.onmessage = event => {
     const message = JSON.parse(event.data);
     if (message.id) { const item = pending.get(message.id); if (item) { pending.delete(message.id); if (message.error) item.reject(new Error(JSON.stringify(message.error))); else item.resolve(message.result); } }
     if (message.method === 'Fetch.requestPaused') {
       const url = message.params.request.url;
       const allowed = url.startsWith(base + '/') || url.startsWith('data:') || url === 'about:blank';
-      void send(allowed ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId: message.params.requestId, ...(allowed ? {} : { errorReason: 'BlockedByClient' }) }, message.sessionId).catch(error => errors.push(error.message));
+      void send(allowed ? 'Fetch.continueRequest' : 'Fetch.failRequest', { requestId: message.params.requestId, ...(allowed ? {} : { errorReason: 'BlockedByClient' }) }, message.sessionId).catch(error => {
+        // Navigation can cancel a paused request before CDP continues it.
+        // This protocol race is not a page exception or an allowed network request.
+        if (error.message === '{"code":-32602,"message":"Invalid InterceptionId."}') canceledInterceptions++;
+        else errors.push(error.message);
+      });
     }
     if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description || message.params.exceptionDetails.text);
     if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') errors.push(message.params.args.map(arg => arg.value || arg.description).join(' '));
@@ -202,7 +208,7 @@ try {
     console.log(`PASS ${index ? 'clean' : 'warnings'} ${label}: layout, screenshot, download, back, cover/settings links`);
   }
   assert.deepEqual(errors, [], 'Browser console/runtime errors');
-  summary = { ok: true, version: expected, screenshots: 4, viewports: [1440, 390], consoleErrors: errors, fixture: 'synthetic only' };
+  summary = { ok: true, version: expected, screenshots: 4, viewports: [1440, 390], consoleErrors: errors, canceledInterceptions, fixture: 'synthetic only' };
 } finally {
   const cleanupErrors = [];
   try { ws?.close(); } catch (error) { cleanupErrors.push(error); }
