@@ -4,36 +4,9 @@ import { isAgent } from "@/lib/roles";
 import { currentUser } from "@/lib/auth";
 import { createSpaceAction } from "@/app/actions";
 import { SiteHeader } from "@/components/SiteHeader";
-import { TEMPLATES, type SpaceTemplate } from "@/lib/templates";
-
-function TemplateCard({
-  tpl,
-  defaultChecked = false,
-}: {
-  tpl: SpaceTemplate;
-  defaultChecked?: boolean;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line bg-bg p-3 transition-colors hover:border-line-strong has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
-      <input
-        type="radio"
-        name="template"
-        value={tpl.id}
-        defaultChecked={defaultChecked}
-        className="sr-only"
-      />
-      <span className="min-w-0">
-        <span className="block text-sm font-medium text-ink">{tpl.name}</span>
-        <span className="mt-0.5 block text-xs leading-snug text-faint">
-          {tpl.tagline}
-        </span>
-        <span className="mt-1 block text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
-          {tpl.audience}
-        </span>
-      </span>
-    </label>
-  );
-}
+import { TEMPLATES } from "@/lib/templates";
+import { buildTemplateCatalog } from "@/lib/template-catalog";
+import { TemplateChooser } from "@/components/TemplateChooser";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +29,7 @@ export default async function NewSpacePage() {
         </p>
         <form
           action={createSpaceAction}
-          className="rise mt-8 space-y-6 rounded-2xl border border-line bg-surface p-8 shadow-card"
+          className="rise mt-8 space-y-6 rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-8"
         >
           <label className="block">
             <span className="mb-1.5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
@@ -83,35 +56,7 @@ export default async function NewSpacePage() {
             />
           </label>
 
-          <fieldset>
-            <legend className="mb-2 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
-              Start simple
-            </legend>
-            <div className="grid grid-cols-2 gap-2">
-              {TEMPLATES.filter((tpl) => tpl.group === "simple").map(
-                (tpl, i) => (
-                  <TemplateCard key={tpl.id} tpl={tpl} defaultChecked={i === 0} />
-                )
-              )}
-            </div>
-            <p className="mb-2 mt-5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
-              Presentations and demos
-            </p>
-            <p className="mb-3 text-xs text-muted">Create a dedicated space with an editable presentation outline. Use Present on the page to walk through its sections.</p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {TEMPLATES.filter((tpl) => tpl.group === "presentation").map((tpl) => <TemplateCard key={tpl.id} tpl={tpl} />)}
-            </div>
-            <p className="mb-2 mt-5 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
-              For engineers
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {TEMPLATES.filter((tpl) => tpl.group === "engineering").map(
-                (tpl) => (
-                  <TemplateCard key={tpl.id} tpl={tpl} />
-                )
-              )}
-            </div>
-          </fieldset>
+          <TemplateChooser catalog={buildTemplateCatalog(TEMPLATES)} defaultId={TEMPLATES.find(template => template.group === "simple")!.id} />
 
           <fieldset>
             <legend className="mb-2 block text-xs font-medium uppercase tracking-[0.08em] text-faint">
@@ -132,7 +77,7 @@ export default async function NewSpacePage() {
                     Private
                   </span>
                   <span className="mt-0.5 block text-xs leading-snug text-faint">
-                    Only signed-in members can read it.
+                    Only people granted access to this space can read it.
                   </span>
                 </span>
               </label>

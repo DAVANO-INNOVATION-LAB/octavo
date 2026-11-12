@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.18",
+  "version": "0.27.19",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -70,7 +70,10 @@
     "test:markdown-index-collision-ui": "node scripts/markdown-index-collision-ui-test.mjs",
     "test:markdown-import-plan": "node scripts/markdown-import-plan-test.mjs",
     "test:markdown-import-plan-http": "node scripts/markdown-import-plan-http-test.mjs",
-    "test:markdown-import-plan-ui": "node scripts/markdown-import-plan-ui-test.mjs"
+    "test:markdown-import-plan-ui": "node scripts/markdown-import-plan-ui-test.mjs",
+    "test:template-catalog": "node scripts/template-catalog-test.mjs",
+    "test:template-chooser-http": "node scripts/template-chooser-http-test.mjs",
+    "test:template-chooser-ui": "node scripts/template-chooser-ui-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",
