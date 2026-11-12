@@ -56,6 +56,7 @@ jobs:
       - run: npm run test:markdown-index-collision
       - run: npm run test:markdown-import-plan
       - run: npm run test:template-catalog
+      - run: npm run test:quality-queue
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs
@@ -75,6 +76,7 @@ jobs:
       - run: npm run test:markdown-index-collision-http
       - run: npm run test:markdown-import-plan-http
       - run: npm run test:template-chooser-http
+      - run: npm run test:quality-queue-http
       - run: npm run test:import-report-ui
       - run: npm run test:import-plan-ui
       - run: npm run test:import-history-ui
@@ -82,6 +84,14 @@ jobs:
       - run: npm run test:markdown-index-collision-ui
       - run: npm run test:markdown-import-plan-ui
       - run: npm run test:template-chooser-ui
+      - run: npm run test:quality-queue-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: quality-queue-ui
+          path: artifacts/quality-queue/
+          if-no-files-found: warn
+          retention-days: 7
       - uses: actions/upload-artifact@v7
         if: always()
         with:
