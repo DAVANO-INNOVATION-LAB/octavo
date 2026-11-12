@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.7
+
+- Make agent-only group grants consistently read/propose in private and public spaces, fixing denied private proposals and unintended public commenting.
+- Preserve stronger human direct/group grants and instance administrator rights, while keeping direct and instance AI Agent ceilings and tenant/deleted-space boundaries. Existing memberships and stored grants are unchanged.
+- Clarify group grant behavior in administration and add isolated matrix and real route/action regressions to CI and release verification.
+- See [agent group grants](https://github.com/DAVANO-INNOVATION-LAB/octavo/blob/v0.27.7/docs/SPACE-ACCESS.md#agent-group-grants-v0277) for behavior, verification and upgrade guidance.
+
 ## v0.27.6
 
 - Enforce target-space access for editing, settings, history and restoration, including tenant boundaries in capability checks.

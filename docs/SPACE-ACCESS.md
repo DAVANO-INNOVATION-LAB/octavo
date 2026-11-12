@@ -17,8 +17,9 @@ membership changes are required.
   administration permission. Editors and readers do not administer spaces. Variant
   suggestions include only spaces the current user can read.
 - Tenant membership is checked in addition to space permissions. Instance admins
-  retain their existing cross-tenant access. AI principals retain their existing
-  read/propose ceiling; these routes grant no new permissions.
+  retain their existing cross-tenant access. Instance-agent roles and direct
+  space-agent memberships retain their read/propose ceiling; these routes grant
+  no new permissions.
 - Page metadata follows the reader's access, including valid visitor links. Draft
   metadata requires ordinary space access and write permission. Visitor links
   remain read-only, and cannot reveal drafts through metadata, navigation, raw
@@ -53,3 +54,34 @@ Operators should not configure a reverse proxy or CDN to override private/no-sto
 custom cache previously stored page or link-card responses, invalidate those
 entries when upgrading. Content already copied into an external chat, browser or
 other service cannot be recalled by changing application access.
+
+## Agent group grants (v0.27.7)
+
+An AI Agent group grants **read and propose**, without commenting, writing,
+publishing, merging or administration. Previously, agent-only groups opened a
+private space for reading but could not propose there; on public spaces they
+fell back to ordinary signed-in commenting rights. The group grant now gives
+consistent read/propose capabilities in both cases.
+
+Group grants are additive: admin, editor and reader groups win over an agent
+group, and an agent group never reduces a stronger direct human membership or
+an instance administrator’s rights. This includes deleted-space recovery for
+otherwise authorized administrators. In contrast, an **instance AI Agent role**
+or **direct AI Agent space membership** is an explicit read/propose ceiling,
+including when admin groups are present. Use those direct/instance roles when
+an account must be restricted, rather than relying on membership of an agent
+group. Removing the last grant removes private-space membership; public spaces
+still use their normal signed-in fallback when no grant remains.
+
+Tenant boundaries, missing/deleted-target denial, and visitor limits are
+unchanged. No stored role, membership, schema or dependency migration is needed.
+Upgrade every running replica to apply the corrected group resolution.
+
+`npm run test:group-grants` uses disposable SQLite data and the real permission
+helpers, proposal/settings/recovery actions, comments POST and page PATCH routes.
+It covers direct and group combinations in both insertion orders, instance roles,
+public/private spaces, tenant inclusion/exclusion, deleted recovery, missing
+targets and revocation. Denied mutations must leave all database/audit state,
+cache invalidation and audit forwarding unchanged. The gate runs in CI and
+release verification. It is a focused authorization regression, not a full
+application security audit.

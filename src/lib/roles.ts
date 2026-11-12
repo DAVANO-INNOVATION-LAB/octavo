@@ -62,7 +62,7 @@ export function capsFor(user: User | null, spaceId: string): Capability[] {
   // A direct membership and a group grant are unioned, stronger winning.
   // A group must never take access away: someone added to a reader group
   // while holding an editor seat stays an editor.
-  const role = strongest(spaceRole(user.id, spaceId), groupRoleFor(user.id, spaceId));
+  const role = effectiveSpaceRole(user, spaceId);
   // Being signed in is not membership. Without this, the instance-wide
   // read/comment/propose that a signed-in non-member gets would apply to
   // private spaces too, and one account would open the whole library.
@@ -74,13 +74,19 @@ export function capsFor(user: User | null, spaceId: string): Capability[] {
 
 const ROLE_STRENGTH: SpaceRole[] = ["agent", "reader", "editor", "admin"];
 
-function strongest(a: SpaceRole | null, b: SpaceRole | null): SpaceRole | null {
-  if (!a) return b;
-  if (!b) return a;
-  // An agent grant is a ceiling, not a rung — it never loses to a stronger
-  // one, because that is the whole point of it.
-  if (a === "agent" || b === "agent") return "agent";
-  return ROLE_STRENGTH.indexOf(a) >= ROLE_STRENGTH.indexOf(b) ? a : b;
+/** Resolve grants without turning an agent group into a direct-agent ceiling. */
+function effectiveSpaceRole(user: User, spaceId: string): SpaceRole | null {
+  const direct = spaceRole(user.id, spaceId);
+  // An explicit direct-agent membership caps even an instance administrator.
+  if (direct === "agent") return "agent";
+  // Group membership cannot reduce the rights of a library administrator.
+  if (instanceRoleOf(user) === "admin") return "admin";
+  const group = groupRoleFor(user.id, spaceId);
+  if (!direct) return group;
+  if (!group) return direct;
+  // Group-agent is the weakest grant, not an identity classification. The
+  // instance-agent ceiling still applies in capabilities(), after this union.
+  return ROLE_STRENGTH.indexOf(direct) >= ROLE_STRENGTH.indexOf(group) ? direct : group;
 }
 
 export function may(
@@ -242,7 +248,7 @@ export function canRestoreSpace(user: User | null, spaceId: string): boolean {
     const tenants = tenantIdsFor(user);
     if (tenants !== "all" && !tenants.includes(space.tenant_id)) return false;
   }
-  const role = strongest(spaceRole(user.id, spaceId), groupRoleFor(user.id, spaceId));
+  const role = effectiveSpaceRole(user, spaceId);
   return capabilities(instanceRoleOf(user), role).includes("administer");
 }
 

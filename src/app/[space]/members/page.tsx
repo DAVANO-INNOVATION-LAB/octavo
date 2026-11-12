@@ -74,8 +74,10 @@ export default async function SpaceMembers({
           ))}
         </ul>
         <p className="mt-3 text-sm text-muted">
-          Instance admins administer every space. An AI Agent is capped at
-          reading and proposing no matter what else it is granted.
+          Instance admins administer every space. An instance AI Agent role
+          caps an account everywhere; a direct AI Agent membership caps it in
+          this space. Both allow only reading and proposing, regardless of
+          other grants.
         </p>
 
         {error === "nouser" && (

@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.6",
+  "version": "0.27.7",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -39,6 +39,7 @@
     "test:url-import": "node scripts/import-url-test.mjs",
     "test:import-rollback": "node scripts/import-rollback-test.mjs",
     "test:openapi-import": "node scripts/openapi-import-test.mjs",
+    "test:group-grants": "node scripts/group-grants-test.mjs",
     "test:space-access": "node scripts/space-access-test.mjs",
     "test:space-access-http": "node scripts/space-access-http-test.mjs"
   },

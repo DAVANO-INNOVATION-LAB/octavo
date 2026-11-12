@@ -6,13 +6,13 @@
  *   admin     runs the space — settings, members, connectors, sync
  *   editor    writes: creates, edits, publishes, and merges proposals
  *   reader    reads, discusses, and proposes; changes nothing directly
- *   agent     an AI principal: reads and proposes, and nothing else, ever
+ *   agent     reads and proposes; no comments or direct changes
  *
- * The agent role is not a weaker reader — it is a hard ceiling. An agent may
- * never write, publish, or merge, and no grant by any administrator changes
- * that, because the point of letting a model into a documentation library is
- * that a person still decides what the library says. Agents propose; people
- * merge.
+ * An instance-agent role or direct space-agent membership is a hard ceiling:
+ * it cannot be strengthened by another grant. Agents propose; people merge.
+ * An agent group is instead a read/propose grant, unioned with stronger human
+ * grants in ./roles before this matrix is called. Adding an agent group must
+ * not reduce existing human grants or instance-admin rights.
  *
  * This module is pure so the matrix can be tested directly rather than
  * inferred from the behaviour of the pages that consult it.
@@ -39,7 +39,7 @@ const MATRIX: Record<SpaceRole, Capability[]> = {
   agent: ["read", "propose"],
 };
 
-/** What an agent may do regardless of any role granted to it. */
+/** What an instance/direct agent may do regardless of other grants. */
 const AGENT_CEILING: Capability[] = ["read", "propose"];
 
 export const SPACE_ROLES: SpaceRole[] = ["admin", "editor", "reader", "agent"];
