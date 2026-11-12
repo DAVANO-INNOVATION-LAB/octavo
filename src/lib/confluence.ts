@@ -1,7 +1,6 @@
 import "server-only";
-import fs from "node:fs";
 import path from "node:path";
-import { UPLOADS_DIR } from "./db";
+import { writeImportAttachment } from "./import-transaction";
 import { newId } from "./util";
 import { htmlToBlocks, type ImportedBlock } from "./html-blocks";
 import { child, elements, findAll, parseXml, textOf, type XmlNode } from "./xml";
@@ -153,7 +152,6 @@ export function readConfluenceExport(entries: ZipEntry[], dryRun = false): Confl
   }
 
   // Pass 2: materialise attachments into uploads, newest version of each.
-  if (!dryRun) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   const attachmentUrl = new Map<string, string>(); // "<pageId>/<filename>" and "<filename>"
   const missing: string[] = [];
   let saved = 0;
@@ -167,7 +165,7 @@ export function readConfluenceExport(entries: ZipEntry[], dryRun = false): Confl
     }
     const ext = path.extname(a.title) || "";
     const stored = `${newId()}${ext}`;
-    if (!dryRun) fs.writeFileSync(path.join(UPLOADS_DIR, stored), entry.data);
+    if (!dryRun) writeImportAttachment(stored, entry.data);
     const url = `/api/files/${stored}`;
     attachmentUrl.set(`${a.pageId}/${a.title}`, url);
     if (!attachmentUrl.has(a.title)) attachmentUrl.set(a.title, url);

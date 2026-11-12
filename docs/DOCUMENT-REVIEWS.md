@@ -41,8 +41,11 @@ and ZIP64 archives are not. Limits are 10,000 entries, 100 MB per expanded entry
 and 200 MB total expanded data. CRC32 detects accidental corruption; it does not
 authenticate the sender.
 
-A failed import rolls back database content; attachment files already written
-may remain orphaned and can be handled by the existing upload sweep.
+Upload and URL imports roll back their database mutations, including ownership.
+Attachments created by a failed upload are tracked and removed without deleting
+existing files. Cleanup failures are reported explicitly. See
+[import rollback](IMPORT-ROLLBACK.md) for the exception-recovery boundary and
+operator recovery limits.
 
 Validation: `npm run test:quality` exercises a disposable SQLite database,
 review concurrency and timestamp invariants, permission checks, publishing

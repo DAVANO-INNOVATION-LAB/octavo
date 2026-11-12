@@ -25,9 +25,8 @@ import {
   splitFrontmatter,
 } from "./markdown";
 import { zip, unzip, ZipEntry } from "./zip";
-import fs from "node:fs";
 import path from "node:path";
-import { UPLOADS_DIR } from "./db";
+import { writeImportAttachment } from "./import-transaction";
 import { newId, slugify } from "./util";
 
 /* ————— export ————— */
@@ -426,8 +425,7 @@ export function importConfluenceHtml(
     if (!hit) return null;
     const ext = path.extname(want).toLowerCase();
     const name = `${newId()}${ext}`;
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    fs.writeFileSync(path.join(UPLOADS_DIR, name), hit.data);
+    writeImportAttachment(name, hit.data);
     const url = `/api/files/${name}`;
     written.set(want, url);
     return url;
@@ -583,8 +581,7 @@ export function importNotebook(
       if (png) {
         const bytes = Buffer.from(joinSource(png), "base64");
         const name = `${newId()}.png`;
-        fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-        fs.writeFileSync(path.join(UPLOADS_DIR, name), bytes);
+        writeImportAttachment(name, bytes);
         blocks.push({
           id: newId(),
           type: "image",

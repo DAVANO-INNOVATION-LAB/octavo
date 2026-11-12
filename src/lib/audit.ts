@@ -152,9 +152,11 @@ export function headHash(): string {
 }
 
 /**
- * Append one event. Never throws into the caller: an audit write failing
+ * Append one event. By default never throws into the caller: an audit write failing
  * must not take down the action being audited, but it must be loud in the
  * logs, because a silently missing audit trail is worse than an obvious one.
+ * Atomic import callers use strict mode and defer forwarding until the outer
+ * commit succeeds. They discard the callback if their transaction rolls back.
  */
 export function recordAudit(input: {
   actor: { id: string; name: string } | null;
@@ -164,7 +166,7 @@ export function recordAudit(input: {
   objectLabel?: string;
   spaceId?: string | null;
   detail?: Record<string, unknown>;
-}): void {
+}, options: { strict?: boolean; deferForward?: (forward: () => void) => void } = {}): void {
   let committed: AuditEntry | null = null;
   try {
     const db = getDb();
@@ -199,8 +201,13 @@ export function recordAudit(input: {
     // Only after the entry is durable and chained. Forwarding a record that
     // then failed to commit would put an event in the collector that this
     // instance cannot show you.
-    if (committed) forwardAudit(committed);
+    if (committed) {
+      const row: AuditEntry = committed;
+      if (options.deferForward) options.deferForward(() => forwardAudit(row));
+      else forwardAudit(row);
+    }
   } catch (err) {
+    if (options.strict) throw err;
     console.error("audit: failed to record", input.action, err);
   }
 }

@@ -5,6 +5,7 @@ import { createPage, createSpace, savePage } from "@/lib/data";
 import { markdownToBlocks } from "@/lib/markdown";
 import { pageContentToBlocks } from "@/lib/html-blocks";
 import { recordAudit } from "@/lib/audit";
+import { runImportTransaction } from "@/lib/import-transaction";
 import { fetchGuarded } from "@/lib/import-url";
 
 export const runtime = "nodejs";
@@ -67,30 +68,41 @@ export async function POST(req: NextRequest) {
     String(body.name ?? "").trim() ||
     converted.title ||
     new URL(fetched.finalUrl).hostname;
-  const space = createSpace({
-    name: title.slice(0, 120),
-    description: `Imported from ${fetched.finalUrl}`.slice(0, 300),
-    kind: "docs",
-    visibility: "private",
-  });
-  setSpaceMember(space.id, user.id, "admin");
-  const page = createPage({
-    spaceId: space.id,
-    parentId: null,
-    title: title.slice(0, 200),
-    content: JSON.stringify(converted.blocks),
-  });
-  savePage(page.id, { published: true });
+  let spaceSlug: string;
+  let forwardCommittedAudit: (() => void) | undefined;
+  try {
+    spaceSlug = runImportTransaction(() => {
+      const space = createSpace({
+        name: title.slice(0, 120),
+        description: `Imported from ${fetched.finalUrl}`.slice(0, 300),
+        kind: "docs",
+        visibility: "private",
+      });
+      setSpaceMember(space.id, user.id, "admin");
+      const page = createPage({
+        spaceId: space.id,
+        parentId: null,
+        title: title.slice(0, 200),
+        content: JSON.stringify(converted.blocks),
+      });
+      savePage(page.id, { published: true });
 
-  recordAudit({
-    actor: user,
-    action: "space.created",
-    objectType: "space",
-    objectId: space.id,
-    objectLabel: space.name,
-    spaceId: space.id,
-    detail: { importedFrom: fetched.finalUrl, blocks: converted.blocks.length },
-  });
+      recordAudit({
+        actor: user,
+        action: "space.created",
+        objectType: "space",
+        objectId: space.id,
+        objectLabel: space.name,
+        spaceId: space.id,
+        detail: { importedFrom: fetched.finalUrl, blocks: converted.blocks.length },
+      }, { strict: true, deferForward: (forward) => { forwardCommittedAudit = forward; } });
+      return space.slug;
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "import failed" }, { status: 400 });
+  }
 
-  return NextResponse.json({ spaceSlug: space.slug, blocks: converted.blocks.length });
+  try { forwardCommittedAudit?.(); }
+  catch (error) { console.error("Import committed; audit forwarding failed", error); }
+  return NextResponse.json({ spaceSlug, blocks: converted.blocks.length });
 }
