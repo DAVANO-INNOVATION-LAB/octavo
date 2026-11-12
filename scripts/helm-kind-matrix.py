@@ -20,7 +20,8 @@ def blocked(kind,a,b):
  rows.append(dict(kind=kind,source=a,target=b,status='availability-blocked'));(OUT/'results.json').write_text(json.dumps(rows,indent=2))
 def load(v):
  image='ghcr.io/davano-innovation-lab/octavo@'+v['digest'];local='octavo-audit:'+v['tag'][1:]
- run('docker','pull','--platform','linux/amd64',image);run('docker','tag',image,local);run('kind','load','docker-image','--name','octavo-audit',local)
+ run('docker','exec','octavo-audit-control-plane','ctr','--namespace=k8s.io','images','pull','--platform','linux/amd64',image)
+ run('docker','exec','octavo-audit-control-plane','ctr','--namespace=k8s.io','images','tag','--force',image,'docker.io/library/'+local)
  return local
 ns='audit'
 def reset():
@@ -50,15 +51,16 @@ def pair(a,b):
  try:
   deploy(a);check('seed');check('check');uid=run('kubectl','get','pvc','octavo','-n',ns,'-o','jsonpath={.metadata.uid}');deploy(b);check('check');assert uid==run('kubectl','get','pvc','octavo','-n',ns,'-o','jsonpath={.metadata.uid}');run('kubectl','rollout','restart','deployment/octavo','-n',ns);run('kubectl','rollout','status','deployment/octavo','-n',ns,'--timeout=180s');check('check')
  finally:logs('pair-'+a['tag']+'-'+b['tag'])
+if '--pilot' in sys.argv: versions=versions[:2]
 for i,v in enumerate(versions):
- if i%4!=shard:continue
+ if '--pilot' not in sys.argv and i%4!=shard:continue
  def validate(v=v):
   c=chart(v);run('helm','lint',c,'--strict');render=run('helm','template','octavo',c);(OUT/(v['tag']+'-default.yaml')).write_text(render);run('kubectl','apply','--dry-run=server','-f','-',input=render)
  record('chart-server-dry-run',None,v['tag'],validate)
  if 'digest' not in v:blocked('fresh',None,v['tag']);continue
  record('fresh',None,v['tag'],lambda v=v:fresh(v));reset();cleanimages([v])
 for i in range(len(versions)-1):
- if i%4!=shard:continue
+ if '--pilot' not in sys.argv and i%4!=shard:continue
  a,b=versions[i:i+2]
  if any('digest' not in v for v in [a,b]):blocked('adjacent-pvc-restart',a['tag'],b['tag']);continue
  record('adjacent-pvc-restart',a['tag'],b['tag'],lambda a=a,b=b:pair(a,b));reset();cleanimages([a,b])
