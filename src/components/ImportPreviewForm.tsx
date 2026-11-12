@@ -69,7 +69,28 @@ export function ImportPreviewForm() {
       </div>
       <details>
         <summary className="cursor-pointer text-sm font-medium text-ink">Preview page list ({preview.pages.length.toLocaleString("en-US")})</summary>
-        <ul className="mt-3 max-h-64 space-y-2 overflow-auto rounded-lg border border-line p-3 text-sm text-muted">{preview.pages.map((page, i) => <li key={i}>{page.title} <span className="text-faint">· {page.blocks} blocks</span></li>)}</ul>
+        {preview.pages.some(page => page.parentIndex !== undefined) && <p className="mt-3 text-xs leading-relaxed text-muted">This Markdown/Notion plan includes generated folder pages, actual titles and publication states. Page addresses are assigned when you confirm. Other import formats may show estimates rather than this detailed structure.</p>}
+        <ol aria-label="Planned imported pages" className="mt-3 max-h-96 space-y-3 overflow-auto rounded-lg border border-line p-3 text-sm text-muted">{preview.pages.map((page, i) => {
+          const hasStructure = typeof page.published === "boolean" && page.parentIndex !== undefined;
+          const parent = typeof page.parentIndex === "number" ? preview.pages[page.parentIndex] : undefined;
+          let depth = 0;
+          let ancestor = page.parentIndex;
+          const seen = new Set<number>([i]);
+          while (typeof ancestor === "number" && preview.pages[ancestor] && !seen.has(ancestor)) {
+            seen.add(ancestor); depth++; ancestor = preview.pages[ancestor].parentIndex;
+          }
+          return <li key={i} data-testid="import-page-plan-row" className="min-w-0 rounded-lg border border-line bg-bg p-3" style={{ marginLeft: `${Math.min(depth, 3) * 0.5}rem` }}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-ink">{page.title}</span>
+              {hasStructure && <span className="rounded-full border border-line px-2 py-0.5 text-xs text-ink">{page.published ? "Published" : "Draft"}</span>}
+              {page.generated && <span className="rounded-full border border-line px-2 py-0.5 text-xs text-muted">Generated folder</span>}
+            </div>
+            {hasStructure && <p className="mt-1 text-xs leading-relaxed"><span className="sr-only">Hierarchy level {depth + 1}. </span>{parent ? `Parent: ${parent.title}` : "Top-level page"}</p>}
+            {page.sourcePath && <p className="mt-2 break-all text-xs leading-relaxed">Source: <code>{page.sourcePath}</code></p>}
+            {page.generated && <p className="mt-2 text-xs leading-relaxed">Created to contain pages from this folder; no source document.</p>}
+            <p className="mt-1 text-xs text-faint">{page.blocks} blocks</p>
+          </li>;
+        })}</ol>
       </details>
       {preview.warnings.length > 0 && <div>
         <h3 className="text-sm font-semibold text-ink">Review warnings ({preview.warnings.length})</h3>

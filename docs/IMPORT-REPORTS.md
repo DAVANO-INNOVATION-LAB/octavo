@@ -15,8 +15,15 @@ confirmation, Markdown/Notion ZIP previews also show an optional referenced-asse
 copy plan: distinct files and their total bytes. This is different from the
 archive attachment-entry estimate, and preview writes no files. Human-readable
 sizes include exact byte counts. When no plan is returned, the UI says it is
-unavailable rather than displaying zero. Folder pages
-can increase actual page counts; notebook output images can increase saved files.
+unavailable rather than displaying zero.
+
+Markdown/Notion ZIP previews now share a destination planner with the importer,
+showing planned titles, hierarchy, publication states and generated folder pages.
+Those generated folders are included in the planned page list rather than appearing
+only as a surprise after import. This is a read-only plan, not already-created
+content or guaranteed conversion fidelity. Other formats can still have differences
+between preview estimates and completed results; notebook output images, for
+example, can increase actual saved-file counts.
 Search indexing does not mean the content is public.
 
 Warnings from preview are retained, alongside page-count differences and remaining

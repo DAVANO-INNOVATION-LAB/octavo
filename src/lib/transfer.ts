@@ -1,15 +1,13 @@
 import "server-only";
 import { planMarkdownAssets, rewriteMarkdownAssets } from "./markdown-assets";
+import { planMarkdownImport } from "./markdown-import-plan";
 import { createMarkdownPageLinkRewriter } from "./markdown-page-links";
 import { looksLikeConfluence, readConfluenceExport } from "./confluence";
 import { looksLikeConfluenceHtml, readConfluenceHtmlExport } from "./confluence-html";
-import {
-  cleanNotionPath,
-  looksLikeNotion,
-  splitNotionPage,
-} from "./notion";
+
 import {
   Space,
+  Page,
   TreeNode,
   createPage,
   createSpace,
@@ -22,7 +20,6 @@ import { parseBlocks } from "./blocks";
 import {
   blocksToMarkdown,
   markdownToBlocks,
-  splitFrontmatter,
 } from "./markdown";
 import { zip, unzip, ZipEntry } from "./zip";
 import path from "node:path";
@@ -189,191 +186,26 @@ export function importManifest(manifest: Manifest, nameOverride?: string): Impor
   return { spaceSlug: space.slug, pages: idMap.size };
 }
 
-function titleFrom(meta: Record<string, string>, body: string, fallback: string) {
-  if (meta.title) {
-    try {
-      return JSON.parse(meta.title);
-    } catch {
-      return meta.title;
-    }
-  }
-  const h1 = body.match(/^#\s+(.+)$/m);
-  if (h1) return h1[1].trim();
-  return fallback;
-}
-
 const cleanSegment = (s: string) => s.replace(/^\d+[-_.]/, "").replace(/\.md$/i, "");
 
-export function importMarkdownEntries(
-  entries: ZipEntry[],
-  nameOverride?: string
-): ImportResult {
-  const mdFiles = entries
-    .filter((e) => e.name.toLowerCase().endsWith(".md"))
-    .filter((e) => !e.name.split("/").some((seg) => seg.startsWith(".")));
-  if (!mdFiles.length) throw new Error("no markdown files found");
-
-  // A Notion export is markdown, so it lands here — but with a 32-hex id
-  // welded onto every name and every internal link pointing at those names.
-  // Imported as-is it arrives with unreadable titles and broken links, which
-  // is worse than refusing it, because it looks like it worked.
-  const notion = looksLikeNotion(entries.map((e) => e.name));
-
-  // Strip a common root directory if every file shares one.
-  const parts = mdFiles.map((e) => (notion ? cleanNotionPath(e.name) : e.name).split("/"));
-  let rootName = "";
-  if (parts.every((p) => p.length > 1 && p[0] === parts[0][0])) {
-    rootName = parts[0][0];
-    for (const p of parts) p.shift();
+export function importMarkdownEntries(entries: ZipEntry[], nameOverride?: string): ImportResult {
+  const plan = planMarkdownImport(entries);
+  const assetPlan = planMarkdownAssets(entries,plan.documents);
+  const space = createSpace({name:nameOverride?.trim()||plan.name,visibility:"private"});
+  const pages = new Map<string,Page>();
+  for(const node of plan.nodes){
+    const page=createPage({spaceId:space.id,parentId:node.parentKey?pages.get(node.parentKey)!.id:null,title:node.title});
+    pages.set(node.key,page);
   }
-
-  const space = createSpace({
-    name:
-      nameOverride?.trim() ||
-      cleanSegment(rootName) ||
-      "Imported space",
-    visibility: "private",
-  });
-
-  // Start with a deterministic source order; folder-document priority is
-  // resolved explicitly after parsing, rather than relying on archive order.
-  const files = mdFiles
-    .map((e, i) => ({
-      path: parts[i].join("/"),
-      sourcePath: e.name,
-      data: e.data,
-    }))
-    .sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : a.sourcePath < b.sourcePath ? -1 : a.sourcePath > b.sourcePath ? 1 : 0);
-
-  // Prepare the exact document conversion before planning any attachment writes.
-  const prepared = files.map(f => {
-    const segs = f.path.split("/");
-    const fileName = segs.pop()!;
-    let raw = f.data.toString("utf8");
-    let notionProps: { name: string; value: string }[] = [];
-    if (notion) {
-      const split = splitNotionPage(raw);
-      notionProps = split.properties;
-      // Notion writes the title as an H1; keep it so titleFrom still sees it.
-      raw = split.title ? `# ${split.title}\n\n${split.body}` : split.body;
-    }
-    const [meta, body] = splitFrontmatter(raw);
-    const isIndex = /^(index|readme)\.md$/i.test(fileName);
-    const fallback = cleanSegment(isIndex ? segs[segs.length - 1] ?? "Home" : fileName)
-      .replace(/[-_]/g, " ");
-    const title = titleFrom(meta, body, fallback || "Untitled");
-    // Drop a leading H1 that duplicates the title.
-    const bodyNoH1 = body.replace(/^#\s+.+\n+/, (m) =>
-      m.slice(2).trim() === title ? "" : m
-    );
-    const blocks = markdownToBlocks(bodyNoH1);
-    // Database properties are real content — owner, status, dates — but read
-    // as a broken paragraph inline. A table keeps them, and keeps them apart.
-    if (notionProps.length > 0) {
-      blocks.unshift({
-        id: newId(),
-        type: "table",
-        props: {},
-        content: {
-          type: "tableContent",
-          rows: notionProps.map((pr) => ({
-            cells: [
-              [{ type: "text", text: pr.name, styles: { bold: true } }],
-              [{ type: "text", text: pr.value, styles: {} }],
-            ],
-          })),
-        },
-        children: [],
-      } as unknown as (typeof blocks)[number]);
-    }
-
-    return { ...f, meta, isIndex, title, blocks };
-  });
-  const directoryOf = (file: (typeof prepared)[number]) => file.path.split("/").slice(0,-1).join("/");
-  const compareText = (a: string,b: string) => a < b ? -1 : a > b ? 1 : 0;
-  // One source document owns each folder holder. index.md wins over README.md;
-  // exact lowercase spelling wins ties, then original paths break ties. Other
-  // index/readme documents remain separate children, never overwritten bodies.
-  const primaryByDirectory = new Map<string,(typeof prepared)[number]>();
-  const rankIndex = (file: (typeof prepared)[number]) => {
-    const name=file.path.split("/").pop()!;
-    return (name.toLowerCase()==="index.md"?0:2)+(name===name.toLowerCase()?0:1);
-  };
-  for(const file of prepared.filter(file=>file.isIndex).sort((a,b)=>rankIndex(a)-rankIndex(b)||compareText(a.sourcePath,b.sourcePath))) {
-    const dir=directoryOf(file);
-    if(!primaryByDirectory.has(dir))primaryByDirectory.set(dir,file);
+  const destinations=plan.nodes.filter(node=>node.sourcePath!==undefined).map(node=>({sourcePath:node.sourcePath!,href:`/${space.slug}/${pages.get(node.key)!.slug}`}));
+  const rewritePageLinks=createMarkdownPageLinkRewriter(destinations,plan.notion);
+  for(const node of plan.nodes){
+    if(node.sourcePath===undefined)continue;
+    const linked=rewritePageLinks(node.blocks,node.sourcePath);
+    const blocks=rewriteMarkdownAssets(linked,node.sourcePath,assetPlan);
+    savePage(pages.get(node.key)!.id,{content:JSON.stringify(blocks),published:node.published});
   }
-  prepared.sort((a,b)=>{
-    const aDir=directoryOf(a),bDir=directoryOf(b);
-    const depth=(dir:string)=>dir?dir.split("/").length:0;
-    return depth(aDir)-depth(bDir)||compareText(aDir,bDir)||
-      Number(primaryByDirectory.get(aDir)!==a)-Number(primaryByDirectory.get(bDir)!==b)||
-      compareText(a.path,b.path)||compareText(a.sourcePath,b.sourcePath);
-  });
-  const assetPlan = planMarkdownAssets(entries, prepared);
-
-  const dirParent = new Map<string, string | null>(); // dir path -> page id
-  dirParent.set("", null);
-  let count = 0;
-  const staged: { document: (typeof prepared)[number]; pageId: string }[] = [];
-
-  for (const f of prepared) {
-    const segs = f.path.split("/");
-    segs.pop();
-    const dir = segs.join("/");
-
-    // Ensure ancestor dirs exist as container pages (if no index.md created them).
-    let acc = "";
-    for (const seg of segs) {
-      const next = acc ? `${acc}/${seg}` : seg;
-      if (!dirParent.has(next)) {
-        const holder = createPage({
-          spaceId: space.id,
-          parentId: dirParent.get(acc) ?? null,
-          title: cleanSegment(seg).replace(/[-_]/g, " "),
-        });
-        dirParent.set(next, holder.id);
-        count++;
-      }
-      acc = next;
-    }
-
-    const { title } = f;
-    const isPrimary = primaryByDirectory.get(dir) === f;
-
-    if (isPrimary && dir !== "") {
-      // This file IS the container page for its directory.
-      const existing = dirParent.get(dir);
-      if (existing) {
-        savePage(existing, { title });
-        staged.push({ document: f, pageId: existing });
-        continue;
-      }
-    }
-    const page = createPage({
-      spaceId: space.id,
-      parentId: dirParent.get(dir) ?? null,
-      title,
-    });
-    staged.push({ document: f, pageId: page.id });
-    if (isPrimary) dirParent.set(dir, page.id);
-    count++;
-  }
-
-  // Every source now has a distinct destination and its actual final unique
-  // slug. Only the selected primary source occupies each folder holder.
-  const destinations = staged.map(({document,pageId}) => ({
-    sourcePath: document.sourcePath,
-    href: `/${space.slug}/${getPage(pageId)!.slug}`,
-  }));
-  const rewritePageLinks = createMarkdownPageLinkRewriter(destinations,notion);
-  for (const {pageId,document} of staged) {
-    const linked = rewritePageLinks(document.blocks,document.sourcePath);
-    const blocks = rewriteMarkdownAssets(linked,document.sourcePath,assetPlan);
-    savePage(pageId,{content:JSON.stringify(blocks),published:document.meta.published !== "false"});
-  }
-
-  return { spaceSlug: space.slug, pages: count };
+  return {spaceSlug:space.slug,pages:plan.nodes.length};
 }
 
 /**
