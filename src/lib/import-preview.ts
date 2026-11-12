@@ -1,4 +1,5 @@
 import "server-only";
+import type { ImportSourceMatches } from "./import-source-matches";
 import path from "node:path";
 import { unzip } from "./zip";
 import { looksLikeConfluence,readConfluenceExport } from "./confluence";
@@ -9,7 +10,7 @@ import { planMarkdownImport } from "./markdown-import-plan";
 import { documentReferences,contentDigest } from "./quality-core";
 
 const KNOWN=new Set(["paragraph","heading","bulletListItem","numberedListItem","checkListItem","quote","codeBlock","table","image","video","audio","file","pageBreak","toggleListItem","callout","expandable","step","math","drawio","themeImage","model3d","apiRequest","sketch","syncedPage","ifvar"]);
-export type ImportPreview={digest:string;pages:{title:string;blocks:number;sourcePath?:string;parentIndex?:number|null;published?:boolean;generated?:boolean}[];warnings:string[];errors:string[];attachments:number;assetPlan?:{files:number;bytes:number}};
+export type ImportPreview={sourceMatches?:ImportSourceMatches;digest:string;pages:{title:string;blocks:number;sourcePath?:string;parentIndex?:number|null;published?:boolean;generated?:boolean}[];warnings:string[];errors:string[];attachments:number;assetPlan?:{files:number;bytes:number}};
 /** Uses import parsers without creating spaces, pages, or attachment files. */
 export function previewImport(name:string,data:Buffer):ImportPreview {
   const result:ImportPreview={digest:contentDigest(data),pages:[],warnings:[],errors:[],attachments:0};

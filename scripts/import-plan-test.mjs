@@ -40,7 +40,7 @@ try{
  const request=(name,bytes,digest)=>{const form=new FormData();form.set('file',new File([bytes],name));if(digest)form.set('previewDigest',digest);return new NextRequest('http://localhost/api/import',{method:'POST',body:form});};
  const unchangedPreview=async(name,bytes)=>{
   const before=snapshot(),direct=previewImport(name,bytes);check(snapshot(),before,'pure preview changes no rows or files');
-  const response=await previewRoute(request(name,bytes));check(response.status,200);const throughRoute=await response.json();check(throughRoute,direct,'actual preview route preserves plan');check(snapshot(),before,'route preview changes no rows or files');return direct;
+  const response=await previewRoute(request(name,bytes));check(response.status,200);const throughRoute=await response.json();const {sourceMatches,...routePlan}=throughRoute;check(routePlan,direct,'actual preview route preserves plan');assert.ok(['complete','limited','unavailable'].includes(sourceMatches.status));assert.ok(Array.isArray(sourceMatches.candidates));checks+=2;check(snapshot(),before,'route preview changes no rows or files');return direct;
  };
  const bytes=zip([
   entry('root/first.md','# First\n\n[Same](assets/report.txt)\n\n[Again](assets/report.txt?download=1#section)\n\n![Missing](missing.png)\n\n[External](https://example.test/file.png)'),

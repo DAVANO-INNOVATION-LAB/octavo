@@ -141,3 +141,15 @@ The completion mapping is stored with the content and receipt in one SQLite tran
 This release adds a small retry-mapping table on database initialization and retains completed mappings rather than expiring them unexpectedly. Account removal removes that user's mappings. Removing a destination does not make its key reusable. Back up the database before upgrades. Older application versions ignore the added table and do not enforce this retry behavior; rolling back the application is not a promise that old clients will avoid duplicates. No original upload bytes are retained by this feature.
 
 Keys must be 16–128 ASCII letters, digits, underscores or hyphens, and must occur only once in the form. An empty/malformed key is not treated as an unkeyed request. The request fingerprint includes exact submitted filename, file bytes and space-name text, so clients should not silently normalize these fields between retries. Committed retries return the destination's current slug and a replay indicator; a fresh key is needed to intentionally create another import.
+
+## Recognize a previously imported source
+
+File preview can show existing imports whose recorded original-upload SHA-256 and byte length match the selected file. The filename can differ: matching concerns the bytes, not its name. Candidates are restricted to receipts you can currently read and administer, including applicable tenant and role restrictions. No inaccessible names, counts or links are returned.
+
+Open an existing destination or its report to review it. **Confirm and import another copy** deliberately creates a separate private space with its own receipt and provenance. Nothing is merged, deleted or silently reused by source matching. Retry keys remain a separate mechanism for replaying the same request.
+
+A source match does not mean current pages or attachments are identical: the original destination may have been edited, renamed or otherwise changed. Use its output verification separately where appropriate. Matches do not prove authorship, source authenticity or lossless conversion. Older imports without recorded fingerprints are not reconstructed, and a lack of matches is not proof that the file has never been imported.
+
+Lookup coverage is bounded and reported. The search considers recent currently authorized receipts, excludes unsupported or unsafe baselines and limits the number of displayed matches. Limited or unavailable lookup does not block an otherwise valid import; review available information before creating another copy. Preview responses are private and not cached. Access is checked again when opening a destination or receipt; links can cease to work after permissions change.
+
+Lookup examines up to 100 recent currently authorized receipts, displays at most 10 matches, and parses at most 1 MiB per receipt / 8 MiB total. Unsupported, malformed, oversized or invalid-date authorized records make coverage limited; inaccessible records do not consume that visible budget. A complete lookup still covers only eligible recorded upload fingerprints, not all historical source activity.
