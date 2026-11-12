@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.25
+
+- Add durable user-scoped retry keys for file uploads so replaying the same keyed request returns its original accessible import without creating another space.
+- Reject changed files/options under an existing key and refuse replay into deleted or no-longer-accessible destinations.
+- Bind browser upload forms to a submission key while preserving previews; rotate keys when inputs change. Unkeyed imports remain compatible and are not deduplicated.
+
 ## v0.27.24
 
 - Add explicit read-only checks comparing recorded upload-derived page and attachment hashes with current stored outputs.

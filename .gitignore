@@ -96,3 +96,5 @@ AGENTS.md
 /artifacts/import-provenance*/
 
 /artifacts/provenance-verification*/
+
+/artifacts/import-idempotency*/

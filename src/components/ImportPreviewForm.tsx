@@ -15,8 +15,26 @@ export function ImportPreviewForm() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const sequence = useRef(0);
+  const keyInput = useRef<HTMLInputElement>(null);
+  const keyRef = useRef("");
+  const [submissionKey, setSubmissionKey] = useState("");
+  function rotateKey(): boolean {
+    try {
+      if (!keyInput.current) return false;
+      keyRef.current = ""; keyInput.current.value = ""; setSubmissionKey("");
+      const nextKey = typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+      keyRef.current = nextKey; keyInput.current.value = nextKey; setSubmissionKey(nextKey);
+      return true;
+    } catch {
+      setError("Secure random generation is unavailable in this browser. Use a supported browser or a secure connection before importing.");
+      return false;
+    }
+  }
 
   return <form action="/api/import" method="post" encType="multipart/form-data" className="mt-8 min-w-0 space-y-5 rounded-2xl border border-line bg-surface p-5 sm:p-6 [overflow-wrap:anywhere]" onSubmit={async e => {
+    if (!keyRef.current && !rotateKey()) { e.preventDefault(); return; }
     if (preview && !preview.errors.length) return;
     e.preventDefault();
     const request = ++sequence.current;
@@ -33,16 +51,22 @@ export function ImportPreviewForm() {
       if (request === sequence.current) setBusy(false);
     }
   }}>
+    <input ref={keyInput} type="hidden" name="idempotencyKey" value={submissionKey} readOnly />
     <label className="block text-sm font-medium text-ink">
       File
       <input type="file" name="file" required accept=".zip,.md,.markdown,.txt,.json,.docx,.ipynb" className="mt-2 block w-full min-w-0 text-sm" onChange={() => {
-        sequence.current++; setPreview(null); setError(""); setBusy(false);
+        sequence.current++; setPreview(null); setError(""); setBusy(false); rotateKey();
       }} />
     </label>
     <label className="block text-sm font-medium text-ink">
       Space name <span className="font-normal text-muted">(optional)</span>
-      <input name="name" className="mt-2 w-full rounded-lg border border-line bg-bg p-2.5" />
+      <input name="name" onChange={() => { setError(""); rotateKey(); }} className="mt-2 w-full rounded-lg border border-line bg-bg p-2.5" />
     </label>
+    <div className="rounded-xl border border-line bg-bg p-4 text-sm text-muted" data-testid="import-retry-guidance">
+      <p>Retrying this unchanged submission uses the same import attempt, so a completed attempt returns its original space instead of creating another. Changing the file or space name starts a new attempt.</p>
+      <p className="mt-2 text-xs leading-relaxed">This is retry protection, not duplicate-file detection. A fresh page or a separate attempt can create another space. Keep the same submission when retrying an uncertain result.</p>
+      <button type="button" disabled={busy} onClick={() => { sequence.current++; setPreview(null); setError(""); rotateKey(); }} className="mt-3 min-h-10 rounded-lg border border-line px-3 py-2 text-xs text-accent disabled:opacity-50" data-testid="separate-import">Start a separate import</button>
+    </div>
     {error && <p role="alert" className="rounded-lg border border-line p-3 text-sm">{error}</p>}
     {preview && <section aria-labelledby="import-preview-heading" className="space-y-4 border-t border-line pt-5">
       <div>
