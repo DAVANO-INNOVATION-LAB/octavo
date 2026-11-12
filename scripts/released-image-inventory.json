@@ -1,0 +1,951 @@
+[
+  {
+    "tag": "v0.20.0",
+    "sha": "1b83f4fbbdede37a32887ade882d4386166f61f7",
+    "package": "0.20.0",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:29be61308a2a4a3df48d2a771db9b714ad5bb01ef6099fa451b8da07d53c2aa9",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.21.0",
+    "sha": "87de387cd9eb079aed4a9d4dd25fa799d1ad8b05",
+    "package": "0.21.0",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:964b21e0ad4bc0cc1ddefd770a03390aa9d215fe13cf17719cbafa2ec9628a91",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.22.0",
+    "sha": "112205f98f3ddb66be17ffd2680072627675d7bd",
+    "package": "0.22.0",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:6bb99d8646cd008ffce10f69e34492fef23589cd872ce08fe8775f41e9101d3a",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.22.1",
+    "sha": "d7ce560dcd463dd04904dd838449b3f1e3c72de0",
+    "package": "0.22.1",
+    "sqlite": "^13.0.3",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "tag": "v0.23.0",
+    "sha": "581162ad5ceb7564ca4454f185a327d9b49f1884",
+    "package": "0.23.0",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:d1cf57a97f6632495d242eb95c1efde4f040f5ddeda5a0d62f3f70673f664219",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.24.0",
+    "sha": "ede09ebce92946c1625d4e02d65211d803372faf",
+    "package": "0.24.0",
+    "sqlite": "^13.0.3",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "tag": "v0.24.1",
+    "sha": "b76b857affbeb18fc3ddad0076259b1bbb221af1",
+    "package": "0.24.1",
+    "sqlite": "^13.0.3",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "tag": "v0.24.2",
+    "sha": "ac46a09d0f46ebce3d456d08b6bed4db274a6ff6",
+    "package": "0.24.2",
+    "sqlite": "^13.0.3",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "tag": "v0.25.0",
+    "sha": "88524fccb73ea882d250412710d11195bce60fd1",
+    "package": "0.25.0",
+    "sqlite": "^13.0.3",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "tag": "v0.25.1",
+    "sha": "d3b595ac17a8e6dac6c2af71732c4bd08ec6ba03",
+    "package": "0.25.1",
+    "sqlite": "^13.0.3",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "tag": "v0.26.0",
+    "sha": "eb7eaa9a87cd8afcb28feda3c9e41cb5f7ce4eb0",
+    "package": "0.26.0",
+    "sqlite": "^13.0.3",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "tag": "v0.26.1",
+    "sha": "89c1cd1266e22e90430717339266792e188b7150",
+    "package": "0.26.1",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:dd417561c8ea1c0d7d0dc58edc4e5ad41bbc837992f1ea6da7882c0707c72020",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.26.2",
+    "sha": "f5d53583a85123ce62ea8c77b434f0bfe13c4959",
+    "package": "0.26.2",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:eb45653bb01aef5d7064097e040504431d2f6299333929bc68642923100a4bd9",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.26.3",
+    "sha": "d3e720ef3f6aaa2945bf7390d61510356944a03e",
+    "package": "0.26.3",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:e8b9225b2b71ba65a90a2865abc69584d622056c57afd070caafbd933638d4d9",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.26.4",
+    "sha": "4f89126527d367bbddcb04109c7390985710c595",
+    "package": "0.26.4",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:25147e31c537e5a188f533db6e9416b415188f5fb4e36fab2f1d5714e2871d46",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.0",
+    "sha": "8ca95d73aa7e9e10530d097c8326602b873ce103",
+    "package": "0.27.0",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:0718b3e0bfc3c4a2612c8af8c61da12ac06d55c5489f6048fc8fcd99cd456f05",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.1",
+    "sha": "fa153b00bfadf5f690bf80c0bf12efff1729c1ea",
+    "package": "0.27.1",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:e100d7750e7405fe82648b0949f501c3aab8afeea92000c43623b59110b58a33",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.2",
+    "sha": "57a674ed5102f0f479983259f9f5b1b8d873eb1c",
+    "package": "0.27.2",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:f96e1b27bc29d88ed64fc0db83dee5c1d3871237ced72d64d2695020205075b1",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.3",
+    "sha": "d558830c5fff4e315b089ee889d70c1d7567178d",
+    "package": "0.27.3",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:cc6bae64c51ab0c1a92ec8ab66b3a3a0a2e570cf8ccb6f4fb15bb0fc4ccf7258",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.4",
+    "sha": "5e231d3b10e17f71b879c8fa666b851062b1254a",
+    "package": "0.27.4",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:a5c885ec20137185b8542e33261157198459536694264257cc8907bb6dcfd483",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.5",
+    "sha": "fc7463a7baafd79b3fb4420dbc8e3e949aa73820",
+    "package": "0.27.5",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:bb1f51c7d7dc1764ad9757bf15a9107b227772301ad684e95f5e562e581d1620",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.6",
+    "sha": "b84b34eb52041bf7941015f84f3ae67b09d906f3",
+    "package": "0.27.6",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:22972bf72c4165af4b2198ae4e6c66cc4ab324024a1a148a65ab21155467cc0d",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.7",
+    "sha": "9f3f3a0df5f70f85d57363183482b050d8e98c60",
+    "package": "0.27.7",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:321ab4ac1789048c2a7dafcb794ec09887b3f4ea20fd4e0f6ae87195afd60b79",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.8",
+    "sha": "95c0435b55c9463a275a262652d02562695d20bf",
+    "package": "0.27.8",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:3088f36239bbc81c814a045b8bd0dc4aaa581817a0b482c9b170c68eb7ed78a7",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.9",
+    "sha": "4203a4a3a976b674376891dcebae0d659b0cadd0",
+    "package": "0.27.9",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:80e0b9f2ef2a0f77d430c57e683092ecf4c7de54ed645b7f768df4b47f1558d1",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.10",
+    "sha": "9954ed08bba50109f51efca15f9fb0ee5c43b9a3",
+    "package": "0.27.10",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:75ff464155ef538ef07cfc1d240e6063939bad8eb14eefc8a6ac26af46c1a454",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.11",
+    "sha": "4d158260bb576187142c3f10064a420e6c96cdb2",
+    "package": "0.27.11",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:5c27aa65557c3bc56868ead6db933db6694d9c6c8abb418cb4ea8fb118bce320",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.12",
+    "sha": "b3f1f6fa2a5e889e77ffe181b7055783c820dfa1",
+    "package": "0.27.12",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:1794483c6707c411cc36375733d2d50bd65f6ddeb476da080574f96683cb00a7",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.13",
+    "sha": "3464dc1658b027e864af3e1fbcf9c9dd917a786d",
+    "package": "0.27.13",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:885863d5c64f21245141ace955dd3e1f5dcc50c57beac500f4689fed208e3faa",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.14",
+    "sha": "6639b8e487286d806c8c02ce268c25aa5b45df16",
+    "package": "0.27.14",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:10cba0e0a7526291c9e0f2a6438ec293801a33916b16f24f1f0d372a40b41806",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.15",
+    "sha": "8ce55b2fb278f9d6d50d60c49dd247f913424757",
+    "package": "0.27.15",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:21619ffd58f590f34cb9fc734e782b58de4b4cf71064e917da1a8e572a11960d",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.16",
+    "sha": "682b3350faeb4a6380d110142bb4fbbb37371de9",
+    "package": "0.27.16",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:dda6e718dbdc21bd8ec82080989ff20b83deace3e360f6439510fe0cc461d410",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.17",
+    "sha": "f3d155f5d9ca0320438a265bc88981709059a889",
+    "package": "0.27.17",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:91a7da6e776de05d1369a9078b0b7c2a179e014460c0af578f010ffdb0f2c099",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.18",
+    "sha": "9d29668489e9e605532928186fb14522e8ab9344",
+    "package": "0.27.18",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:d75c69c8f9de423ddf5dc503383bd86244401affa00ba2f620bc976fb88da969",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.19",
+    "sha": "7328ce151b80a0f558af55611bfec83089fb51e0",
+    "package": "0.27.19",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:d9746ebbf961177bc3740546f7686c6201080d1ce8b720ee1b88117266a03cb1",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.20",
+    "sha": "cc7c9c816c5b4e148ade2daa4d3070431e8893b9",
+    "package": "0.27.20",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:8188167c6e04ca3fc60a31231f066743e031e35b1d274c6c1143bd68fdffbdc6",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.21",
+    "sha": "fd22dfdd4164d9c7ce50cf615929c502b46f51c2",
+    "package": "0.27.21",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:459e68d8fecf25539ef80143d20162b4c157b870c5da456f53a9b379527b4060",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.22",
+    "sha": "1357716902d28dceb2d47d2082aaeb53ed98d148",
+    "package": "0.27.22",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:40282dac855bc1052cb1d16f217eb8140742184e5a132391c6b9679dd5adadfc",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.23",
+    "sha": "4b3cec2456ff7823160a625722c1ac4761ac5bec",
+    "package": "0.27.23",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:6fdfd20286306f85ad44c899b3b531e55db876fb07168239f504f22249299042",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.24",
+    "sha": "fc66db5a804b623ddfa65a8fd8f84b9596a51e85",
+    "package": "0.27.24",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:b40434c3c23ee565e3f1d20c0a3c628137a7eda1bb255c7db48a1df1609c4838",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.25",
+    "sha": "d589f6f211c7c87e73283513a7a17a75ada23833",
+    "package": "0.27.25",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:ef4aae8e2bd4f47c270ca002f1bd4b6980fb43937fc50f48100ded87d21b5de0",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.26",
+    "sha": "a689c56fd998af96a9898ef88b151e4779338a50",
+    "package": "0.27.26",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:1cfe271f7325bb83897ebe944d11a9c48adb9e25effb3612f68ee04d2ce24ede",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  },
+  {
+    "tag": "v0.27.27",
+    "sha": "57a501e2b8ef1c9116aa5fc4ff9b024db07b7b9f",
+    "package": "0.27.27",
+    "sqlite": "^13.0.3",
+    "digest": "sha256:a5517b32d9b74161fc8a68953dd50d469071c6314db947607560ab335e535e73",
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      },
+      {
+        "architecture": "arm64",
+        "os": "linux"
+      },
+      {
+        "architecture": "unknown",
+        "os": "unknown"
+      }
+    ]
+  }
+]
