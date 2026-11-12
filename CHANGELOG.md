@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.27.27
+
+- Include a versioned file-checksum inventory in new space exports and validate it before importing a package.
+- Show checksum coverage in preview while preserving legacy imports without inventing verification.
+- Reject malformed or mismatched inventories before writing imported content; unsigned checksums do not establish authenticity.
+
 ## v0.27.26
 
 - Show exact recorded source-byte matches in file-import preview, limited to receipts the current user can read and administer.

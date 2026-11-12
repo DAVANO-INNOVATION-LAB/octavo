@@ -1,3 +1,4 @@
+import { addPackageIntegrity, verifyPackageIntegrity } from "./package-integrity";
 import "server-only";
 import { planMarkdownAssets, rewriteMarkdownAssets } from "./markdown-assets";
 import { planMarkdownImport } from "./markdown-import-plan";
@@ -119,7 +120,7 @@ export function exportSpaceZip(space: Space, publishedOnly = false): Buffer {
     name: `${root}/octavo.json`,
     data: Buffer.from(JSON.stringify(manifest, null, 2), "utf8"),
   });
-  return zip(entries);
+  return zip(addPackageIntegrity(entries, `${root}/octavo.json`));
 }
 
 /* ————— import ————— */
@@ -334,16 +335,17 @@ export function importUpload(
 ): ImportResult {
   const lower = fileName.toLowerCase();
   if (lower.endsWith(".zip")) {
-    const entries = unzip(data);
+    const allEntries = unzip(data, true);
+    const integrity = verifyPackageIntegrity(allEntries);
+    const entries = allEntries.filter(entry=>!entry.name.endsWith("/"));
+    if (integrity) {
+      const manifestEntry = entries.find(entry=>path.posix.basename(entry.name)==="octavo.json")!;
+      const manifest = JSON.parse(manifestEntry.data.toString("utf8"));
+      if (manifest?.octavo !== 1 || !Array.isArray(manifest.pages)) throw new Error("not an Octavo export");
+      return importManifest(manifest, nameOverride);
+    }
     if (looksLikeConfluence(entries)) return importConfluence(entries, nameOverride);
     if (looksLikeConfluenceHtml(entries)) return importConfluenceHtml(entries, nameOverride);
-    const manifestEntry = entries.find((e) => e.name.endsWith("octavo.json"));
-    if (manifestEntry) {
-      const manifest = JSON.parse(manifestEntry.data.toString("utf8"));
-      if (manifest?.octavo === 1 && Array.isArray(manifest.pages)) {
-        return importManifest(manifest, nameOverride);
-      }
-    }
     return importMarkdownEntries(entries, nameOverride);
   }
   if (lower.endsWith(".json")) {

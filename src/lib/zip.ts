@@ -98,7 +98,7 @@ export function zip(entries: ZipEntry[]): Buffer {
 const MAX_ENTRY_BYTES = 100 * 1024 * 1024;
 const MAX_ARCHIVE_BYTES = 200 * 1024 * 1024;
 
-export function unzip(buf: Buffer): ZipEntry[] {
+export function unzip(buf: Buffer, includeDirectories = false): ZipEntry[] {
   // A signature can occur inside the comment. Only accept an end record whose
   // comment reaches EOF and whose central directory ends at that record.
   let eocd = -1;
@@ -215,7 +215,7 @@ export function unzip(buf: Buffer): ZipEntry[] {
     }
     if (data.length !== entry.size) throw new Error(`ZIP entry expanded size mismatch: ${entry.name}`);
     if (crc32(data) !== entry.crc) throw new Error(`ZIP entry checksum mismatch: ${entry.name}`);
-    if (!entry.name.endsWith("/")) out.push({ name: entry.name, data });
+    if (includeDirectories || !entry.name.endsWith("/")) out.push({ name: entry.name, data });
   }
   return out;
 }

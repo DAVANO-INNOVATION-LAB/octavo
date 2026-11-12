@@ -1,2 +1,2 @@
 /** The version of this checkout. Written by scripts/stamp-version.mjs. */
-export const VERSION = "0.27.26";
+export const VERSION = "0.27.27";
