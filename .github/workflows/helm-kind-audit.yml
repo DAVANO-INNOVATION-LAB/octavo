@@ -1,11 +1,11 @@
 name: Isolated Helm kind upgrade audit
 on:
   push:
-    branches: [test/helm-kind-020-02727]
+    branches: [test/helm-kind-platform-pilot]
 permissions:
   contents: read
 concurrency:
-  group: octavo-helm-kind-audit
+  group: octavo-helm-kind-platform-pilot
   cancel-in-progress: true
 jobs:
   helm-kind:
@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        shard: ['0', '1', '2', '3']
+        shard: ['0']
     steps:
       - uses: actions/checkout@v7
         with:
@@ -39,7 +39,7 @@ jobs:
       - name: Create disposable Kubernetes cluster
         run: kind create cluster --name octavo-audit --image kindest/node:v1.34.0 --wait 120s
       - name: Historical chart API validation and live published-image deployment upgrades
-        run: python3 scripts/helm-kind-matrix.py '${{ matrix.shard }}'
+        run: python3 scripts/helm-kind-matrix.py '${{ matrix.shard }}' --pilot
       - uses: actions/upload-artifact@v6
         if: always()
         with:
