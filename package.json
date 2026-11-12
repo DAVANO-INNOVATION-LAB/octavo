@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.2",
+  "version": "0.27.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,7 +35,8 @@
     "test:jobs": "node scripts/jobs-test.mjs",
     "test:sky-bridge": "python3 scripts/sky-bridge-test.py",
     "postbuild": "node scripts/prune-standalone.mjs",
-    "test:quality": "node scripts/document-review-test.mjs && node scripts/quality-test.mjs"
+    "test:quality": "node scripts/document-review-test.mjs && node scripts/quality-test.mjs",
+    "test:url-import": "node scripts/import-url-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

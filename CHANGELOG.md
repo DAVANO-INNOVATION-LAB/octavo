@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.3
+
+- Resolve and validate every URL import destination, reject mixed public/private DNS answers, and pin each connection to a validated address while preserving HTTPS certificate verification.
+- Revalidate redirects, reject credential-bearing URLs and special-use IP forms, and enforce one 15-second deadline across DNS, connections and streaming.
+- Bound both downloaded and decompressed page bodies to 5 MiB, including chunked responses; close failed and redirected responses promptly.
+- Add offline synthetic URL import regressions to CI and release verification. See [URL import security](docs/URL-IMPORTS.md) for limits.
+
 ## v0.27.2
 
 - Fail closed if a verified rollback snapshot cannot be saved before database restore.

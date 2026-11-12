@@ -5,6 +5,9 @@ import { createPage, createSpace, savePage } from "@/lib/data";
 import { markdownToBlocks } from "@/lib/markdown";
 import { pageContentToBlocks } from "@/lib/html-blocks";
 import { recordAudit } from "@/lib/audit";
+import { fetchGuarded } from "@/lib/import-url";
+
+export const runtime = "nodejs";
 
 /**
  * Import a page from a URL: fetch it, find the article, keep the words.
@@ -18,58 +21,6 @@ import { recordAudit } from "@/lib/audit";
  * on an air-gapped instance this feature simply fails closed like any other
  * outbound call.
  */
-
-const MAX_BYTES = 5 * 1024 * 1024;
-const MAX_HOPS = 3;
-
-function blockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local")) return true;
-  if (h === "::1" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd")) return true;
-  const ip = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ip) {
-    const [a, b] = [Number(ip[1]), Number(ip[2])];
-    if (a === 127 || a === 10 || a === 0) return true;
-    if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-  }
-  return false;
-}
-
-async function fetchGuarded(rawUrl: string): Promise<{ body: string; finalUrl: string; contentType: string }> {
-  let url = new URL(rawUrl);
-  for (let hop = 0; hop <= MAX_HOPS; hop++) {
-    if (url.protocol !== "http:" && url.protocol !== "https:")
-      throw new Error("only http and https URLs can be imported");
-    if (blockedHost(url.hostname))
-      throw new Error("that address is inside private address space");
-
-    const res = await fetch(url, {
-      redirect: "manual",
-      headers: { "User-Agent": "octavo-importer", Accept: "text/html, text/markdown, text/plain" },
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (res.status >= 300 && res.status < 400) {
-      const loc = res.headers.get("location");
-      if (!loc) throw new Error(`redirect without a destination (HTTP ${res.status})`);
-      url = new URL(loc, url);
-      continue;
-    }
-    if (!res.ok) throw new Error(`the page answered HTTP ${res.status}`);
-
-    const declared = Number(res.headers.get("content-length") ?? 0);
-    if (declared > MAX_BYTES) throw new Error("the page is larger than 5MB");
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > MAX_BYTES) throw new Error("the page is larger than 5MB");
-    return {
-      body: buf.toString("utf8"),
-      finalUrl: url.toString(),
-      contentType: res.headers.get("content-type") ?? "",
-    };
-  }
-  throw new Error("too many redirects");
-}
 
 export async function POST(req: NextRequest) {
   const user = await currentUser();
