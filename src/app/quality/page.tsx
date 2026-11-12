@@ -9,19 +9,26 @@ import { documentReferences } from "@/lib/quality-core";
 import { getDb } from "@/lib/db";
 import { isAgent,may } from "@/lib/roles";
 import { qualityAction } from "./actions";
+import { normalizeQualityQueueFilters, filterQualityQueue, QUALITY_QUEUE_EXPORT_LIMIT } from "@/lib/quality-queue";
 
 export const dynamic="force-dynamic";
 export const metadata={title:"Document quality"};
 const input="w-full rounded-lg border border-line bg-bg p-2 text-sm";
 const button="rounded-lg bg-accent px-3 py-2 text-sm text-accent-ink";
 const section="min-w-0 [overflow-wrap:anywhere] space-y-4 rounded-2xl border border-line bg-surface p-5";
-export default async function QualityPage({searchParams}:{searchParams:Promise<{page?:string;state?:string;error?:string;saved?:string;queue?:string}>}) {
+export default async function QualityPage({searchParams}:{searchParams:Promise<{page?:string;state?:string;error?:string;saved?:string;queue?:string;search?:string;owner?:string}>}) {
   const user=await currentUser(); if(!user) redirect("/login"); if(isAgent(user)) redirect("/");
   const q=await searchParams, pages=qualityPages(user);
-  const filtered=pages.filter(x=>!q.state||x.state===q.state);
-  const p=pages.find(p=>p.id===q.page)??filtered[0];
+  let filters: ReturnType<typeof normalizeQualityQueueFilters>;
+  let invalidFilters=false;
+  try { filters=normalizeQualityQueueFilters(q); }
+  catch { filters=normalizeQualityQueueFilters({});invalidFilters=true; }
+  const filtered=invalidFilters?[]:filterQualityQueue(pages,user.id,filters);
   const queuePage=Math.min(Math.max(1,Math.ceil(filtered.length/30)),Math.max(1,Math.trunc(Number(q.queue))||1));
-  const queueHref=(n:number)=>`/quality?${new URLSearchParams({...(q.page?{page:q.page}:{}),...(q.state?{state:q.state}:{}),queue:String(n)})}`;
+  const p=filtered.find(page=>page.id===q.page)??filtered[(queuePage-1)*30];
+  const filterParams={...(filters.search?{search:filters.search}:{}),...(filters.state!=="all"?{state:filters.state}:{}),...(filters.owner!=="all"?{owner:filters.owner}:{})};
+  const queueHref=(n:number)=>`/quality?${new URLSearchParams({...filterParams,queue:String(n)})}`;
+  const exportHref=(format:string)=>`/api/quality/queue?${new URLSearchParams({...filterParams,format})}`;
   const db=getDb();
   const reusableIds=new Set((db.prepare("SELECT page_id FROM reusable_pages").all() as {page_id:string}[]).map(r=>r.page_id));
   const reusable=pages.filter(r=>reusableIds.has(r.id)&&r.published);
@@ -36,9 +43,28 @@ export default async function QualityPage({searchParams}:{searchParams:Promise<{
   return <div className="min-h-screen"><SiteHeader/><main id="main" className="mx-auto max-w-6xl space-y-6 px-4 py-8">
     <header><h1 className="wordmark text-3xl">Document quality</h1><p className="mt-2 text-muted">Own, review, and improve the pages your team relies on.</p><nav className="mt-3 flex gap-4 text-sm"><Link href="/search">Advanced search</Link><Link href="/import">Preview an import</Link></nav></header>
     {q.error&&<p role="alert" className="rounded-lg border border-accent p-3">{q.error}</p>}{q.saved&&<p role="status">Changes saved.</p>}
-    {!p?<p>{q.state?"No documents match this review status.":"No editable pages yet. Create a page or ask a space administrator for editing access."} {q.state&&<Link className="underline" href="/quality">Clear filter</Link>}</p>:<div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className={section}><h2 className="font-semibold">Review queue</h2><form><select name="state" aria-label="Review status" defaultValue={q.state??""} className={input}><option value="">All statuses</option>{["unreviewed","stale","changed","overdue","verified"].map(s=><option key={s}>{s}</option>)}</select><button className="mt-2 text-sm underline">Filter</button></form><p className="text-xs text-muted">{filtered.length} documents · page {queuePage}</p><ul className="max-h-64 space-y-3 overflow-auto lg:max-h-[65vh]">{filtered.slice((queuePage-1)*30,queuePage*30).map(x=><li key={x.id}><Link aria-current={x.id===p.id?"page":undefined} href={`/quality?${new URLSearchParams({page:x.id,...(q.state?{state:q.state}:{}),queue:String(queuePage)})}`} className="block font-medium">{x.title}</Link><p className="text-xs text-muted">{x.space_name} · {x.state}{x.review?.dueAt?` · due ${new Date(x.review.dueAt).toISOString().slice(0,10)}`:""}</p></li>)}</ul><nav aria-label="Review queue pages" className="flex gap-4 text-sm underline">{queuePage>1&&<Link href={queueHref(queuePage-1)}>Previous</Link>}{queuePage*30<filtered.length&&<Link href={queueHref(queuePage+1)}>Next</Link>}</nav></aside>
-      <div key={p.id} className="min-w-0 space-y-6 [overflow-wrap:anywhere]"><header><h2 className="text-2xl font-semibold">{p.title}</h2><p className="text-sm text-muted">{p.space_name} · {p.state} · {p.published?"Published":"Draft"}</p><div className="mt-2 flex flex-wrap gap-4 text-sm underline"><Link href={`/${p.space_slug}/${p.slug}/edit`}>Edit page</Link><Link href={`/${p.space_slug}/${p.slug}/history/compare`}>Compare versions</Link><a href={`/api/quality/bundle/${p.space_slug}`}>Download release bundle</a></div></header>
+    <section aria-labelledby="queue-filters-heading" className={section}>
+      <h2 id="queue-filters-heading" className="text-lg font-semibold">Filter the review queue</h2>
+      {invalidFilters&&<p role="alert" className="text-sm text-muted">Some filters were invalid. Apply valid filters or clear them to view and export the queue.</p>}
+      <form key={JSON.stringify(filters)} action="/quality" method="get" aria-label="Review queue filters" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <label className="min-w-0 text-sm">Search page titles or spaces<input type="search" name="search" maxLength={200} defaultValue={filters.search} placeholder="Find a page or space" className={`${input} mt-1`} /></label>
+        <label className="min-w-0 text-sm">Review status<select name="state" defaultValue={filters.state} className={`${input} mt-1`}><option value="all">All statuses</option>{["unreviewed","stale","changed","overdue","verified"].map(state=><option key={state} value={state}>{state}</option>)}</select></label>
+        <label className="min-w-0 text-sm">Review owner<select name="owner" defaultValue={filters.owner} className={`${input} mt-1`}><option value="all">All owners</option><option value="me">Assigned to me</option><option value="unassigned">Unassigned</option></select></label>
+        <button className={`${button} min-h-10 self-end`}>Apply filters</button>
+      </form>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm"><p role="status" data-testid="queue-match-count">{filtered.length} matched of {pages.length} editable documents</p><Link href="/quality" className="inline-flex min-h-10 items-center text-accent underline">Clear filters</Link></div>
+      <div className="space-y-2 border-t border-line pt-3">
+        <p className="text-sm font-medium">Export the current filtered queue</p>
+        {invalidFilters?<p className="text-sm text-muted">Downloads are unavailable until the filters are valid.</p>:<div className="flex flex-wrap gap-4 text-sm"><a href={exportHref("csv")} className="inline-flex min-h-10 items-center text-accent underline">Download filtered CSV</a><a href={exportHref("json")} className="inline-flex min-h-10 items-center text-accent underline">Download filtered JSON</a></div>}
+        <p className="text-xs leading-relaxed text-muted">Exports include document and review metadata only, not page bodies, feedback or execution evidence. They cover the current filters across all queue pages, up to {QUALITY_QUEUE_EXPORT_LIMIT.toLocaleString("en-US")} documents. {filtered.length>QUALITY_QUEUE_EXPORT_LIMIT?"This queue exceeds the export limit; narrow the filters for a complete export.":"Filters and access are checked again when you download."}</p>
+      </div>
+    </section>
+    <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className={section}><h2 className="font-semibold">Review queue</h2><p className="text-xs text-muted">{filtered.length} documents · page {queuePage}</p>
+        {filtered.length===0?<p className="text-sm text-muted">No matching documents.</p>:<ul aria-label="Filtered review queue" className="max-h-64 space-y-3 overflow-auto lg:max-h-[65vh]">{filtered.slice((queuePage-1)*30,queuePage*30).map(page=><li key={page.id}><Link aria-current={page.id===p?.id?"page":undefined} href={`/quality?${new URLSearchParams({...filterParams,page:page.id,queue:String(queuePage)})}`} className="block font-medium">{page.title}</Link><p className="text-xs text-muted">{page.space_name} · {page.state}{page.review?.dueAt?` · due ${new Date(page.review.dueAt).toISOString().slice(0,10)}`:""}</p></li>)}</ul>}
+        <nav aria-label="Review queue pages" className="flex gap-4 text-sm underline">{queuePage>1&&<Link href={queueHref(queuePage-1)}>Previous</Link>}{queuePage*30<filtered.length&&<Link href={queueHref(queuePage+1)}>Next</Link>}</nav>
+      </aside>
+      {p?      <div key={p.id} className="min-w-0 space-y-6 [overflow-wrap:anywhere]"><header data-testid="quality-selected-page"><h2 className="text-2xl font-semibold">{p.title}</h2><p className="text-sm text-muted">{p.space_name} · {p.state} · {p.published?"Published":"Draft"}</p><div className="mt-2 flex flex-wrap gap-4 text-sm underline"><Link href={`/${p.space_slug}/${p.slug}/edit`}>Edit page</Link><Link href={`/${p.space_slug}/${p.slug}/history/compare`}>Compare versions</Link><a href={`/api/quality/bundle/${p.space_slug}`}>Download release bundle</a></div></header>
       <section className={section}><h3 className="text-lg font-semibold">Ownership and review</h3><form action={qualityAction} className="space-y-3">{fields("assign")}<label className="block">Owner{ownerSelect(p.review?.ownerId)}</label><label className="block">Review by (UTC)<input className={input} required type="date" name="due" defaultValue={due}/></label><button className={button}>Assign review</button></form>
       <form action={qualityAction} className="space-y-3 border-t border-line pt-4">{fields("verify")}<label className="block">Next review date (UTC)<input className={input} required type="date" name="due" defaultValue={due}/></label><p className="text-sm text-muted">Confirm you have read this revision and it is accurate. This records a review without changing the writing.</p><button className={button}>Mark this revision verified</button></form></section>
       <section className={section}><h3 className="text-lg font-semibold">Links and attachments</h3><p className="text-sm text-muted">Local pages, headings, synced sources, and uploaded files are checked. External URLs are listed as unchecked.</p>{findings.length?<ul className="space-y-2">{findings.map((f,i)=><li key={i} className="break-all text-sm"><strong>{f.reason}</strong><br/>{f.reference}</li>)}</ul>:<p>No local link or attachment problems found.</p>}</section>
@@ -52,6 +78,7 @@ export default async function QualityPage({searchParams}:{searchParams:Promise<{
         const e=db.prepare("SELECT passed,at,revision,definition FROM runbook_evidence WHERE check_id=? ORDER BY at DESC LIMIT 1").get(c.id) as {passed:number;at:number;revision:string;definition:string}|undefined;
         return <div key={c.id} className="rounded-lg border border-line p-3"><strong>{c.name}</strong><pre className="my-2 overflow-auto text-xs">{c.command}</pre><p className="text-xs">Expected: {c.expected}</p><p className="my-2 text-sm">{!e?"Never recorded":e.revision!==p.revision||e.definition!==checkDigest(c)?"Evidence is stale":e.passed?"Last submitted result: passed":"Last submitted result: failed"}{e?` · ${new Date(e.at).toISOString()}`:""}</p><a className="text-sm underline" href={`/api/quality/runbook/${c.id}`}>Download check plan</a></div>;
       })}<details><summary>Add a verification check</summary><form action={qualityAction} className="mt-3 space-y-2">{fields("check")}<input name="name" placeholder="Check name" aria-label="Check name" required maxLength={120} className={input}/><textarea name="command" placeholder="Command to run" aria-label="Command" required maxLength={4000} className={input}/><textarea name="expected" placeholder="Expected output fragment" aria-label="Expected output" required maxLength={4000} className={input}/><button className={button}>Add check</button></form></details><form action={qualityAction} className="space-y-2">{fields("evidence")}<textarea name="evidence" aria-label="Execution evidence JSON" required placeholder="Paste the runner's JSON result" maxLength={100000} className={input}/><button className={button}>Record execution evidence</button></form></section>
-      </div></div>}
+      </div>:<section className={section}><h2 className="text-lg font-semibold">{pages.length?"No documents match these filters":"No editable pages yet"}</h2><p className="text-sm text-muted">{pages.length?"Try another title, space, review status or owner. Clear filters to return to all editable documents.":"Create a page or ask a space administrator for editing access. Only documents you can currently edit appear in this queue."}</p><Link href="/quality" className="text-sm text-accent underline">Clear filters</Link></section>}
+    </div>
   </main></div>;
 }

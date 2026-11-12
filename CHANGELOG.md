@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.20
+
+- Add title/space search and review-owner filters to the document-quality queue, combined with existing review states and matched counts.
+- Keep the selected detail within the filtered queue and preserve filters across navigation.
+- Export bounded CSV or JSON queue metadata using the same filters and current editor scope, without document bodies; encode CSV fields for spreadsheet use without claiming universal spreadsheet safety.
+- Keep existing review actions, publication and ownership behavior unchanged; document queue and export semantics.
+
 ## v0.27.19
 
 - Add searchable, category-filtered template selection to New space, with a selected page outline and recursive page count before creation.
