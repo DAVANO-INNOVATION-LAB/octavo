@@ -41,7 +41,7 @@ def reset():
 def record(kind,fr,to,fn):
  t=time.time()
  try:fn();result={'status':'pass'}
- except Exception as e:result={'status':'fail','error':str(e)}
+ except Exception as e:result={'status':'fail','error':str(e),'output':getattr(e,'output',None)}
  finally:
   save_log(kind+'-'+str(fr)+'-'+to);stop()
   # Bound disk consumption: preserve baseline used by reset, remove other test images.
@@ -53,7 +53,7 @@ def pair(i):
  # Offline backup preserves SQLite WAL and uploads; copying by uid 1000 is safe.
  run('docker','run','--rm','--user','0','-v',str(data)+':/data','--entrypoint','node',image(a),'-e',"const f=require('fs');f.cpSync('/data','/tmp/backup',{recursive:true});f.mkdirSync('/data/backup');for(const p of f.readdirSync('/tmp/backup'))f.cpSync('/tmp/backup/'+p,'/data/backup/'+p,{recursive:true})")
  start(b);smoke();start(b);smoke();stop()
- run('docker','run','--rm','--user','0','-v',str(data)+':/data','--entrypoint','node',image(a),'-e',"const f=require('fs');for(const p of f.readdirSync('/data'))if(p!=='backup')f.rmSync('/data/'+p,{recursive:true,force:true});for(const p of f.readdirSync('/data/backup'))f.cpSync('/data/backup/'+p,'/data/'+p,{recursive:true});f.rmSync('/data/backup',{recursive:true});function own(p){f.chownSync(p,1000,1000);if(f.statSync(p).isDirectory())for(const n of f.readdirSync(p))own(p+'/'+n)}own('/data')")
+ run('docker','run','--rm','--user','0','-v',str(data)+':/data','--entrypoint','node',image(a),'-e',"const f=require('fs');for(const p of f.readdirSync('/data'))if(p!=='backup')f.rmSync('/data/'+p,{recursive:true,force:true});for(const p of f.readdirSync('/data/backup'))f.cpSync('/data/backup/'+p,'/data/'+p,{recursive:true});f.rmSync('/data/backup',{recursive:true});function own(p){f.chownSync(p,1000,1000);if(f.statSync(p).isDirectory())for(const n of f.readdirSync(p))own(p+'/'+n)}for(const p of f.readdirSync('/data'))own('/data/'+p)")
  start(a);smoke()
 def fresh(v):reset();start(v);fixture('seed');smoke()
 mode=sys.argv[1]
