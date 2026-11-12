@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.27.5
+
+- Give the creator of a new OpenAPI reference admin membership in its private space, so ordinary members can read, edit and manage the imported reference.
+- Commit the new space, creator membership, published pages and local audit together; roll back failed imports and forward the audit event only after commit.
+- Reject anonymous and AI-agent OpenAPI imports, and keep committed content after audit-forwarding, cache or response failures.
+- Add isolated OpenAPI action, access and rollback regressions to CI and release verification. Existing spaces and grants are unchanged. See [import rollback](docs/IMPORT-ROLLBACK.md) for scope and recovery limits.
+
 ## v0.27.4
 
 - Roll back uploaded content and importer ownership together; URL imports now atomically create content, ownership, publication and their local audit entry.
