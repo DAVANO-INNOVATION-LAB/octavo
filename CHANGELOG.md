@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.27.12
+
+- Save a durable completion report for new file, URL and OpenAPI imports, inside the same transaction as their content. A failed import cannot leave a success receipt.
+- Show actual imported, published, draft, search-indexed and saved-file counts separately from preview estimates, with retained warnings and honest conversion limitations.
+- Add a current-space-admin-only report page and downloadable JSON, discoverable from the destination and space settings; preserve existing import redirects.
+- Keep reports as completion snapshots, not live totals or fidelity certificates. Historical imports are not backfilled. See [import reports](docs/IMPORT-REPORTS.md).
+- Add isolated receipt/rollback/access and compiled HTTP regressions to CI and release verification.
+
 ## v0.27.11
 
 - Make published OpenAPI imports immediately searchable by page title and body, without requiring an edit or republish.

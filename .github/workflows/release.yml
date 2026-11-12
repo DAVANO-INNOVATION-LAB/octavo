@@ -48,6 +48,7 @@ jobs:
       - run: npm run test:resource-access
       - run: npm run test:reading-access
       - run: npm run test:import-search
+      - run: npm run test:import-report
       - run: npx next typegen && npx tsc --noEmit
       - run: npx eslint src
       - run: node scripts/jobs-test.mjs
@@ -59,6 +60,15 @@ jobs:
       - run: npm run test:resource-routes-http
       - run: npm run test:reading-access-http
       - run: npm run test:import-search-http
+      - run: npm run test:import-report-http
+      - run: npm run test:import-report-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: import-report-ui
+          path: artifacts/import-reports/
+          if-no-files-found: warn
+          retention-days: 7
 
   build_image:
     needs: verify

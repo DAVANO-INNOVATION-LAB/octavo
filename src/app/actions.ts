@@ -1,5 +1,6 @@
 "use server";
 
+import { createImportReport } from "@/lib/import-reports";
 import { canRestoreSpace } from "@/lib/roles";
 import { restoreSpace } from "@/lib/data";
 
@@ -1696,6 +1697,7 @@ export async function importOpenApiAction(formData: FormData) {
       });
       setSpaceMember(space.id, user.id, "admin");
       importInto(space.id, spec, createPage);
+      createImportReport({spaceId:space.id,actorId:user.id,sourceKind:"openapi",sourceLabel:"OpenAPI specification"});
       recordAudit({
         actor: user,
         action: "space.created",

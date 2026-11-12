@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.11",
+  "version": "0.27.12",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -50,7 +50,10 @@
     "test:reading-access": "node scripts/reading-access-test.mjs",
     "test:reading-access-http": "node scripts/reading-access-test.mjs --http",
     "test:import-search": "node scripts/search-index-test.mjs && node scripts/import-search-test.mjs",
-    "test:import-search-http": "node scripts/import-search-http-test.mjs"
+    "test:import-search-http": "node scripts/import-search-http-test.mjs",
+    "test:import-report": "node scripts/import-report-test.mjs",
+    "test:import-report-http": "node scripts/import-report-http-test.mjs",
+    "test:import-report-ui": "node scripts/import-report-ui-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

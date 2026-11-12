@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getImportReport } from "@/lib/import-reports";
 import { variantSiblings } from "@/lib/data";
 import { resolveVariants } from "@/lib/variants";
 import { VariantSwitcher } from "@/components/VariantSwitcher";
@@ -36,6 +37,7 @@ export default async function SpaceCover({
   if (!(await canReadSpaceAsVisitor(user, space)))
     redirect(user ? "/" : "/login");
   const isSpaceAdmin = memberAccess && canAdminSpace(user, space.id);
+  const importReport = isSpaceAdmin ? getImportReport(user, space.id) : null;
   const tree = pageTree(space.id, !editing);
   const flat = flattenTree(tree);
   const first = flat.find((p) => p.published === 1) ?? flat[0];
@@ -74,7 +76,7 @@ export default async function SpaceCover({
           )}
           {space.visibility === "private" && (
             <p className="mt-3 text-sm text-faint">
-              This space is sealed — only signed-in members of this library can
+              This space is private. Only people granted access to this space can
               open it, and it never appears in public search.
             </p>
           )}
@@ -112,6 +114,11 @@ export default async function SpaceCover({
                   <Download size={15} />
                   Export
                 </a>
+                {importReport && (
+                  <Link href={`/${space.slug}/settings/import-report`} className="flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-ink">
+                    Import report
+                  </Link>
+                )}
                 {isSpaceAdmin && (
                   <>
                     <Link

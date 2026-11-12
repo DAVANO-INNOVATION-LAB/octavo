@@ -1,3 +1,4 @@
+import { createImportReport } from "@/lib/import-reports";
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { isAgent, setSpaceMember } from "@/lib/roles";
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest) {
         content: JSON.stringify(converted.blocks),
       });
       savePage(page.id, { published: true });
+      createImportReport({spaceId:space.id,actorId:user.id,sourceKind:"url",sourceLabel:fetched.finalUrl});
 
       recordAudit({
         actor: user,
