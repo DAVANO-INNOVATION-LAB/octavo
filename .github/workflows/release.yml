@@ -54,6 +54,7 @@ jobs:
       - run: npm run test:import-provenance
       - run: npm run test:import-idempotency
       - run: npm run test:import-source-matches
+      - run: npm run test:package-integrity
       - run: npm run test:provenance-verification
       - run: npm run test:markdown-assets
       - run: npm run test:import-plan
@@ -85,6 +86,7 @@ jobs:
       - run: npm run test:import-report-http
       - run: npm run test:import-idempotency-http
       - run: npm run test:import-source-matches-http
+      - run: npm run test:package-integrity-http
       - run: npm run test:provenance-verification-http
       - run: npm run test:markdown-assets-http
       - run: npm run test:import-plan-http
@@ -99,6 +101,13 @@ jobs:
       - run: npm run test:import-provenance-ui
       - run: npm run test:import-idempotency-ui
       - run: npm run test:import-source-matches-ui
+      - run: npm run test:package-integrity-ui
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: package-integrity-ui
+          path: artifacts/package-integrity/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         if: always()
         with:

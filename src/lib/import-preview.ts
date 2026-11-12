@@ -1,3 +1,4 @@
+import { verifyPackageIntegrity, type PackageIntegrity } from "./package-integrity";
 import "server-only";
 import type { ImportSourceMatches } from "./import-source-matches";
 import path from "node:path";
@@ -10,7 +11,7 @@ import { planMarkdownImport } from "./markdown-import-plan";
 import { documentReferences,contentDigest } from "./quality-core";
 
 const KNOWN=new Set(["paragraph","heading","bulletListItem","numberedListItem","checkListItem","quote","codeBlock","table","image","video","audio","file","pageBreak","toggleListItem","callout","expandable","step","math","drawio","themeImage","model3d","apiRequest","sketch","syncedPage","ifvar"]);
-export type ImportPreview={sourceMatches?:ImportSourceMatches;digest:string;pages:{title:string;blocks:number;sourcePath?:string;parentIndex?:number|null;published?:boolean;generated?:boolean}[];warnings:string[];errors:string[];attachments:number;assetPlan?:{files:number;bytes:number}};
+export type ImportPreview={packageIntegrity?:PackageIntegrity;sourceMatches?:ImportSourceMatches;digest:string;pages:{title:string;blocks:number;sourcePath?:string;parentIndex?:number|null;published?:boolean;generated?:boolean}[];warnings:string[];errors:string[];attachments:number;assetPlan?:{files:number;bytes:number}};
 /** Uses import parsers without creating spaces, pages, or attachment files. */
 export function previewImport(name:string,data:Buffer):ImportPreview {
   const result:ImportPreview={digest:contentDigest(data),pages:[],warnings:[],errors:[],attachments:0};
@@ -21,8 +22,13 @@ export function previewImport(name:string,data:Buffer):ImportPreview {
   };
   const lower=name.toLowerCase();
   if(lower.endsWith(".zip")) {
-    const entries=unzip(data), names=new Set(entries.map(e=>path.posix.normalize(e.name.replaceAll("\\","/"))));
-    if(looksLikeConfluence(entries)) {
+    const allEntries=unzip(data,true);
+    const integrity=verifyPackageIntegrity(allEntries);
+    const entries=allEntries.filter(entry=>!entry.name.endsWith("/")), names=new Set(entries.map(e=>path.posix.normalize(e.name.replaceAll("\\","/"))));
+    if(integrity) {
+      result.packageIntegrity=integrity;
+      readManifest(entries.find(entry=>path.posix.basename(entry.name)==="octavo.json")!.data);
+    } else if(looksLikeConfluence(entries)) {
       const parsed=readConfluenceExport(entries,true);parsed.pages.forEach(p=>add(p.title,p.blocks));result.attachments=parsed.attachmentsSaved;
       result.warnings.push(...parsed.attachmentsMissing.map(n=>`Missing attachment: ${n}`));
       if(parsed.pagesSkipped)result.warnings.push(`${parsed.pagesSkipped} archived or historical pages will be skipped`);
@@ -30,9 +36,6 @@ export function previewImport(name:string,data:Buffer):ImportPreview {
       const parsed=readConfluenceHtmlExport(entries,p=>{if(!names.has(path.posix.normalize(p)))result.warnings.push(`Missing attachment: ${p}`);return p;});
       parsed.pages.forEach(p=>add(p.title,p.blocks));result.attachments=entries.filter(e=>!e.name.match(/\.html?$/i)).length;
     } else {
-      const manifest=entries.find(e=>e.name.endsWith("octavo.json"));
-      if(manifest) readManifest(manifest.data);
-      else {
       const markdownPlan=planMarkdownImport(entries);
       const indices=new Map(markdownPlan.nodes.map((node,index)=>[node.key,index]));
       for(const node of markdownPlan.nodes){
@@ -48,7 +51,6 @@ export function previewImport(name:string,data:Buffer):ImportPreview {
       }
       const plan=planMarkdownAssets(entries,markdownPlan.documents);
       result.assetPlan={files:plan.assets.size,bytes:plan.bytes};
-      }
       result.attachments=entries.filter(e=>!e.name.match(/\.(md|json)$/i)).length;
     }
   } else if(lower.endsWith(".json")) readManifest(data);

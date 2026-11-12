@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.27.26",
+  "version": "0.27.27",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -93,7 +93,10 @@
     "test:import-idempotency-ui": "node scripts/import-idempotency-ui-test.mjs",
     "test:import-source-matches": "node scripts/import-source-matches-test.mjs",
     "test:import-source-matches-http": "node scripts/import-source-matches-http-test.mjs",
-    "test:import-source-matches-ui": "node scripts/import-source-matches-ui-test.mjs"
+    "test:import-source-matches-ui": "node scripts/import-source-matches-ui-test.mjs",
+    "test:package-integrity": "node scripts/package-integrity-test.mjs",
+    "test:package-integrity-http": "node scripts/package-integrity-http-test.mjs",
+    "test:package-integrity-ui": "node scripts/package-integrity-ui-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

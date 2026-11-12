@@ -73,6 +73,17 @@ export function ImportPreviewForm() {
         <h2 id="import-preview-heading" className="text-lg font-semibold text-ink">Import preview</h2>
         <p role="status" className="mt-1 text-sm text-muted">Nothing has been imported yet.</p>
       </div>
+      <section aria-labelledby="package-integrity-heading" data-testid="package-integrity" className="rounded-xl border border-line bg-bg p-4">
+        <h3 id="package-integrity-heading" className="font-semibold text-ink">Package checksum integrity</h3>
+        {preview.packageIntegrity?.status === "verified" ? <>
+          <p className="mt-2 text-sm font-medium text-ink" data-testid="package-integrity-status">Checksum inventory verified</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{preview.packageIntegrity.files?.toLocaleString("en-US")} package entries match the supplied checksum inventory. The same check runs again when you import.</p>
+        </> : <>
+          <p className="mt-2 text-sm font-medium text-ink" data-testid="package-integrity-status">No verified checksum inventory</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{preview.packageIntegrity?.reason || "This preview has no supported package checksum inventory. Importing it does not establish package integrity."}</p>
+        </>}
+        <p className="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-muted">The inventory is unsigned. Matching checksums detect differences against that inventory, not who created the package or whether its content is trustworthy. Someone can alter both files and inventory, or remove the inventory. Legacy packages remain importable without verification. This does not add attachment packaging, original-file retention or synchronization.</p>
+      </section>
       <section aria-labelledby="source-matches-heading" data-testid="source-matches" className="rounded-xl border border-line bg-bg p-4">
         <h3 id="source-matches-heading" className="font-semibold text-ink">Existing imports with matching source bytes</h3>
         {preview.sourceMatches?.candidates.length ? <>
