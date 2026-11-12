@@ -1,11 +1,11 @@
 import "server-only";
+import { planMarkdownAssets, rewriteMarkdownAssets, transformMarkdownUrls } from "./markdown-assets";
 import { looksLikeConfluence, readConfluenceExport } from "./confluence";
 import { looksLikeConfluenceHtml, readConfluenceHtmlExport } from "./confluence-html";
 import {
   cleanNotionPath,
   looksLikeNotion,
   notionId,
-  rewriteNotionLinks,
   splitNotionPage,
 } from "./notion";
 import {
@@ -246,6 +246,7 @@ export function importMarkdownEntries(
   const files = mdFiles
     .map((e, i) => ({
       path: parts[i].join("/"),
+      sourcePath: e.name,
       data: e.data,
       notionId: notionIdByPath.get(e.name) ?? "",
     }))
@@ -264,35 +265,13 @@ export function importMarkdownEntries(
     }
   }
 
-  const dirParent = new Map<string, string | null>(); // dir path -> page id
-  dirParent.set("", null);
-  let count = 0;
-
-  for (const f of files) {
+  // Prepare the exact document conversion before planning any attachment writes.
+  const prepared = files.map(f => {
     const segs = f.path.split("/");
     const fileName = segs.pop()!;
-    const dir = segs.join("/");
-
-    // Ensure ancestor dirs exist as container pages (if no index.md created them).
-    let acc = "";
-    for (const seg of segs) {
-      const next = acc ? `${acc}/${seg}` : seg;
-      if (!dirParent.has(next)) {
-        const holder = createPage({
-          spaceId: space.id,
-          parentId: dirParent.get(acc) ?? null,
-          title: cleanSegment(seg).replace(/[-_]/g, " "),
-        });
-        dirParent.set(next, holder.id);
-        count++;
-      }
-      acc = next;
-    }
-
     let raw = f.data.toString("utf8");
     let notionProps: { name: string; value: string }[] = [];
     if (notion) {
-      raw = rewriteNotionLinks(raw, notionHref);
       const split = splitNotionPage(raw);
       notionProps = split.properties;
       // Notion writes the title as an H1; keep it so titleFrom still sees it.
@@ -307,7 +286,15 @@ export function importMarkdownEntries(
     const bodyNoH1 = body.replace(/^#\s+.+\n+/, (m) =>
       m.slice(2).trim() === title ? "" : m
     );
-    const blocks = markdownToBlocks(bodyNoH1);
+    let blocks = markdownToBlocks(bodyNoH1);
+    if (notion) blocks = transformMarkdownUrls(blocks, url => {
+      if (/^(?:#|\/|[a-z][a-z0-9+.-]*:)/i.test(url)) return url;
+      const boundary=url.search(/[?#]/), target=boundary<0?url:url.slice(0,boundary);
+      let decoded: string;try{decoded=decodeURIComponent(target);}catch{return url;}
+      if (!/\.md$/i.test(decoded)) return url;
+      const id=notionId(decoded), href=id?notionHref.get(id):undefined;
+      return href ? href+(boundary<0?"":url.slice(boundary)) : url;
+    });
     // Database properties are real content — owner, status, dates — but read
     // as a broken paragraph inline. A table keeps them, and keeps them apart.
     if (notionProps.length > 0) {
@@ -327,6 +314,38 @@ export function importMarkdownEntries(
         children: [],
       } as unknown as (typeof blocks)[number]);
     }
+
+    return { ...f, meta, isIndex, title, blocks };
+  });
+  const assetPlan = planMarkdownAssets(entries, prepared);
+
+  const dirParent = new Map<string, string | null>(); // dir path -> page id
+  dirParent.set("", null);
+  let count = 0;
+
+  for (const f of prepared) {
+    const segs = f.path.split("/");
+    segs.pop();
+    const dir = segs.join("/");
+
+    // Ensure ancestor dirs exist as container pages (if no index.md created them).
+    let acc = "";
+    for (const seg of segs) {
+      const next = acc ? `${acc}/${seg}` : seg;
+      if (!dirParent.has(next)) {
+        const holder = createPage({
+          spaceId: space.id,
+          parentId: dirParent.get(acc) ?? null,
+          title: cleanSegment(seg).replace(/[-_]/g, " "),
+        });
+        dirParent.set(next, holder.id);
+        count++;
+      }
+      acc = next;
+    }
+
+    const { meta, isIndex, title } = f;
+    const blocks = rewriteMarkdownAssets(f.blocks, f.sourcePath, assetPlan);
 
     if (isIndex && dir !== "") {
       // This file IS the container page for its directory.

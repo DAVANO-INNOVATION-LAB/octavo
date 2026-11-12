@@ -1,4 +1,4 @@
-# Trustworthy import reports (v0.27.12)
+# Trustworthy import reports
 
 New file, URL and OpenAPI imports save a completion report with their content.
 Find **Import report** on the destination space or in its settings. The report
@@ -21,8 +21,10 @@ source item was preserved. No warnings is not a fidelity guarantee. Review impor
 pages, links, formatting and attachments before relying on an import.
 
 Known examples:
-- Markdown/Notion ZIP imports can create draft folder pages; bundled Markdown
-  assets are not copied by that importer. Relative references may remain broken.
+- Markdown/Notion ZIP imports can create draft folder pages. Supported assets
+  referenced by parsed content are copied and deduplicated by resolved archive
+  entry; unreferenced bundle files are not copied. Missing or unsupported references
+  can remain. See [Markdown asset handling](MARKDOWN-ASSETS.md) for limits and scope.
 - Notebook raw cells and unsupported rich outputs are omitted.
 - Word formatting, embedded objects and media may not be fully preserved.
 - URL imports convert readable text; linked media is not archived.
@@ -31,14 +33,15 @@ Known examples:
 ## Persistence, access and export
 
 Reports and imported content commit together. A report-write error rolls back the
-import, including files created by that attempt. A cache-refresh or audit-forward
-error after commit does not erase the report or invite a duplicate import.
+import, including files created by that attempt. This handles exceptions, not
+crash-atomic coordination between the database and filesystem. A cache-refresh
+or audit-forward error after commit does not erase the report or invite a duplicate import.
 Existing success redirect paths and URL response fields are unchanged.
 
 A report is a **snapshot at completion**, not a current space inventory. Later
 edits, publication changes and file changes do not rewrite its totals. Reports
-for imports performed before this release are not reconstructed. The report page
-shows an explicit no-report state for those spaces.
+for imports performed before report recording was introduced are not reconstructed.
+The report page shows an explicit no-report state for those spaces.
 
 The report stores a source filename basename, source hostname for URL imports, or
 a fixed OpenAPI label. It does not add source document contents or full URL query

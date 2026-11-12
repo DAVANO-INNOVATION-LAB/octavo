@@ -31,6 +31,7 @@ jobs:
       - run: npm run test:reading-access
       - run: npm run test:import-search
       - run: npm run test:import-report
+      - run: npm run test:markdown-assets
       - run: npx next typegen   # route types tsc needs (LayoutProps etc.)
       - run: npx tsc --noEmit
       - run: npx eslint src
@@ -42,6 +43,7 @@ jobs:
       - run: npm run test:reading-access-http
       - run: npm run test:import-search-http
       - run: npm run test:import-report-http
+      - run: npm run test:markdown-assets-http
       - run: npm run test:import-report-ui
       - uses: actions/upload-artifact@v7
         if: always()

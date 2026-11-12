@@ -58,7 +58,7 @@ export function createImportReport(input: ImportReportInput): ImportReport {
     const extension = path.extname(label).toLowerCase();
     if (extension === ".ipynb") notes.push("Notebook conversion keeps Markdown, code, plain-text output and PNG output. Raw cells and unsupported rich outputs are omitted.");
     if (extension === ".docx") notes.push("Word conversion extracts paragraph text, headings and lists; formatting, embedded objects and media are not fully preserved.");
-    if ([".zip", ".md", ".markdown", ".txt"].includes(extension)) notes.push("Markdown/Notion conversion may create draft folder pages; bundled Markdown assets are not copied. Confluence attachment conversion depends on the export format and available files.");
+    if ([".zip", ".md", ".markdown", ".txt"].includes(extension)) notes.push("Markdown/Notion conversion may create draft folder pages. ZIP imports copy supported assets referenced by parsed content, not the entire bundle; missing or unsupported references may remain. Standalone Markdown imports do not include companion files. Confluence attachment conversion depends on the export format and available files.");
   }
   const report: ImportReport = {id:newId(),spaceId:input.spaceId,actorId:input.actorId,completedAt:Date.now(),source:{kind:input.sourceKind,label},counts:{pages:pages.length,published,drafts:pages.length-published,indexed,attachmentsSaved},preview:input.preview?{pages:input.preview.pages,attachmentEntries:input.preview.attachmentEntries}:null,warnings:[...new Set(warnings)].slice(0,200),notes};
   // Keep actor identity only in the nullable FK, so account erasure removes it.

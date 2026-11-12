@@ -79,8 +79,8 @@ try {
   const archiveReport=await reportFor(archiveSpace,'owner');
   assert.equal(archiveReport.source.kind,'upload');assert.equal(archiveReport.source.label,'guide.zip');
   assert.equal(archiveReport.preview.pages,2);assert.equal(archiveReport.preview.attachmentEntries,1);
-  assert.equal(archiveReport.counts.attachmentsSaved,0);assert.ok(archiveReport.counts.drafts>0);
-  assert.ok(archiveReport.warnings.some(w=>w.includes('relative')));assert.ok(archiveReport.warnings.some(w=>w.includes('Preview estimated')));checks++;
+  assert.equal(archiveReport.counts.attachmentsSaved,1);assert.ok(archiveReport.counts.drafts>0);
+  assert.ok(!archiveReport.warnings.some(w=>w.includes('relative')));assert.ok(archiveReport.warnings.some(w=>w.includes('Preview estimated')));checks++;
   const persisted=db.prepare('SELECT COUNT(*) n FROM pages WHERE space_id=?').get(archiveSpace.id).n;
   assert.equal(archiveReport.counts.pages,persisted);
   const oldSnapshot=JSON.stringify(archiveReport);
