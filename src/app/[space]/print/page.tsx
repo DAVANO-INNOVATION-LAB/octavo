@@ -16,7 +16,9 @@ export async function generateMetadata({
 }) {
   const { space: slug } = await params;
   const space = getSpaceBySlug(slug);
-  return { title: space ? `${space.name} — the whole book` : "Print" };
+  const user = await currentUser();
+  if (!space || !(await canReadSpaceAsVisitor(user, space))) return { title: "Print" };
+  return { title: `${space.name} — the whole book` };
 }
 
 /**
@@ -38,7 +40,7 @@ export default async function SpacePrint({
   if (!(await canReadSpaceAsVisitor(user, space)))
     redirect(user ? "/" : "/login");
 
-  const editing = canEditSpace(user, space.id);
+  const editing = canReadSpace(user, space) && canEditSpace(user, space.id);
   const pages = flattenTree(pageTree(space.id, !editing)).filter(
     (p) => p.published === 1 || editing
   );

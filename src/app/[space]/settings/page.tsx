@@ -2,6 +2,7 @@ import { DeleteSpaceButton } from "@/components/DeleteSpaceButton";
 import { notFound, redirect } from "next/navigation";
 import { variantGroups } from "@/lib/data";
 import { currentUser } from "@/lib/auth";
+import { canAdminSpace, canReadSpace, scopeFor } from "@/lib/roles";
 import { getSpaceBySlug, pageTree } from "@/lib/data";
 import { setSpaceVariantAction, updateSpaceAction } from "@/app/actions";
 import { IconPicker } from "@/components/IconPicker";
@@ -20,10 +21,10 @@ export default async function SpaceSettings({
   if (!user) redirect("/login");
   const { space: spaceSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
-  if (!space) notFound();
+  if (!space || !canReadSpace(user, space) || !canAdminSpace(user, space.id)) notFound();
   const tree = pageTree(space.id, false);
 
-  const groups = variantGroups();
+  const groups = variantGroups(scopeFor(user));
 
   return (
     <SpaceShell space={space} tree={tree} editing>

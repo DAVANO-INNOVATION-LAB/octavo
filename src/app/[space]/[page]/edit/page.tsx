@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { BookOpen, History, Trash2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
+import { canEditSpace, canReadSpace } from "@/lib/roles";
 import { getPageBySlug, getSpaceBySlug, pageTree } from "@/lib/data";
 import { deletePageAction, publishPageAction } from "@/app/actions";
 import { SpaceShell } from "@/components/SpaceShell";
@@ -19,7 +20,7 @@ export default async function EditPage({
 
   const { space: spaceSlug, page: pageSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
-  if (!space) notFound();
+  if (!space || !canReadSpace(user, space) || !canEditSpace(user, space.id)) notFound();
   const page = getPageBySlug(space.id, pageSlug);
   if (!page) notFound();
 

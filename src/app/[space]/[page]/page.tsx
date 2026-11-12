@@ -56,8 +56,10 @@ export async function generateMetadata({
 }) {
   const { space: spaceSlug, page: pageSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
-  const page = space && getPageBySlug(space.id, pageSlug);
-  if (!space || !page) return {};
+  const user = await currentUser();
+  if (!space || !(await canReadSpaceAsVisitor(user, space))) return {};
+  const page = getPageBySlug(space.id, pageSlug);
+  if (!page || (page.published === 0 && (!canReadSpace(user, space) || !canEditSpace(user, space.id)))) return {};
   const base = process.env.OCTAVO_BASE_URL?.replace(/\/$/, "") ?? "";
   const url = `${base}/${space.slug}/${page.slug}`;
   const description = page.content_text.slice(0, 160).replace(/\s+/g, " ").trim();
@@ -89,19 +91,20 @@ export default async function ReaderPage({
   const { space: spaceSlug, page: pageSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
   if (!space) notFound();
-  const page = getPageBySlug(space.id, pageSlug);
-  if (!page) notFound();
 
   const user = await currentUser();
   // Seeing drafts is a writer's privilege, not a side effect of signing in.
-  const editing = canEditSpace(user, space.id);
-  const mayWrite = may(user, space.id, "write");
-  const mayPropose = may(user, space.id, "propose");
-  const mayPublish = may(user, space.id, "publish");
+  const memberAccess = canReadSpace(user, space);
+  const editing = memberAccess && canEditSpace(user, space.id);
+  const mayWrite = editing;
+  const mayPropose = memberAccess && may(user, space.id, "propose");
+  const mayPublish = memberAccess && may(user, space.id, "publish");
   // Private means private from other members too, not merely from people
   // who are signed out: otherwise one account is the whole library.
   if (!(await canReadSpaceAsVisitor(user, space)))
     redirect(user ? "/" : "/login");
+  const page = getPageBySlug(space.id, pageSlug);
+  if (!page) notFound();
   if (page.published === 0 && !editing) notFound();
 
   const tree = pageTree(space.id, !editing);
@@ -135,7 +138,9 @@ export default async function ReaderPage({
   const rendered = linkCitations(blocks, citedKeys);
   const commentable = COMMENTABLE_KINDS.has(space.kind);
   const openChanges = openCrCount(page.id);
-  const sib = variantSiblings(space);
+  const sib = variantSiblings(space, scopeFor(user), (target) =>
+    canReadSpace(user, target) && canEditSpace(user, target.id)
+  );
   const variantLinks = resolveVariants(sib.spaces, space.id, page.slug, sib.slugs);
   // Ids still present on the page, so a thread whose passage was deleted can
   // say so rather than linking into nothing.

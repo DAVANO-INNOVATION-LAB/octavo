@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound,redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
-import { canEditSpace } from "@/lib/roles";
+import { canEditSpace, canReadSpace } from "@/lib/roles";
 import { getSpaceBySlug,getPageBySlug,getVersion,listVersions } from "@/lib/data";
 import { parseBlocks } from "@/lib/blocks";
 import { blocksToMarkdown } from "@/lib/markdown";
@@ -11,7 +11,7 @@ export const dynamic="force-dynamic";
 export default async function Compare({params,searchParams}:{params:Promise<{space:string;page:string}>;searchParams:Promise<{from?:string;to?:string;structure?:string}>}) {
  const user=await currentUser(); if(!user) redirect('/login');
  const path=await params, query=await searchParams, space=getSpaceBySlug(path.space);
- if(!space||!canEditSpace(user,space.id)) notFound();
+ if(!space||!canReadSpace(user,space)||!canEditSpace(user,space.id)) notFound();
  const page=getPageBySlug(space.id,path.page); if(!page) notFound();
  const versions=listVersions(page.id);
  const resolve=(id:string|undefined)=>{if(!id||id==='current')return page;const v=getVersion(id);if(!v||v.page_id!==page.id)notFound();return v;};

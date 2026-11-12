@@ -1,4 +1,4 @@
-import { canEditSpace } from "@/lib/roles";
+import { canEditSpace, canReadSpace } from "@/lib/roles";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, History } from "lucide-react";
@@ -33,7 +33,7 @@ export default async function HistoryPage({
   if (!user) redirect("/login");
   const { space: spaceSlug, page: pageSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
-  if (!space || !canEditSpace(user, space.id)) notFound();
+  if (!space || !canReadSpace(user, space) || !canEditSpace(user, space.id)) notFound();
   const page = getPageBySlug(space.id, pageSlug);
   if (!page) notFound();
 

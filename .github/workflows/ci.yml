@@ -24,10 +24,12 @@ jobs:
       - run: npm run test:url-import
       - run: npm run test:import-rollback
       - run: npm run test:openapi-import
+      - run: npm run test:space-access
       - run: npx next typegen   # route types tsc needs (LayoutProps etc.)
       - run: npx tsc --noEmit
       - run: npx eslint src
       - run: npm run build
+      - run: npm run test:space-access-http
 
   helm:
     runs-on: ubuntu-latest

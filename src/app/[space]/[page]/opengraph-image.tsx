@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { canReadSpace } from "@/lib/roles";
 import { getPageBySlug, getSpaceBySlug } from "@/lib/data";
 
 /**
@@ -11,6 +12,9 @@ import { getPageBySlug, getSpaceBySlug } from "@/lib/data";
  * and nothing else.
  */
 
+// Re-evaluate visibility and publication after every access-policy change.
+export const dynamic = "force-dynamic";
+
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Octavo";
@@ -22,7 +26,7 @@ export default async function OgImage({
 }) {
   const { space: spaceSlug, page: pageSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
-  const page = space ? getPageBySlug(space.id, pageSlug) : null;
+  const page = space && canReadSpace(null, space) ? getPageBySlug(space.id, pageSlug) : null;
   const isPublic =
     space && page && page.published === 1 && space.visibility !== "private";
 
@@ -76,13 +80,13 @@ export default async function OgImage({
             justifyContent: "space-between",
           }}
         >
-          <div style={{ fontSize: 34, fontWeight: 700 }}>
+          <div style={{ display: "flex", fontSize: 34, fontWeight: 700 }}>
             octavo<span style={{ color: "#b8401b" }}>.</span>
           </div>
           <div style={{ width: 220, height: 10, background: "#b8401b" }} />
         </div>
       </div>
     ),
-    size
+    { ...size, headers: { "Cache-Control": "private, no-store, max-age=0" } }
   );
 }
