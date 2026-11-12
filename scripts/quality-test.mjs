@@ -59,6 +59,29 @@ try {
  for(const e of entries.filter(e=>e.name!=='checksums.sha256'))assert.ok(checksums.includes(digest(e.data)+'  '+e.name));
  assert.ok(entries.some(e=>e.name==='checksums.sha256'));assert.ok(entries.some(e=>e.name==='pages/p.md'));
  assert.throws(()=>require('../src/lib/release-bundle.ts').releaseBundle(reader,data.getSpace('s'),'test'),/permission/);
+ // Corrupt archive input must fail both preview and direct import before any
+ // database rows or attachments are created. Exercise the actual entry points.
+ const {zip}=require('../src/lib/zip.ts');
+ const {previewImport}=require('../src/lib/import-preview.ts');
+ const {importUpload}=require('../src/lib/transfer.ts');
+ const snapshot=()=>JSON.stringify({
+  spaces:db.prepare('SELECT count(*) n FROM spaces').get().n,
+  pages:db.prepare('SELECT count(*) n FROM pages').get().n,
+  files:fs.readdirSync(require('../src/lib/db.ts').UPLOADS_DIR).sort(),
+ });
+ for(const [filename,entry] of [['docs.zip','guide.md'],['document.docx','word/document.xml']]) {
+  const damaged=zip([{name:entry,data:Buffer.from('SAFE GUIDE')}]);
+  damaged[30+Buffer.byteLength(entry)]^=1;
+  const beforeImport=snapshot();
+  assert.throws(()=>previewImport(filename,damaged),/checksum/i);
+  assert.throws(()=>importUpload(filename,damaged),/checksum/i);
+  assert.equal(snapshot(),beforeImport,'Rejected archives must not leave import state');
+ }
+ const validZip=zip([{name:'guide.md',data:Buffer.from('# Imported archive\n\nArchive content')}]);
+ assert.equal(previewImport('docs.zip',validZip).errors.length,0);
+ const imported=importUpload('docs.zip',validZip,'Archive integrity fixture');
+ assert.equal(imported.pages,1);
+ assert.ok(data.getSpaceBySlug(imported.spaceSlug));
  console.log('Quality integration: reviews, permissions, publishing, runbooks, preview, and bundles passed');
  db.close();delete globalThis.__octavoDb;
 } finally {fs.rmSync(temp,{recursive:true,force:true});}
