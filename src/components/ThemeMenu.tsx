@@ -55,8 +55,9 @@ export function ThemeMenu() {
   }
 
   function choosePalette(id: string) {
-    setPrefs({ palette: id });
-    applyPalette(id, seasonalOff);
+    // An explicit preset wins over the automatic seasonal palette.
+    setPrefs({ palette: id, seasonalOff: true });
+    applyPalette(id, true);
   }
 
   function toggleSeasonal() {
@@ -80,6 +81,7 @@ export function ThemeMenu() {
         <button
           onClick={() => setOpen((o) => !o)}
           aria-label="Theme presets"
+          aria-expanded={open}
           className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-surface-2 hover:text-ink ${
             open ? "bg-surface-2 text-ink" : "text-muted"
           }`}
@@ -97,6 +99,7 @@ export function ThemeMenu() {
             <button
               key={p.id}
               onClick={() => choosePalette(p.id)}
+              aria-pressed={palette === p.id && !seasonActive}
               className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-2 ${
                 palette === p.id && !seasonActive ? "bg-accent-soft" : ""
               }`}
@@ -109,7 +112,7 @@ export function ThemeMenu() {
                 <span className="block text-sm text-ink">{p.name}</span>
                 <span className="block text-[11px] text-faint">{p.note}</span>
               </span>
-              {palette === p.id && (
+              {palette === p.id && !seasonActive && (
                 <Check size={14} className="shrink-0 text-accent" />
               )}
             </button>
@@ -119,6 +122,7 @@ export function ThemeMenu() {
             <div className="mt-1 border-t border-line pt-1">
               <button
                 onClick={toggleSeasonal}
+                aria-pressed={seasonActive}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-surface-2"
               >
                 <span className="min-w-0 flex-1">
@@ -127,8 +131,8 @@ export function ThemeMenu() {
                   </span>
                   <span className="block text-[11px] leading-snug text-faint">
                     {seasonalOff
-                      ? "The seasonal dress is put away"
-                      : "Dressing the library this month"}
+                      ? "Seasonal theme off"
+                      : "Seasonal theme on"}
                   </span>
                 </span>
                 <span

@@ -291,6 +291,7 @@ export function setUserRole(
 }
 
 export function deleteUser(id: string) {
+  getDb().prepare("DELETE FROM kv WHERE key = ?").run(`release-seen:${id}`);
   getDb().prepare("DELETE FROM users WHERE id = ?").run(id);
 }
 

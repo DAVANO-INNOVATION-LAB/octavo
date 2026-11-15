@@ -100,6 +100,7 @@ export function eraseSubject(userId: string): {
       .prepare("DELETE FROM notifications WHERE user_id = ?")
       .run(userId).changes;
     // sessions, space_members, group_members cascade from the user row
+    db.prepare("DELETE FROM kv WHERE key = ?").run(`release-seen:${userId}`);
     db.prepare("DELETE FROM users WHERE id = ?").run(userId);
   })();
   return { comments, notifications };

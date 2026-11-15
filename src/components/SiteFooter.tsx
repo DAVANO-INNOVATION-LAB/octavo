@@ -1,3 +1,4 @@
+import { ReleaseNotes } from "./ReleaseNotes";
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-line px-4 py-5 sm:px-6 print:hidden">
@@ -9,6 +10,7 @@ export function SiteFooter() {
           </span>{" "}
           — open-source documentation that reads like a book
         </span>
+        <ReleaseNotes />
         <span aria-hidden className="text-line-strong">·</span>
         <a
           href="https://github.com/DAVANO-INNOVATION-LAB/octavo"
