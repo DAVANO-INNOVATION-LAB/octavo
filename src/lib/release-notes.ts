@@ -2,7 +2,7 @@ import { VERSION } from "./version";
 export type ReleaseNote = { version: string; title: string; changes: string[]; upgrade: string[] };
 // Bundled with the application: no network access or remote HTML required.
 export const RELEASE_NOTES: ReleaseNote[] = [
-  { version: "0.28.0-rc.2", title: "Release notes in Octavo", changes: ["See changes after an upgrade, with acknowledgement saved to your account.", "Reopen release history from the footer."], upgrade: ["Evaluation release. Back up the database and uploads before upgrading.", "Release acknowledgements use existing account settings storage; no schema or document content changes."] },
+  { version: "0.28.0-rc.2", title: "Release notes in Octavo", changes: ["See changes after an upgrade, with acknowledgement saved to your account.", "Reopen release history from the footer.", "Manual theme choices now override seasonal colors and persist after reload."], upgrade: ["Evaluation release. Back up the database and uploads before upgrading.", "Release acknowledgements use existing account settings storage; no schema or document content changes."] },
   { version: "0.28.0-rc.1", title: "Sign-in and disconnected exchange", changes: ["OIDC role and group mapping, configurable sessions and client-secret files.", "Signed manual exchange with conflict handling and deletion review.", "Optional incremental bundles and staging review."], upgrade: ["Automatic cross-site networking remains a disabled prototype, not a production sync service.", "Incremental exchange and staging are opt-in. Review deployment settings before enabling them."] },
 ];
 export function compareVersions(a: string, b: string): number {

@@ -77,6 +77,7 @@ jobs:
       - run: python3 scripts/sky-bridge-test.py
       - run: npm run build
       - run: CHROME_BIN=google-chrome node scripts/release-notes-browser-test.mjs
+      - run: CHROME_BIN=google-chrome node scripts/theme-browser-test.mjs
       - run: npm run evidence
       - uses: actions/upload-artifact@v7
         if: always()
