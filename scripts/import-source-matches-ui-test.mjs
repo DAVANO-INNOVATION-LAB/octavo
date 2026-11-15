@@ -69,6 +69,8 @@ try {
   db.prepare('INSERT INTO users(id,email,name,password_hash,role,created_at) VALUES(?,?,?,?,?,?)')
     .run('ui-owner', 'owner@example.test', 'Synthetic Owner', '!', 'member', Date.now());
   db.prepare('INSERT INTO sessions(id,user_id,expires_at) VALUES(?,?,?)').run('synthetic-ui-session', 'ui-owner', Date.now() + 3600000);
+  // This fixture tests an established account; first-upgrade behavior has its own browser suite.
+  require('../src/lib/release-state.ts').acknowledgeRelease('ui-owner');
   const socket = net.createServer();
   await bounded(new Promise((resolve, reject) => { socket.once('error', reject); socket.listen(0, '127.0.0.1', resolve); }), 5000, 'port allocation');
   const port = socket.address().port; await new Promise(resolve => socket.close(resolve));
