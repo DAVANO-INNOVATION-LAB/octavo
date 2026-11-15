@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.28.0-rc.2 — Upgrade notes (evaluation prerelease)
+## v0.28.0-rc.2 — Upgrade notes (evaluation prerelease)
 
 - Signed-in users see bundled release notes after an upgrade and can reopen release history from the footer.
 - Acknowledgements persist per account across browsers. Skipped-version notes are included; downgrades do not reset acknowledgement.
