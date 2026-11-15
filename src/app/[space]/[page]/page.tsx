@@ -1,3 +1,4 @@
+import { readerPageLinks } from "@/lib/site-exchange-links";
 import { presentationSections } from "@/lib/presentation";
 import Link from "next/link";
 import { openCrCount } from "@/lib/change-requests";
@@ -116,7 +117,7 @@ export default async function ReaderPage({
   // Composition: space variables land, audience blocks filter, embedded
   // pages resolve — with this reader's permissions deciding what resolves.
   const vars = parseVars(getSetting(`vars:${space.id}`));
-  const blocks = composeBlocks(parseBlocks(page.content), vars, (pid) => {
+  const blocks = composeBlocks(parseBlocks(readerPageLinks(page.content, page.id)), vars, (pid) => {
     const target = getPage(pid);
     if (!target || target.published !== 1) return { state: "missing" as const };
     const tSpace = getSpace(target.space_id);
@@ -125,7 +126,7 @@ export default async function ReaderPage({
       state: "ok" as const,
       title: target.title,
       href: `/${tSpace.slug}/${target.slug}`,
-      blocks: parseBlocks(target.content),
+      blocks: parseBlocks(readerPageLinks(target.content, target.id)),
     };
   });
   const readingOn = readingEnabled();

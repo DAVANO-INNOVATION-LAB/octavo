@@ -1,5 +1,7 @@
 "use client";
 
+import { customBlockConfigs, noteStyleConfig, TONES } from "@/lib/collab-schema";
+
 import {
   BlockNoteSchema,
   defaultBlockSpecs,
@@ -187,7 +189,7 @@ function DrawioBlockView({
 // The docs block library: callouts, expandables, steps, and math —
 // the vocabulary that separates product docs from a plain wiki.
 
-export const TONES = ["info", "success", "warning", "danger"] as const;
+export { TONES } from "@/lib/collab-schema";
 export type Tone = (typeof TONES)[number];
 
 const TONE_ICON: Record<Tone, React.ReactNode> = {
@@ -198,13 +200,7 @@ const TONE_ICON: Record<Tone, React.ReactNode> = {
 };
 
 export const Callout = createReactBlockSpec(
-  {
-    type: "callout",
-    propSchema: {
-      tone: { default: "info" as string, values: [...TONES] },
-    },
-    content: "inline",
-  },
+  customBlockConfigs.Callout,
   {
     render: (props) => {
       const tone = (props.block.props.tone as Tone) ?? "info";
@@ -232,11 +228,7 @@ export const Callout = createReactBlockSpec(
 );
 
 export const Expandable = createReactBlockSpec(
-  {
-    type: "expandable",
-    propSchema: {},
-    content: "inline",
-  },
+  customBlockConfigs.Expandable,
   {
     render: (props) => (
       <div className="blk-expandable">
@@ -254,11 +246,7 @@ export const Expandable = createReactBlockSpec(
 );
 
 export const Step = createReactBlockSpec(
-  {
-    type: "step",
-    propSchema: {},
-    content: "inline",
-  },
+  customBlockConfigs.Step,
   {
     render: (props) => {
       // Number by position among consecutive step siblings.
@@ -281,11 +269,7 @@ export const Step = createReactBlockSpec(
 );
 
 export const MathBlock = createReactBlockSpec(
-  {
-    type: "math",
-    propSchema: {},
-    content: "inline",
-  },
+  customBlockConfigs.MathBlock,
   {
     render: (props) => {
       const tex = Array.isArray(props.block.content)
@@ -321,14 +305,7 @@ export const MathBlock = createReactBlockSpec(
 );
 
 export const Drawio = createReactBlockSpec(
-  {
-    type: "drawio",
-    propSchema: {
-      xml: { default: "" },
-      src: { default: "" },
-    },
-    content: "none",
-  },
+  customBlockConfigs.Drawio,
   {
     render: (props) => (
       <DrawioBlockView
@@ -347,7 +324,7 @@ export const Drawio = createReactBlockSpec(
  * travels with the words it qualifies rather than sitting in a separate block.
  */
 export const NoteStyle = createReactStyleSpec(
-  { type: "note", propSchema: "string" },
+  noteStyleConfig,
   {
     render: (props) => (
       <span
@@ -361,15 +338,7 @@ export const NoteStyle = createReactStyleSpec(
 
 /** An image with a second source used in dark mode. */
 export const ThemeImage = createReactBlockSpec(
-  {
-    type: "themeImage",
-    propSchema: {
-      url: { default: "" },
-      darkUrl: { default: "" },
-      caption: { default: "" },
-    },
-    content: "none",
-  },
+  customBlockConfigs.ThemeImage,
   {
     render: (props) => {
       const url = String(props.block.props.url ?? "");
@@ -461,18 +430,7 @@ edges:
 
 /** A 3D model scene chosen per discipline. */
 export const Model3DBlock = createReactBlockSpec(
-  {
-    type: "model3d",
-    propSchema: {
-      kind: { default: "architecture" as string },
-      title: { default: "" as string },
-      source: { default: "preset" as string },
-      declaration: { default: "" as string },
-      /** For source "data": a CSV/TSV/JSON upload of points. */
-      dataUrl: { default: "" as string },
-    },
-    content: "none",
-  },
+  customBlockConfigs.Model3DBlock,
   {
     render: (props) => {
       const kind = String(props.block.props.kind ?? "architecture");
@@ -590,18 +548,7 @@ export const Model3DBlock = createReactBlockSpec(
  * can move or delete it.
  */
 export const ApiRequestBlock = createReactBlockSpec(
-  {
-    type: "apiRequest",
-    propSchema: {
-      method: { default: "GET" as string },
-      path: { default: "/" as string },
-      servers: { default: "" as string },
-      params: { default: "[]" as string },
-      body: { default: "" as string },
-      auth: { default: "" as string },
-    },
-    content: "none",
-  },
+  customBlockConfigs.ApiRequestBlock,
   {
     render: (props) => {
       const p = props.block.props as Record<string, string>;
@@ -623,14 +570,7 @@ export const ApiRequestBlock = createReactBlockSpec(
  * draw.io block: source in one prop, rendered SVG in the other.
  */
 export const Sketch = createReactBlockSpec(
-  {
-    type: "sketch",
-    propSchema: {
-      scene: { default: "" },
-      svg: { default: "" },
-    },
-    content: "none",
-  },
+  customBlockConfigs.Sketch,
   {
     render: (props) => (
       <SketchBlockView
@@ -651,14 +591,7 @@ export const Sketch = createReactBlockSpec(
  * editing the source happens on the source.
  */
 export const SyncedPage = createReactBlockSpec(
-  {
-    type: "syncedPage",
-    propSchema: {
-      pageId: { default: "" },
-      title: { default: "" },
-    },
-    content: "none",
-  },
+  customBlockConfigs.SyncedPage,
   {
     render: (props) => (
       <SyncedPagePicker
@@ -679,14 +612,7 @@ export const SyncedPage = createReactBlockSpec(
  * always shows the content — writers must see what they wrote.
  */
 export const IfVar = createReactBlockSpec(
-  {
-    type: "ifvar",
-    propSchema: {
-      name: { default: "audience" },
-      equals: { default: "" },
-    },
-    content: "inline",
-  },
+  customBlockConfigs.IfVar,
   {
     render: (props) => (
       <div className="rounded-lg border border-dashed border-line px-3 py-2">

@@ -1,0 +1,6489 @@
+[
+  {
+    "name": "audit_log",
+    "type": "table",
+    "definition": "create table audit_log ( action text not null , actor_id text , actor_name text not null , at integer not null , detail text not null default '' , hash text not null , id text primary key , object_id text not null default '' , object_label text not null default '' , object_type text not null , prev_hash text not null , space_id text )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "action",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "actor_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "actor_name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "detail",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "object_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "object_label",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "object_type",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "prev_hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": "audit_actor",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index audit_actor on audit_log ( actor_id , at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "actor_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": "audit_at",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index audit_at on audit_log ( at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": "audit_space",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index audit_space on audit_log ( space_id , at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "change_requests",
+    "type": "table",
+    "definition": "create table change_requests ( author_id text not null references users ( id ) on delete cascade , base_updated_at integer not null , created_at integer not null , description text not null default '' , id text primary key , merged_at integer , merged_by text , page_id text not null references pages ( id ) on delete cascade , proposed_content text not null , proposed_title text not null , status text not null default 'open' , title text not null , updated_at integer not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "author_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "base_updated_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "description",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "merged_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "merged_by",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "proposed_content",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "proposed_title",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "status",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'open'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "title",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "updated_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "author_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "crs_page",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index crs_page on change_requests ( page_id , status , updated_at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "status",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": "updated_at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 3,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "collab_docs",
+    "type": "table",
+    "definition": "create table collab_docs ( page_id text primary key references pages ( id ) on delete cascade , state blob not null , updated_at integer not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "state",
+        "type": "BLOB",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "updated_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "collab_recovery_updates",
+    "type": "table",
+    "definition": "create table collab_recovery_updates ( created_at integer not null , epoch integer not null , id text primary key , page_id text not null , reason text not null , state blob not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "epoch",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "reason",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "state",
+        "type": "BLOB",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "collab_room_leases",
+    "type": "table",
+    "definition": "create table collab_room_leases ( epoch integer not null , expires_at integer not null , owner_id text not null , page_id text not null references pages ( id ) on delete cascade , primary key ( page_id , owner_id ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "epoch",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "expires_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "owner_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "owner_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "comments",
+    "type": "table",
+    "definition": "create table comments ( anchor_text text not null default '' , block_id text not null default '' , body text not null , created_at integer not null , id text primary key , page_id text not null references pages ( id ) on delete cascade , parent_id text , resolved integer not null default 0 , resolved_at integer , resolved_by text , user_id text not null references users ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "anchor_text",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "block_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "body",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "parent_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "resolved",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "resolved_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "resolved_by",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "comments_page",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index comments_page on comments ( page_id , created_at )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "created_at",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": "comments_thread",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index comments_thread on comments ( page_id , parent_id , created_at )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "parent_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": "created_at",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 3,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "connectors",
+    "type": "table",
+    "definition": "create table connectors ( base_url text not null , created_at integer not null , created_by text not null references users ( id ) on delete cascade , credential text not null default '' , id text primary key , name text not null , space_id text references spaces ( id ) on delete cascade , type text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "base_url",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_by",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "credential",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "type",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "created_by",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "connectors_space",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index connectors_space on connectors ( space_id )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "cr_reviews",
+    "type": "table",
+    "definition": "create table cr_reviews ( at integer not null , cr_id text not null references change_requests ( id ) on delete cascade , id text primary key , note text not null default '' , user_id text not null references users ( id ) on delete cascade , verdict text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "cr_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "note",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "verdict",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "change_requests",
+          "from": "cr_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "cr_reviews_cr",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index cr_reviews_cr on cr_reviews ( cr_id , at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "cr_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "deleted_spaces",
+    "type": "table",
+    "definition": "create table deleted_spaces ( deleted_at integer not null , deleted_by text not null , space_id text primary key references spaces ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "deleted_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "deleted_by",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "document_approvals",
+    "type": "table",
+    "definition": "create table document_approvals ( at integer not null , page_id text primary key references pages ( id ) on delete cascade , reviewer_id text not null references users ( id ) on delete cascade , revision text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "reviewer_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "revision",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "reviewer_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "document_reviews",
+    "type": "table",
+    "definition": "create table document_reviews ( due_at integer , owner_id text references users ( id ) on delete set null , page_id text primary key references pages ( id ) on delete cascade , verified_at integer , verified_by text references users ( id ) on delete set null , verified_revision text )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "due_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "owner_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "verified_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "verified_by",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "verified_revision",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "owner_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "verified_by",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "dois",
+    "type": "table",
+    "definition": "create table dois ( doi text not null unique , id text primary key , minted_at integer not null , minted_by text not null default '' , provider text not null , target_id text not null , target_type text not null , title text not null default '' , url text not null , version_id text not null default '' )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "doi",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "minted_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "minted_by",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "provider",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "target_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "target_type",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "title",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "url",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "version_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": "dois_target",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index dois_target on dois ( target_type , target_id , minted_at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "target_type",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "target_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": "minted_at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 3,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "doi",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "feedback",
+    "type": "table",
+    "definition": "create table feedback ( at integer not null , helpful integer not null , id text primary key , note text not null default '' , page_id text not null references pages ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "helpful",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "note",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "feedback_page",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index feedback_page on feedback ( page_id , at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "feedback_triage",
+    "type": "table",
+    "definition": "create table feedback_triage ( feedback_id text primary key references feedback ( id ) on delete cascade , owner_id text references users ( id ) on delete set null , resolution text not null default '' , status text not null default 'open' check ( status in ( 'open' , 'in_progress' , 'resolved' ) ) , updated_at integer not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "feedback_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "owner_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "resolution",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "status",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'open'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "updated_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "feedback",
+          "from": "feedback_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "owner_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "feedback_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [
+      "check ( status in ( 'open' , 'in_progress' , 'resolved' ) )"
+    ],
+    "virtual": null
+  },
+  {
+    "name": "group_members",
+    "type": "table",
+    "definition": "create table group_members ( added_at integer not null , from_claim integer not null default 0 , group_id text not null references groups ( id ) on delete cascade , user_id text not null references users ( id ) on delete cascade , primary key ( group_id , user_id ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "added_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "from_claim",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "group_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "groups",
+          "from": "group_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "group_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "group_space_roles",
+    "type": "table",
+    "definition": "create table group_space_roles ( group_id text not null references groups ( id ) on delete cascade , role text not null default 'reader' , space_id text not null references spaces ( id ) on delete cascade , primary key ( group_id , space_id ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "group_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "role",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'reader'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "groups",
+          "from": "group_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "group_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "groups",
+    "type": "table",
+    "definition": "create table groups ( claim_value text not null default '' , created_at integer not null , id text primary key , name text not null unique )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "claim_value",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "name",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "highlights",
+    "type": "table",
+    "definition": "create table highlights ( block_id text not null , created_at integer not null , id text primary key , note text not null default '' , page_id text not null references pages ( id ) on delete cascade , text text not null , user_id text not null references users ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "block_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "note",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "text",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "highlights_page",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index highlights_page on highlights ( page_id , user_id )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": "highlights_user",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index highlights_user on highlights ( user_id , created_at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "created_at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "import_idempotency",
+    "type": "table",
+    "definition": "create table import_idempotency ( completed_at integer not null , fingerprint text not null , request_key text not null , space_id text references spaces ( id ) on delete set null , user_id text not null references users ( id ) on delete cascade , primary key ( user_id , request_key ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "completed_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "fingerprint",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "request_key",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "request_key",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "import_reports",
+    "type": "table",
+    "definition": "create table import_reports ( actor_id text references users ( id ) on delete set null , completed_at integer not null , id text primary key , report_json text not null , space_id text not null unique references spaces ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "actor_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "completed_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "report_json",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "actor_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "import_reports_completed",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index import_reports_completed on import_reports ( completed_at desc , id desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "completed_at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "id",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "kv",
+    "type": "table",
+    "definition": "create table kv ( key text primary key , value text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "key",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "value",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "key",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "notifications",
+    "type": "table",
+    "definition": "create table notifications ( actor_name text not null default '' , body text not null default '' , created_at integer not null , id text primary key , kind text not null , read_at integer , space_id text , title text not null , url text not null default '' , user_id text not null references users ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "actor_name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "body",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "kind",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "read_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "title",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "url",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "notif_user",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index notif_user on notifications ( user_id , read_at , created_at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "read_at",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": "created_at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 3,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "page_edit_version_insert",
+    "type": "trigger",
+    "sql": "create trigger page_edit_version_insert after insert on pages begin insert or ignore into page_edit_versions ( page_id ) values ( new . id ) ; end"
+  },
+  {
+    "name": "page_edit_version_update",
+    "type": "trigger",
+    "sql": "create trigger page_edit_version_update after update of title , content , published , slug , parent_id on pages when old . title is not new . title or old . content is not new . content or old . published is not new . published or old . slug is not new . slug or old . parent_id is not new . parent_id begin insert or ignore into page_edit_versions ( page_id ) values ( new . id ) ; update page_edit_versions set revision = revision + 1 where page_id = new . id ; end"
+  },
+  {
+    "name": "page_edit_versions",
+    "type": "table",
+    "definition": "create table page_edit_versions ( epoch integer not null default 0 , page_id text primary key references pages ( id ) on delete cascade , revision integer not null default 0 )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "epoch",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "revision",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "page_links",
+    "type": "table",
+    "definition": "create table page_links ( from_page text not null references pages ( id ) on delete cascade , to_page text not null references pages ( id ) on delete cascade , primary key ( from_page , to_page ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "from_page",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "to_page",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "from_page",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "to_page",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "page_links_to",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index page_links_to on page_links ( to_page )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "to_page",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "from_page",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "to_page",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "page_versions",
+    "type": "table",
+    "definition": "create table page_versions ( content text not null , content_text text not null , id text primary key , page_id text not null references pages ( id ) on delete cascade , saved_at integer not null , title text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "content",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "content_text",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "saved_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "title",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "page_versions_page",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index page_versions_page on page_versions ( page_id , saved_at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "saved_at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "page_views",
+    "type": "table",
+    "definition": "create table page_views ( day text not null , page_id text not null references pages ( id ) on delete cascade , views integer not null default 0 , primary key ( page_id , day ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "day",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "views",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "day",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "pages",
+    "type": "table",
+    "definition": "create table pages ( content text not null default '[]' , content_text text not null default '' , cover text not null default '' , created_at integer not null , created_by text not null default '' , icon text not null default '' , id text primary key , parent_id text references pages ( id ) on delete cascade , position real not null default 0 , published integer not null default 1 , slug text not null , space_id text not null references spaces ( id ) on delete cascade , title text not null default 'Untitled' , updated_at integer not null , updated_by text not null default '' , unique ( space_id , slug ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "content",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'[]'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "content_text",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "cover",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_by",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "icon",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "parent_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "position",
+        "type": "REAL",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "published",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "1",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "slug",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "title",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'Untitled'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "updated_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "updated_by",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "parent_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "pages_space",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index pages_space on pages ( space_id , parent_id , position )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "parent_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": "position",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 3,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "slug",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "pages_fts",
+    "type": "table",
+    "definition": "create virtual table pages_fts using fts5 ( page_id unindexed , title , body , tokenize = 'porter unicode61' )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "body",
+        "type": "",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "pages_fts",
+        "type": "",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 1
+      },
+      {
+        "name": "rank",
+        "type": "",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 1
+      },
+      {
+        "name": "title",
+        "type": "",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [],
+    "checks": [],
+    "virtual": "create virtual table pages_fts using fts5 ( page_id unindexed , title , body , tokenize = 'porter unicode61' )"
+  },
+  {
+    "name": "quality_policies",
+    "type": "table",
+    "definition": "create table quality_policies ( policy text not null , space_id text primary key references spaces ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "policy",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "reading_signals",
+    "type": "table",
+    "definition": "create table reading_signals ( block_id text not null , day integer not null , dwell_ms integer not null default 0 , exits integer not null default 0 , page_id text not null references pages ( id ) on delete cascade , revisits integer not null default 0 , views integer not null default 0 , primary key ( page_id , block_id , day ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "block_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      },
+      {
+        "name": "day",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 3,
+        "hidden": 0
+      },
+      {
+        "name": "dwell_ms",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "exits",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "revisits",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "views",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "reading_day",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index reading_day on reading_signals ( day )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "day",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "block_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": "day",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 3,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "repo_state",
+    "type": "table",
+    "definition": "create table repo_state ( hash text not null , page_id text not null , path text not null , space_id text not null references spaces ( id ) on delete cascade , synced_at integer not null , primary key ( space_id , path ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "path",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "synced_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "path",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "repo_sync_baselines",
+    "type": "table",
+    "definition": "create table repo_sync_baselines ( local_hash text not null , local_path text not null , page_id text not null , path text not null , remote_hash text not null , space_id text not null references spaces ( id ) on delete cascade , primary key ( space_id , path ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "local_hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "local_path",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "path",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      },
+      {
+        "name": "remote_hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "path",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "repo_sync_reports",
+    "type": "table",
+    "definition": "create table repo_sync_reports ( report text not null , space_id text primary key references spaces ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "report",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "repo_sync_revisions",
+    "type": "table",
+    "definition": "create table repo_sync_revisions ( collab_epoch integer not null default 0 , collab_state blob , created_at integer not null , id text primary key , page_id text not null references pages ( id ) on delete cascade , page_json text not null , page_revision integer not null default 0 , remote_revision text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "collab_epoch",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "collab_state",
+        "type": "BLOB",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_json",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_revision",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "remote_revision",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "reusable_pages",
+    "type": "table",
+    "definition": "create table reusable_pages ( page_id text primary key references pages ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "runbook_checks",
+    "type": "table",
+    "definition": "create table runbook_checks ( command text not null , expected text not null , id text primary key , name text not null , page_id text not null references pages ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "command",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "expected",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "runbook_evidence",
+    "type": "table",
+    "definition": "create table runbook_evidence ( at integer not null , check_id text not null references runbook_checks ( id ) on delete cascade , definition text not null , id text primary key , output text not null , passed integer not null , recorded_by text references users ( id ) on delete set null , revision text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "check_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "definition",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "output",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "passed",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "recorded_by",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "revision",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "runbook_checks",
+          "from": "check_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "recorded_by",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "runbook_evidence_check",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index runbook_evidence_check on runbook_evidence ( check_id , at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "check_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "runs",
+    "type": "table",
+    "definition": "create table runs ( block_id text not null , connector_id text not null , connector_name text not null , external_url text not null default '' , finished integer , id text primary key , output text not null default '' , page_id text not null references pages ( id ) on delete cascade , page_version integer not null , remote_id text not null default '' , started integer not null , status text not null , user_id text not null , user_name text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "block_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "connector_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "connector_name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "external_url",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "finished",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "output",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_version",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "remote_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "started",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "status",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "user_name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "pages",
+          "from": "page_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "runs_page",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index runs_page on runs ( page_id , started desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "page_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "started",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "searches",
+    "type": "table",
+    "definition": "create table searches ( at integer not null , hits integer not null , id integer primary key autoincrement , query text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "hits",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "query",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": "searches_at",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index searches_at on searches ( at desc )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "at",
+            "desc": 1,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "sessions",
+    "type": "table",
+    "definition": "create table sessions ( expires_at integer not null , id text primary key , user_id text not null references users ( id ) on delete cascade )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "expires_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "sessions_user",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index sessions_user on sessions ( user_id )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "signin_failures",
+    "type": "table",
+    "definition": "create table signin_failures ( at integer not null , email text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "email",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": "signin_failures_email",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index signin_failures_email on signin_failures ( email , at )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "email",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "at",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "site_sections",
+    "type": "table",
+    "definition": "create table site_sections ( blurb text not null default '' , id text primary key , position real not null default 0 , site_id text not null references sites ( id ) on delete cascade , title text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "blurb",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "position",
+        "type": "REAL",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "site_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "title",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "sites",
+          "from": "site_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "site_spaces",
+    "type": "table",
+    "definition": "create table site_spaces ( label text not null default '' , position real not null default 0 , section_id text references site_sections ( id ) on delete set null , site_id text not null references sites ( id ) on delete cascade , space_id text not null references spaces ( id ) on delete cascade , primary key ( site_id , space_id ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "label",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "position",
+        "type": "REAL",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "section_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "site_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "site_sections",
+          "from": "section_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "sites",
+          "from": "site_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "site_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "sites",
+    "type": "table",
+    "definition": "create table sites ( accent text not null default '' , created_at integer not null , host text not null default '' , id text primary key , name text not null , position real not null default 0 , published integer not null default 0 , slug text not null unique , tagline text not null default '' , typeface text not null default '' , updated_at integer not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "accent",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "host",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "position",
+        "type": "REAL",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "published",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "slug",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "tagline",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "typeface",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "updated_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": "idx_sites_host",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index idx_sites_host on sites ( host )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "host",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "slug",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "space_members",
+    "type": "table",
+    "definition": "create table space_members ( added_at integer not null , role text not null default 'editor' , space_id text not null references spaces ( id ) on delete cascade , user_id text not null references users ( id ) on delete cascade , primary key ( space_id , user_id ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "added_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "role",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'editor'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "space_members_user",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index space_members_user on space_members ( user_id )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "space_repos",
+    "type": "table",
+    "definition": "create table space_repos ( branch text not null default 'main' , endpoint text not null default '' , last_result text not null default '' , last_synced integer not null default 0 , path text not null default '' , provider text not null , repo text not null , space_id text primary key references spaces ( id ) on delete cascade , token text not null )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "branch",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'main'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "endpoint",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "last_result",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "last_synced",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "path",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "provider",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "repo",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "token",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "spaces",
+    "type": "table",
+    "definition": "create table spaces ( accent text not null default 'vermilion' , corners text not null default 'rounded' , created_at integer not null , description text not null default '' , emoji text not null default '' , icon text not null default '' , id text primary key , kind text not null default 'docs' , measure text not null default 'comfortable' , model_kind text not null default 'architecture' , name text not null , position real not null default 0 , shelf text not null default '' , slug text not null unique , tenant_id text , typeface text not null default 'classic' , updated_at integer not null , variant_group text not null default '' , variant_kind text not null default 'version' , variant_label text not null default '' , variant_position real not null default 0 , visibility text not null default 'public' )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "accent",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'vermilion'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "corners",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'rounded'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "description",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "emoji",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "icon",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "kind",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'docs'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "measure",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'comfortable'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "model_kind",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'architecture'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "position",
+        "type": "REAL",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "shelf",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "slug",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "tenant_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "typeface",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'classic'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "updated_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "variant_group",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "variant_kind",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'version'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "variant_label",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "variant_position",
+        "type": "REAL",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "visibility",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'public'",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": "idx_spaces_tenant",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index idx_spaces_tenant on spaces ( tenant_id )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "tenant_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "slug",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "sync_state",
+    "type": "table",
+    "definition": "create table sync_state ( hash text not null , page_id text not null , path text not null , space_id text not null references spaces ( id ) on delete cascade , synced_at integer not null , primary key ( space_id , path ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "page_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "path",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "synced_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "path",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "tenant_members",
+    "type": "table",
+    "definition": "create table tenant_members ( added_at integer not null , from_claim integer not null default 0 , tenant_id text not null references tenants ( id ) on delete cascade , user_id text not null references users ( id ) on delete cascade , primary key ( tenant_id , user_id ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "added_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "from_claim",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "tenant_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "user_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "tenants",
+          "from": "tenant_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      [
+        {
+          "seq": 0,
+          "table": "users",
+          "from": "user_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "tenant_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "user_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "tenants",
+    "type": "table",
+    "definition": "create table tenants ( accent text not null default '' , claim_value text not null default '' , created_at integer not null , id text primary key , name text not null , slug text not null unique )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "accent",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "claim_value",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "slug",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "slug",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "upload_refs",
+    "type": "table",
+    "definition": "create table upload_refs ( name text not null , space_id text not null references spaces ( id ) on delete cascade , primary key ( name , space_id ) )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 2,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "idx_upload_refs_name",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index idx_upload_refs_name on upload_refs ( name )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "name",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "name",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "uploads",
+    "type": "table",
+    "definition": "create table uploads ( created_at integer not null , name text primary key , space_id text , uploaded_by text not null default '' )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "uploaded_by",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "name",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "users",
+    "type": "table",
+    "definition": "create table users ( active integer not null default 1 , created_at integer not null , email text not null unique , id text primary key , name text not null , oidc_issuer text , oidc_role_managed integer not null default 0 , oidc_sub text , orcid text not null default '' , password_hash text not null , role text not null default 'admin' , totp_secret text )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "active",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "1",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "email",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "oidc_issuer",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "oidc_role_managed",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "oidc_sub",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "orcid",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "password_hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "role",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "'admin'",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "totp_secret",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [],
+    "indexes": [
+      {
+        "name": "users_oidc",
+        "unique": 1,
+        "origin": "c",
+        "partial": 1,
+        "sql": "create unique index users_oidc on users ( oidc_issuer , oidc_sub ) where oidc_issuer is not null",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "oidc_issuer",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": "oidc_sub",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 2,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "email",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  },
+  {
+    "name": "visitor_tokens",
+    "type": "table",
+    "definition": "create table visitor_tokens ( created_at integer not null , created_by text , expires_at integer not null , id text primary key , label text not null default '' , last_used_at integer , revoked_at integer , space_id text not null references spaces ( id ) on delete cascade , token_hash text not null unique , uses integer not null default 0 )",
+    "strict": 0,
+    "withoutRowid": 0,
+    "columns": [
+      {
+        "name": "created_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "created_by",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "expires_at",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "id",
+        "type": "TEXT",
+        "notnull": 0,
+        "default": null,
+        "pk": 1,
+        "hidden": 0
+      },
+      {
+        "name": "label",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": "''",
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "last_used_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "revoked_at",
+        "type": "INTEGER",
+        "notnull": 0,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "space_id",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "token_hash",
+        "type": "TEXT",
+        "notnull": 1,
+        "default": null,
+        "pk": 0,
+        "hidden": 0
+      },
+      {
+        "name": "uses",
+        "type": "INTEGER",
+        "notnull": 1,
+        "default": "0",
+        "pk": 0,
+        "hidden": 0
+      }
+    ],
+    "foreign": [
+      [
+        {
+          "seq": 0,
+          "table": "spaces",
+          "from": "space_id",
+          "to": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ]
+    ],
+    "indexes": [
+      {
+        "name": "visitor_space",
+        "unique": 0,
+        "origin": "c",
+        "partial": 0,
+        "sql": "create index visitor_space on visitor_tokens ( space_id )",
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "space_id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "pk",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "id",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      },
+      {
+        "name": null,
+        "unique": 1,
+        "origin": "u",
+        "partial": 0,
+        "sql": null,
+        "columns": [
+          {
+            "seqno": 0,
+            "name": "token_hash",
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 1
+          },
+          {
+            "seqno": 1,
+            "name": null,
+            "desc": 0,
+            "coll": "BINARY",
+            "key": 0
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "virtual": null
+  }
+]

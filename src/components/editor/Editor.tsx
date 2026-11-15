@@ -208,7 +208,7 @@ export default function Editor({
       if (seeded.current) return;
       seeded.current = true;
       if (collab.fragment.length > 0) return; // somebody got there first
-      const blocks = parsed;
+      const blocks = JSON.parse(collab.seedContent) as typeof parsed;
       if (!blocks || blocks.length === 0) return;
       collab.provider.doc.transact(() => {
         blocksToYXmlFragment(editor as never, blocks as never, collab.fragment);

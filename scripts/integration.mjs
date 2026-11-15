@@ -166,17 +166,20 @@ if (priv) {
 section("Signing in is not permission to write");
 {
   const title = db.prepare("SELECT title FROM pages WHERE id=?").get(page.id).title;
-  const rewrite = (who) =>
+  const rewrite = (who, allowed) =>
     fetch(`${BASE}/api/pages/${page.id}`, {
       method: "PATCH",
       headers: { ...as(who), "content-type": "application/json" },
-      body: JSON.stringify({ title: `tampered by ${who}` }),
+      body: JSON.stringify({ title: `tampered by ${who}`, ...(allowed ? (() => {
+        const version = db.prepare("SELECT revision, epoch FROM page_edit_versions WHERE page_id=?").get(page.id);
+        return { expectedRevision: version?.revision ?? 0, expectedEpoch: version?.epoch ?? 0 };
+      })() : {}) }),
     });
   for (const [who, allowed] of [
     ["it_editor", true], ["it_admin", true],
     ["it_reader", false], ["it_agent", false], ["it_outsider", false],
   ]) {
-    const r = await rewrite(who);
+    const r = await rewrite(who, allowed);
     check(`${who}: rewrite a page ${allowed ? "allowed" : "refused"}`,
       allowed ? r.ok : r.status === 403, `got ${r.status}`);
   }

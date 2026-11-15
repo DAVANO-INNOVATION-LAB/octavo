@@ -33,6 +33,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - uses: azure/setup-helm@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install PyYAML==6.0.3
+      - run: npm run test:release-candidate
       - run: npm run evidence -- --source-only
       - run: npm run test:evidence
       # Development packages are pruned from the standalone image after build.
@@ -317,14 +323,18 @@ jobs:
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           VERSION="${TAG#v}"
-          docker buildx imagetools create --tag "${IMAGE}:${VERSION}" --tag "${IMAGE}:latest" "${IMAGE}:${VERSION}-amd64" "${IMAGE}:${VERSION}-arm64"
+          TAGS=(--tag "${IMAGE}:${VERSION}")
+          if [[ "$VERSION" != *-* ]]; then TAGS+=(--tag "${IMAGE}:latest"); fi
+          docker buildx imagetools create "${TAGS[@]}" "${IMAGE}:${VERSION}-amd64" "${IMAGE}:${VERSION}-arm64"
           DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" | awk '$1 == "Digest:" {print $2; exit}')
           test -n "$DIGEST"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if [ -n "$HUB_USER" ]; then
             HUB="docker.io/${HUB_USER}/octavo"
-            docker buildx imagetools create --tag "${HUB}:${VERSION}" --tag "${HUB}:latest" "${HUB}:${VERSION}-amd64" "${HUB}:${VERSION}-arm64"
+            HUB_TAGS=(--tag "${HUB}:${VERSION}")
+            if [[ "$VERSION" != *-* ]]; then HUB_TAGS+=(--tag "${HUB}:latest"); fi
+            docker buildx imagetools create "${HUB_TAGS[@]}" "${HUB}:${VERSION}-amd64" "${HUB}:${VERSION}-arm64"
           fi
       - uses: actions/download-artifact@v8
         with:
@@ -343,7 +353,7 @@ jobs:
           sbom-path: octavo-${{ steps.merge.outputs.version }}.cdx.json
           push-to-registry: true
       - name: Sync Docker Hub description
-        if: env.HUB_USER != ''
+        if: env.HUB_USER != '' && !contains(inputs.tag || github.ref_name, '-')
         uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -407,6 +417,8 @@ jobs:
         with:
           tag_name: ${{ inputs.tag || github.ref_name }}
           body_path: release-notes.md
+          prerelease: ${{ contains(inputs.tag || github.ref_name, '-') }}
+          make_latest: ${{ contains(inputs.tag || github.ref_name, '-') && 'false' || 'true' }}
           files: |
             dist/*.tgz
             dist/*.cdx.json

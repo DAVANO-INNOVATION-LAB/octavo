@@ -15,6 +15,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - uses: azure/setup-helm@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install PyYAML==6.0.3
+      - run: npm run test:release-candidate
       - run: npm run evidence -- --source-only
       - run: npm run test:evidence
       # Development packages are pruned from the standalone image after build.

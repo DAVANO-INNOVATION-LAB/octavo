@@ -1,3 +1,4 @@
+import { collaborationEnabled } from "./collab-config";
 import "server-only";
 import { DRAWIO_PATH, type PublicConfig } from "./config-shared";
 
@@ -52,7 +53,7 @@ export function publicConfig(): PublicConfig {
   return {
     drawioOrigin: origin,
     offline,
-    collab: process.env.OCTAVO_COLLAB !== "0",
+    collab: collaborationEnabled(),
   };
 }
 

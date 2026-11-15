@@ -69,6 +69,39 @@ CREATE TABLE IF NOT EXISTS pages (
 );
 CREATE INDEX IF NOT EXISTS pages_space ON pages(space_id, parent_id, position);
 
+-- Revision checks fence stale editor saves; epochs fence replaced shared documents.
+CREATE TABLE IF NOT EXISTS collab_recovery_updates (
+  id TEXT PRIMARY KEY,
+  page_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  state BLOB NOT NULL,
+  reason TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS collab_room_leases (
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  owner_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY(page_id,owner_id)
+);
+CREATE TABLE IF NOT EXISTS page_edit_versions (
+  page_id TEXT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
+  revision INTEGER NOT NULL DEFAULT 0,
+  epoch INTEGER NOT NULL DEFAULT 0
+);
+INSERT OR IGNORE INTO page_edit_versions(page_id) SELECT id FROM pages;
+CREATE TRIGGER IF NOT EXISTS page_edit_version_insert AFTER INSERT ON pages BEGIN
+  INSERT OR IGNORE INTO page_edit_versions(page_id) VALUES(NEW.id);
+END;
+CREATE TRIGGER IF NOT EXISTS page_edit_version_update AFTER UPDATE OF title,content,published,slug,parent_id ON pages
+WHEN OLD.title IS NOT NEW.title OR OLD.content IS NOT NEW.content OR OLD.published IS NOT NEW.published
+  OR OLD.slug IS NOT NEW.slug OR OLD.parent_id IS NOT NEW.parent_id
+BEGIN
+  INSERT OR IGNORE INTO page_edit_versions(page_id) VALUES(NEW.id);
+  UPDATE page_edit_versions SET revision=revision+1 WHERE page_id=NEW.id;
+END;
+
 CREATE TABLE IF NOT EXISTS document_reviews (
   page_id TEXT PRIMARY KEY REFERENCES pages(id) ON DELETE CASCADE,
   owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -253,6 +286,31 @@ CREATE TABLE IF NOT EXISTS repo_state (
   hash TEXT NOT NULL,
   synced_at INTEGER NOT NULL,
   PRIMARY KEY (space_id, path)
+);
+
+-- Separate local/remote baselines: Markdown normalization is not byte-preserving.
+CREATE TABLE IF NOT EXISTS repo_sync_baselines (
+  space_id TEXT NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  page_id TEXT NOT NULL,
+  local_path TEXT NOT NULL,
+  local_hash TEXT NOT NULL,
+  remote_hash TEXT NOT NULL,
+  PRIMARY KEY (space_id, path)
+);
+CREATE TABLE IF NOT EXISTS repo_sync_revisions (
+  id TEXT PRIMARY KEY,
+  page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+  page_json TEXT NOT NULL,
+  remote_revision TEXT NOT NULL,
+  collab_state BLOB,
+  collab_epoch INTEGER NOT NULL DEFAULT 0,
+  page_revision INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS repo_sync_reports (
+  space_id TEXT PRIMARY KEY REFERENCES spaces(id) ON DELETE CASCADE,
+  report TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sync_state (
@@ -549,6 +607,11 @@ function open(): Database.Database {
 
 /** Additive migrations for databases created by earlier versions. */
 function migrate(db: Database.Database) {
+
+  const recoveryCols = new Set((db.pragma("table_info(repo_sync_revisions)") as {name:string}[]).map(c => c.name));
+  for (const [name,type] of [["collab_state","BLOB"],["collab_epoch","INTEGER NOT NULL DEFAULT 0"],["page_revision","INTEGER NOT NULL DEFAULT 0"]])
+    if (!recoveryCols.has(name)) db.exec(`ALTER TABLE repo_sync_revisions ADD COLUMN ${name} ${type}`);
+
   if (!(db.pragma("table_info(runs)") as {name:string}[]).some(c => c.name === "remote_id")) db.exec("ALTER TABLE runs ADD COLUMN remote_id TEXT NOT NULL DEFAULT ''");
   {
     const pageCols = (db.pragma("table_info(pages)") as { name: string }[]).map((c) => c.name);
@@ -635,6 +698,9 @@ function migrate(db: Database.Database) {
   if (!userCols.includes("totp_secret")) {
     db.exec("ALTER TABLE users ADD COLUMN totp_secret TEXT");
   }
+  if (!userCols.includes("oidc_role_managed")) {
+    db.exec("ALTER TABLE users ADD COLUMN oidc_role_managed INTEGER NOT NULL DEFAULT 0");
+  }
   if (!userCols.includes("oidc_issuer")) {
     db.exec("ALTER TABLE users ADD COLUMN oidc_issuer TEXT");
     db.exec("ALTER TABLE users ADD COLUMN oidc_sub TEXT");
@@ -642,6 +708,11 @@ function migrate(db: Database.Database) {
       "CREATE UNIQUE INDEX IF NOT EXISTS users_oidc ON users(oidc_issuer, oidc_sub) WHERE oidc_issuer IS NOT NULL"
     );
   }
+  // SCIM and normal startup share one schema; do not defer identity lifecycle
+  // columns until the first authenticated SCIM/role operation.
+  if (!(db.pragma("table_info(users)") as {name:string}[]).some(c => c.name === "active"))
+    db.exec("ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1");
+
 }
 
 export function getDb(): Database.Database {

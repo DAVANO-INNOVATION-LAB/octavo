@@ -121,13 +121,52 @@ export async function verifyConnection(c: RepoConnection): Promise<Attempt<{ bra
   return { ok: true, value: { branch: c.branch } };
 }
 
+/** Resolve a mutable branch to one immutable commit before reading a sync snapshot. */
+export async function resolveRevision(c: RepoConnection): Promise<Attempt<string>> {
+  const revision = (value: unknown): Attempt<string> =>
+    typeof value === "string" && /^[0-9a-f]{40,64}$/i.test(value)
+      ? { ok: true, value }
+      : { ok: false, error: "The host returned no valid immutable commit for this branch" };
+  try {
+    if (c.provider === "bitbucket-dc") {
+      for (let start = 0, page = 0; page < 200; page++) {
+        const r = await call(`${dcRepo(c)}/branches?filterText=${encodeURIComponent(c.branch)}&limit=100&start=${start}`, { headers: headers(c) });
+        if (!r.ok) return r;
+        const data = JSON.parse(r.value.text) as { values?: { displayId: string; latestCommit?: string }[]; isLastPage?: boolean; nextPageStart?: number };
+        if (!Array.isArray(data.values)) return { ok: false, error: "Invalid Data Center branch listing" };
+        const branch = data.values.find(b => b.displayId === c.branch);
+        if (branch) return revision(branch.latestCommit);
+        if (data.isLastPage) return { ok: false, error: "Branch was not found in Bitbucket Data Center" };
+        if (typeof data.nextPageStart !== "number" || data.nextPageStart <= start) return { ok: false, error: "Invalid Data Center pagination" };
+        start = data.nextPageStart;
+      }
+      return { ok: false, error: "Data Center branch listing exceeds 200 requests" };
+    }
+    const url = c.provider === "github"
+      ? `${apiBase(c)}/repos/${c.repo}/git/ref/heads/${encodeURIComponent(c.branch)}`
+      : c.provider === "gitlab"
+        ? `${apiBase(c)}/projects/${projectId(c.repo)}/repository/branches/${encodeURIComponent(c.branch)}`
+        : `${apiBase(c)}/repositories/${encodePath(c.repo)}/refs/branches/${encodeURIComponent(c.branch)}`;
+    const r = await call(url, { headers: headers(c) });
+    if (!r.ok) return r;
+    const data = JSON.parse(r.value.text) as { object?: { sha?: string }; commit?: { id?: string }; target?: { hash?: string } };
+    return revision(c.provider === "github" ? data.object?.sha : c.provider === "gitlab" ? data.commit?.id : data.target?.hash);
+  } catch {
+    return { ok: false, error: "The host returned an invalid branch response" };
+  }
+}
+
+// Data Center accepts a full commit ID in `at`; a pinned ID must not be
+// prefixed with refs/heads or it becomes a nonexistent branch name.
+const dcReadRef = (branch: string) => /^[0-9a-f]{40,64}$/i.test(branch) ? branch : "refs/heads/" + branch;
+
 /** Every Markdown file under the configured path, at the configured branch. */
 export async function listMarkdown(c: RepoConnection): Promise<Attempt<RemoteFile[]>> {
   const prefix = c.path.replace(/^\/+|\/+$/g, "");
   if (c.provider === "bitbucket-dc") {
     const files: RemoteFile[] = [];
     for (let start = 0, page = 0; page < 200; page++) {
-      const r = await call(`${dcRepo(c)}/files?at=${encodeURIComponent("refs/heads/" + c.branch)}&limit=1000&start=${start}`, { headers: headers(c) });
+      const r = await call(`${dcRepo(c)}/files?at=${encodeURIComponent(dcReadRef(c.branch))}&limit=1000&start=${start}`, { headers: headers(c) });
       if (!r.ok) return r;
       const data = JSON.parse(r.value.text) as { values?: string[]; isLastPage?: boolean; nextPageStart?: number };
       if (!Array.isArray(data.values)) return { ok: false, error: "Invalid Data Center file listing" };
@@ -178,7 +217,8 @@ export async function listMarkdown(c: RepoConnection): Promise<Attempt<RemoteFil
     // as "removed upstream". Refusing is the only safe answer.
     if (tree.truncated)
       return { ok: false, error: "the repository tree is too large to list in one request" };
-    const files = (tree.tree ?? [])
+    if (!Array.isArray(tree.tree)) return { ok: false, error: "Invalid GitHub repository tree" };
+    const files = tree.tree
       .filter((n) => n.type === "blob" && /\.md$/i.test(n.path))
       .filter((n) => (prefix ? n.path.startsWith(`${prefix}/`) : true))
       .map((n) => ({ path: prefix ? n.path.slice(prefix.length + 1) : n.path, sha: n.sha }));
@@ -194,12 +234,14 @@ export async function listMarkdown(c: RepoConnection): Promise<Attempt<RemoteFil
     const r = await call(url, { headers: headers(c) });
     if (!r.ok) return r;
     const nodes = JSON.parse(r.value.text) as { path: string; type: string; id: string }[];
+    if (!Array.isArray(nodes)) return { ok: false, error: "Invalid GitLab repository tree" };
     if (nodes.length === 0) break;
     for (const n of nodes) {
-      if (n.type !== "blob" || !/\.md$/i.test(n.path)) continue;
+      if (n.type !== "blob" || !/\.md$/i.test(n.path) || (prefix && !n.path.startsWith(prefix + "/"))) continue;
       out.push({ path: prefix ? n.path.slice(prefix.length + 1) : n.path, sha: n.id });
     }
     if (nodes.length < 100) break;
+    if (page === 20) return { ok: false, error: "GitLab repository listing exceeds 20 pages; select a smaller directory" };
   }
   return { ok: true, value: out };
 }
@@ -209,7 +251,7 @@ export async function readFile(c: RepoConnection, rel: string): Promise<Attempt<
   const prefix = c.path.replace(/^\/+|\/+$/g, "");
   const full = prefix ? `${prefix}/${rel}` : rel;
   if (c.provider === "bitbucket-dc") {
-    const r = await call(`${dcRepo(c)}/raw/${encodePath(full)}?at=${encodeURIComponent("refs/heads/" + c.branch)}`, { headers: headers(c) });
+    const r = await call(`${dcRepo(c)}/raw/${encodePath(full)}?at=${encodeURIComponent(dcReadRef(c.branch))}`, { headers: headers(c) });
     return r.ok ? { ok: true, value: r.value.text } : r;
   }
   if (c.provider === "bitbucket") {
@@ -249,9 +291,14 @@ export type Change = { path: string; content: string };
 export async function pushFiles(
   c: RepoConnection,
   changes: Change[],
-  message: string
+  message: string,
+  expectedRevision?: string
 ): Promise<Attempt<{ commit: string; files: number }>> {
   if (changes.length === 0) return { ok: true, value: { commit: "", files: 0 } };
+  // Do not pretend a preflight read is a compare-and-swap. These providers'
+  // existing write APIs have no implemented atomic revision guard here.
+  if (expectedRevision !== undefined && c.provider !== "github")
+    return { ok: false, error: `${c.provider} guarded repository pushes are not supported yet. No files were written; use your Git workflow to publish local changes.` };
   const prefix = c.path.replace(/^\/+|\/+$/g, "");
   const full = (rel: string) => (prefix ? `${prefix}/${rel}` : rel);
 
@@ -301,6 +348,8 @@ export async function pushFiles(
   if (!head.ok) return head;
   const headSha = (JSON.parse(head.value.text) as { object?: { sha?: string } }).object?.sha;
   if (!headSha) return { ok: false, error: "the branch has no commit to build on" };
+  if (expectedRevision !== undefined && headSha !== expectedRevision)
+    return { ok: false, error: "The repository branch changed after it was read. No files were written; retry synchronization." };
 
   const blobs: { path: string; sha: string }[] = [];
   for (const ch of changes) {
@@ -340,7 +389,7 @@ export async function pushFiles(
     {
       method: "PATCH",
       headers: { ...headers(c), "Content-Type": "application/json" },
-      body: JSON.stringify({ sha: commitSha }),
+      body: JSON.stringify({ sha: commitSha, force: false }),
     }
   );
   if (!move.ok) return move;

@@ -15,6 +15,7 @@ const TABS = [
   { href: "/admin/notifications", label: "Notifications" },
   { href: "/admin/reading", label: "Reading signals" },
   { href: "/admin/sites", label: "Sites" },
+  { href: "/admin/exchange", label: "Disconnected exchange" },
   { href: "/admin/tenants", label: "Tenants" },
   { href: "/admin/doi", label: "DOIs" },
   { href: "/admin/ask", label: "Ask" },

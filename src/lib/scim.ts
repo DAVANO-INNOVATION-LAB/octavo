@@ -169,21 +169,23 @@ export function scimPatch(
 ): ReturnType<typeof scimGet> {
   ensureActiveColumn();
   const db = getDb();
-  for (const op of ops) {
-    if (String(op.op ?? "").toLowerCase() !== "replace") continue;
-    const value = op.value as Record<string, unknown> | boolean | undefined;
-    const active =
-      op.path === "active"
-        ? value
-        : typeof value === "object" && value !== null
-          ? (value as Record<string, unknown>).active
-          : undefined;
-    if (typeof active === "boolean" || active === "False" || active === "True") {
-      const on = active === true || active === "True";
-      db.prepare("UPDATE users SET active = ? WHERE id = ?").run(on ? 1 : 0, id);
-      if (!on) db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+  db.transaction(() => {
+    for (const op of ops) {
+      if (String(op.op ?? "").toLowerCase() !== "replace") continue;
+      const value = op.value as Record<string, unknown> | boolean | undefined;
+      const active =
+        op.path === "active"
+          ? value
+          : typeof value === "object" && value !== null
+            ? (value as Record<string, unknown>).active
+            : undefined;
+      if (typeof active === "boolean" || active === "False" || active === "True") {
+        const on = active === true || active === "True";
+        db.prepare("UPDATE users SET active = ? WHERE id = ?").run(on ? 1 : 0, id);
+        if (!on) db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+      }
     }
-  }
+  })();
   return scimGet(id);
 }
 
@@ -201,15 +203,17 @@ export function scimReplace(
     ?.toLowerCase()
     .trim();
   const name = body.displayName?.trim() || body.name?.formatted?.trim();
-  if (email?.includes("@"))
-    db.prepare("UPDATE users SET email = ? WHERE id = ?").run(email, id);
-  if (name) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(name, id);
-  if (body.active === false) {
-    db.prepare("UPDATE users SET active = 0 WHERE id = ?").run(id);
-    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
-  } else if (body.active === true) {
-    db.prepare("UPDATE users SET active = 1 WHERE id = ?").run(id);
-  }
+  db.transaction(() => {
+    if (email?.includes("@"))
+      db.prepare("UPDATE users SET email = ? WHERE id = ?").run(email, id);
+    if (name) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(name, id);
+    if (body.active === false) {
+      db.prepare("UPDATE users SET active = 0 WHERE id = ?").run(id);
+      db.prepare("DELETE FROM sessions WHERE user_id = ?").run(id);
+    } else if (body.active === true) {
+      db.prepare("UPDATE users SET active = 1 WHERE id = ?").run(id);
+    }
+  })();
   return scimGet(id);
 }
 

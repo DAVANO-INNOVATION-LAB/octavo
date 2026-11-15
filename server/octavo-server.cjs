@@ -20,8 +20,16 @@
 const http = require("node:http");
 const path = require("node:path");
 
+const { collaborationEnabled } = require("./collab-config.cjs");
+const collabEnabled = collaborationEnabled();
+// Never trust an externally supplied capability. The wrapper establishes its
+// own process-only secret before loading Next; disabled servers retain none.
+if (collabEnabled)
+  process.env.OCTAVO_COLLAB_INTERNAL_SECRET = require("node:crypto").randomBytes(32).toString("hex");
+else
+  delete process.env.OCTAVO_COLLAB_INTERNAL_SECRET;
+
 const port = parseInt(process.env.PORT, 10) || 3000;
-const collabEnabled = process.env.OCTAVO_COLLAB !== "0";
 
 let captured = null;
 const originalCreateServer = http.createServer;
@@ -46,24 +54,14 @@ if (collabEnabled) {
   // Give startServer a tick to build its listener before looking for it.
   setTimeout(() => {
     http.createServer = originalCreateServer;
-    if (!captured) {
-      console.error(
-        "octavo: could not attach real-time collaboration — the HTTP server " +
-          "was not where this build expected it. Editing still works; " +
-          "co-editing does not. Set OCTAVO_COLLAB=0 to silence this."
-      );
-      return;
-    }
-    try {
-      const { attachCollab } = require("./collab.cjs");
-      const ok = attachCollab(captured, { port });
-      console.log(
-        ok
-          ? "octavo: real-time collaboration attached at /collab"
-          : "octavo: collaboration could not attach to the HTTP server"
-      );
-    } catch (err) {
-      console.error("octavo: collaboration failed to start —", err.message);
-    }
+    if (!captured)
+      throw new Error("octavo: collaboration startup failed: HTTP listener was not captured");
+    // An enabled deployment must not remain healthy while advertising a
+    // persistence protocol without its coordinator. Uncaught startup errors
+    // terminate the process so the operator can fix or explicitly disable it.
+    const { attachCollab } = require("./collab.cjs");
+    if (!attachCollab(captured, { port }))
+      throw new Error("octavo: collaboration startup failed: coordinator did not attach");
+    console.log("octavo: real-time collaboration attached at /collab");
   }, 500);
 }
