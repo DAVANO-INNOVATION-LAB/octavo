@@ -10,6 +10,10 @@ export type CollabSession = {
   user: { name: string; color: string };
   /** True when this browser is the one that must seed an empty document. */
   seed: boolean;
+  seedContent: string;
+  epoch: number;
+  revision: number;
+  persistence?: "barrier-v1";
 };
 
 /** The fragment name is part of the stored document; changing it orphans history. */
@@ -36,14 +40,14 @@ export function useCollab(pageId: string | undefined, enabled: boolean) {
       // Ask the app who we are and whether we hold the seeding claim. This is
       // also the check that keeps the socket honest: if it says no here, there
       // is no point opening one.
-      let who: { ok: boolean; userId: string; name: string; seed: boolean };
+      let who: { ok: boolean; userId: string; name: string; seed: boolean; content:string;epoch:number;revision:number;persistence?:"barrier-v1" };
       try {
         const res = await fetch(
           `/api/collab/authorize?page=${encodeURIComponent(pageId)}&claim=1`
         );
         if (!res.ok) throw new Error(String(res.status));
         who = await res.json();
-        if (!who.ok) throw new Error("not permitted");
+        if (!who.ok || !Number.isSafeInteger(who.epoch) || !Number.isSafeInteger(who.revision)) throw new Error("not permitted or incompatible collaboration protocol");
       } catch {
         if (!cancelled) setFailed(true);
         return;
@@ -51,7 +55,7 @@ export function useCollab(pageId: string | undefined, enabled: boolean) {
       if (cancelled) return;
 
       const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const url = `${proto}//${window.location.host}/collab?page=${encodeURIComponent(pageId)}`;
+      const url = `${proto}//${window.location.host}/collab?page=${encodeURIComponent(pageId)}&epoch=${who.epoch}`;
       const doc = new Y.Doc();
       provider = new CollabProvider(url, doc);
 
@@ -77,6 +81,7 @@ export function useCollab(pageId: string | undefined, enabled: boolean) {
         fragment: doc.getXmlFragment(FRAGMENT),
         user,
         seed: Boolean(who.seed),
+        seedContent:who.content,epoch:who.epoch,revision:who.revision,persistence:who.persistence,
       });
     })();
 

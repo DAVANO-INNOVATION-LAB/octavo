@@ -1,11 +1,15 @@
+import { exchangeManagedPage } from "@/lib/site-exchange-delete-guard";
+import { collaborationEnabled } from "@/lib/collab-config";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { BookOpen, History, Trash2 } from "lucide-react";
 import { currentUser } from "@/lib/auth";
 import { canEditSpace, canReadSpace } from "@/lib/roles";
-import { getPageBySlug, getSpaceBySlug, pageTree } from "@/lib/data";
+import { getPage, getPageBySlug, getSpaceBySlug, pageTree } from "@/lib/data";
 import { deletePageAction, publishPageAction } from "@/app/actions";
 import { SpaceShell } from "@/components/SpaceShell";
+import { getDb } from "@/lib/db";
+import { pageRevision } from "@/lib/page-revisions";
 import { EditorShell } from "@/components/editor/EditorShell";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +25,14 @@ export default async function EditPage({
   const { space: spaceSlug, page: pageSlug } = await params;
   const space = getSpaceBySlug(spaceSlug);
   if (!space || !canReadSpace(user, space) || !canEditSpace(user, space.id)) notFound();
-  const page = getPageBySlug(space.id, pageSlug);
-  if (!page) notFound();
+  const found = getPageBySlug(space.id, pageSlug);
+  if (!found) notFound();
+  const snapshot = getDb().transaction(() => {
+    const page = getPage(found.id);
+    return page && page.space_id === space.id ? { page, ...pageRevision(page.id) } : null;
+  })();
+  if (!snapshot) notFound();
+  const { page, revision, epoch } = snapshot;
 
   const tree = pageTree(space.id, false);
 
@@ -75,7 +85,7 @@ export default async function EditPage({
               <History size={13} />
               History
             </Link>
-            <form action={deletePageAction}>
+            {exchangeManagedPage(page.id,space.id)?<Link href={`/${space.slug}/${page.slug}/delete`} aria-label="Archive and delete exchange page" className="flex h-8 items-center rounded-md px-2 text-xs text-muted hover:text-ink">Archive & delete</Link>:<form action={deletePageAction}>
               <input type="hidden" name="id" value={page.id} />
               <input type="hidden" name="space" value={space.slug} />
               <button
@@ -84,13 +94,17 @@ export default async function EditPage({
               >
                 <Trash2 size={14} />
               </button>
-            </form>
+            </form>}
           </div>
         </div>
         <EditorShell
           pageId={page.id}
           spaceSlug={space.slug}
           pageSlug={page.slug}
+          initialRevision={revision}
+          initialEpoch={epoch}
+          collaborationEnabled={collaborationEnabled()}
+          initialUserId={user.id}
           initialTitle={page.title}
           initialContent={page.content}
           modelKind={space.model_kind}

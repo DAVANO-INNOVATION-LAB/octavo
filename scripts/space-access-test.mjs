@@ -76,6 +76,7 @@ try {
   const print = require('../src/app/[space]/print/page.tsx').default;
   const printMetadata = require('../src/app/[space]/print/page.tsx').generateMetadata;
   const patch = require('../src/app/api/pages/[id]/route.ts').PATCH;
+  const { pageRevision } = require('../src/lib/page-revisions.ts');
   const trash = require('../src/app/trash/page.tsx').default;
   for (const name of ['getPageBySlug', 'pageTree', 'listVersions', 'getVersion', 'variantGroups']) {
     const real = data[name];
@@ -368,7 +369,7 @@ try {
     // The same grants work once legitimate tenant membership exists.
     for (user of [actors.outsideTenant, actors.outsider]) {
       tenants.addMember(tenant.id, user.id);
-      const response = await patch({ json: async () => ({ title: 'Authorized tenant change' }) }, { params: Promise.resolve({ id: page.id }) });
+      const response = await patch({ json: async () => ({ title: 'Authorized tenant change', expectedRevision: pageRevision(page.id).revision, expectedEpoch: pageRevision(page.id).epoch }) }, { params: Promise.resolve({ id: page.id }) });
       assert.equal(response.status, 200);
       assert.equal(data.getPage(page.id).title, 'Authorized tenant change');
       data.savePage(page.id, { title: page.title, content: page.content });

@@ -85,7 +85,7 @@ export function addMember(tenantId: string, userId: string, fromClaim = false): 
     .prepare(
       `INSERT INTO tenant_members (tenant_id, user_id, from_claim, added_at)
        VALUES (?, ?, ?, ?)
-       ON CONFLICT(tenant_id, user_id) DO UPDATE SET from_claim = excluded.from_claim`
+       ON CONFLICT(tenant_id, user_id) DO UPDATE SET from_claim = MIN(tenant_members.from_claim, excluded.from_claim)`
     )
     .run(tenantId, userId, fromClaim ? 1 : 0, now());
 }

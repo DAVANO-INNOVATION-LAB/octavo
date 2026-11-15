@@ -53,6 +53,7 @@ try {
   const actions = load('app/actions.ts');
   const comments = load('app/api/comments/route.ts').POST;
   const patch = load('app/api/pages/[id]/route.ts').PATCH;
+  const { pageRevision } = load('lib/page-revisions.ts');
   user = { id: 'actor', email: 'actor@example.test', name: 'Synthetic actor', role: 'member' };
   db.prepare('INSERT INTO users(id,email,name,password_hash,role,created_at) VALUES(?,?,?,?,?,?)').run(user.id, user.email, user.name, '!', user.role, Date.now());
   const tenant = tenants.createTenant('Synthetic group tenant');
@@ -129,7 +130,7 @@ try {
           assert.equal(db.prepare('SELECT COUNT(*) AS n FROM comments WHERE page_id = ?').get(page.id).n, expected.includes('comment') ? 1 : 0);
         });
         await action(`${label}: patch`, expected.includes('write'), () => patch(new Request('http://localhost/api/pages/fixture', {
-          method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Written title' }),
+          method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Written title', ...(expected.includes('write') ? { expectedRevision: pageRevision(page.id).revision, expectedEpoch: pageRevision(page.id).epoch } : {}) }),
         }), { params: Promise.resolve({ id: page.id }) }), response => {
           assert.equal(response.status, expected.includes('write') ? 200 : 403);
           assert.equal(data.getPage(page.id).title, expected.includes('write') ? 'Written title' : page.title);

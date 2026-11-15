@@ -1,3 +1,4 @@
+import { mappedRole, mergeUserInfo, stringClaim } from "@/lib/oidc-claims";
 import { verifiedOidcEmail } from "@/lib/oidc-policy";
 import { NextRequest, NextResponse } from "next/server";
 import { createSession, upsertOidcUser } from "@/lib/auth";
@@ -35,8 +36,13 @@ export async function GET(req: NextRequest) {
     const tokens = await oidc.authorizationCodeGrant(config, current, {
       pkceCodeVerifier: stash.verifier,
       expectedState: stash.state,
+      ...(settings.sessionTtlSeconds ? { maxAge: settings.sessionTtlSeconds } : {}),
     });
-    const claims = tokens.claims();
+    const tokenClaims = tokens.claims();
+    if (!tokenClaims?.sub) return fail("no subject claim");
+    const claims = settings.userInfo
+      ? mergeUserInfo(tokenClaims, await oidc.fetchUserInfo(config, tokens.access_token, tokenClaims.sub))
+      : tokenClaims;
     if (!claims?.sub) return fail("no subject claim");
 
     const email = verifiedOidcEmail({ email: claims.email, email_verified: claims.email_verified }, settings.allowedDomain);
@@ -46,33 +52,36 @@ export async function GET(req: NextRequest) {
       settings.adminDomain && domain === settings.adminDomain.toLowerCase()
         ? "admin"
         : settings.defaultRole;
-    const user = upsertOidcUser({
-      issuer: settings.issuer,
-      sub: claims.sub,
-      email,
-      name: typeof claims.name === "string" ? claims.name : "",
-      role,
-    });
+    const claimed = stringClaim(claims, settings.groupsClaim);
+    const claimRole = mappedRole(claims, settings);
+    const user = getDb().transaction(() => {
+      const user = upsertOidcUser({
+        issuer: settings.issuer,
+        sub: tokenClaims.sub,
+        email,
+        name: typeof claims.name === "string" ? claims.name : "",
+        role: claimRole ?? role,
+        manageRole: Object.keys(settings.roleMap).length > 0,
+      });
 
-    // Signing in through ORCID *is* proof of the iD: their `sub` is the iD
-    // itself. Record it so authorship lines can carry it without the person
-    // typing it in — and never overwrite one they set by hand with a bad value.
-    if (/(^|\.)orcid\.org$/.test(new URL(settings.issuer).hostname)) {
-      const id = normalizeOrcid(claims.sub);
-      if (id) getDb().prepare("UPDATE users SET orcid = ? WHERE id = ?").run(id, user.id);
-    }
-    // Groups ride the token. Only claim-derived memberships move; anything
-    // an operator granted by hand inside Octavo stays theirs to manage.
-    const claimed = Array.isArray(claims.groups)
-      ? claims.groups.map((g) => String(g))
-      : [];
-    syncClaimGroups(user.id, claimed);
-    // Tenancy comes from the same claim. A directory that already knows who
-    // belongs to which organisation should not need the answer entered again
-    // by hand in two places.
-    syncTenantsFromClaims(user.id, claimed);
+      // Signing in through ORCID *is* proof of the iD: their `sub` is the iD
+      // itself. Record it so authorship lines can carry it without the person
+      // typing it in — and never overwrite one they set by hand with a bad value.
+      if (/(^|\.)orcid\.org$/.test(new URL(settings.issuer).hostname)) {
+        const id = normalizeOrcid(tokenClaims.sub);
+        if (id) getDb().prepare("UPDATE users SET orcid = ? WHERE id = ?").run(id, user.id);
+      }
+      // Groups ride the token. Only claim-derived memberships move; anything
+      // an operator granted by hand inside Octavo stays theirs to manage.
+      syncClaimGroups(user.id, claimed);
+      // Tenancy comes from the same claim. A directory that already knows who
+      // belongs to which organisation should not need the answer entered again
+      // by hand in two places.
+      syncTenantsFromClaims(user.id, claimed);
+      return user;
+    })();
 
-    await createSession(user.id);
+    await createSession(user.id, settings.sessionTtlSeconds);
 
     const res = NextResponse.redirect(new URL("/", settings.baseUrl), {
       status: 303,

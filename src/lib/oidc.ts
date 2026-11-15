@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import * as oidc from "openid-client";
 import { decryptSecret } from "./crypto";
 import { getSetting } from "./settings";
+import { resolveSecretSource } from "./secret-source";
+import { claimOptions, type ClaimOptions } from "./oidc-claims";
 
 // OIDC single sign-on — in core, never paywalled. Local accounts stay the
 // zero-config default; four env vars turn on SSO against any compliant
@@ -17,7 +19,7 @@ import { getSetting } from "./settings";
 //   OCTAVO_OIDC_NAME            button label (default "SSO")
 //   OCTAVO_OIDC_ALLOWED_DOMAIN  only accept emails under this domain
 
-export type OidcSettings = {
+export type OidcSettings = ClaimOptions & {
   issuer: string;
   clientId: string;
   clientSecret: string;
@@ -36,10 +38,15 @@ function oidcValues() {
   const clientId =
     process.env.OCTAVO_OIDC_CLIENT_ID || getSetting("oidc_client_id");
   const storedSecret = getSetting("oidc_client_secret");
-  const clientSecret = process.env.OCTAVO_OIDC_CLIENT_SECRET ||
-    (storedSecret?.startsWith("enc:") ? decryptSecret(storedSecret.slice(4)) : storedSecret);
+  const clientSecret = resolveSecretSource({
+    envValue: process.env.OCTAVO_OIDC_CLIENT_SECRET,
+    filePath: process.env.OCTAVO_OIDC_CLIENT_SECRET_FILE,
+    storedValue: process.env.OCTAVO_OIDC_CLIENT_SECRET || process.env.OCTAVO_OIDC_CLIENT_SECRET_FILE
+      ? undefined : (storedSecret?.startsWith("enc:") ? decryptSecret(storedSecret.slice(4)) : storedSecret),
+  });
   const baseUrl = process.env.OCTAVO_BASE_URL || getSetting("base_url");
   return {
+    ...claimOptions(),
     issuer,
     clientId,
     clientSecret,
@@ -64,14 +71,18 @@ function oidcValues() {
 
 /** Report configuration gaps without disclosing credential values. */
 export function oidcMissingFields(): string[] {
-  const values = oidcValues();
+  let values: ReturnType<typeof oidcValues>;
+  try { values = oidcValues(); }
+  catch { return ["OIDC configuration is invalid or the configured credential is unavailable"]; }
   return ([ ["issuer", "Issuer URL"], ["clientId", "Client ID"],
     ["clientSecret", "Client secret (missing or unreadable)"], ["baseUrl", "Base URL of this Octavo"] ] as const)
     .filter(([key]) => !values[key]?.trim()).map(([, label]) => label);
 }
 
 export function oidcSettings(): OidcSettings | null {
-  const values = oidcValues();
+  let values: ReturnType<typeof oidcValues>;
+  try { values = oidcValues(); }
+  catch { return null; }
   if (!values.issuer?.trim() || !values.clientId?.trim() || !values.clientSecret?.trim() || !values.baseUrl?.trim()) return null;
   return values as OidcSettings;
 }

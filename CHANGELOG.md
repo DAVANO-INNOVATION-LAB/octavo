@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.28.0-rc.1
+
+Release candidate for isolated evaluation, not a production automatic-sync release.
+
+- Add signed manual full and opt-in incremental disconnected-site exchange with conflict review, reversible deletion holds, portable links and optional staging review.
+- Add explicit OIDC claim/role mappings, claim-owned grant reconciliation, bounded new-session TTL, SCIM deactivation session revocation and file-backed client secrets. Existing manual grants remain separately controlled.
+- Durable inbox/outbox and loopback mTLS transport remain disabled prototypes; no automatic peer enrollment, network scheduler or automatic imports are provided.
+- SSO provider validation was performed separately before integration; combined-provider deployment validation remains a release-candidate limitation.
+- Do not enable against live data without backup and isolated upgrade validation. See docs/DISCONNECTED-TRANSPORT-DECISION.md and docs/OIDC-CLAIM-MAPPING.md.
+
+
+- Reconcile repository pulls into bound pages in the original space and make repeat pulls no-ops with separate local/remote baselines. New remote files become drafts.
+- Pin remote reads, condition GitHub commits on the inspected revision, and transactionally apply local changes with exact pre-pull recovery records.
+- Hold conflicts, deletions, moves, lossy Markdown updates, collaborative editor state and block-anchored pages for explicit review rather than overwriting them.
+- Safety change: GitLab and Bitbucket Cloud outbound repository sync is held until conditional-write guarantees are implemented; read-only reconciliation remains available when no outbound changes are needed. Data Center remains snapshot import.
+- Require versioned page PATCH requests and serialize editor saves with explicit conflict recovery. This changes the page PATCH API; external clients need to send the loaded revision.
+- Make server-owned collaborative projection and durable save acknowledgments the default; either collaboration disable flag disables the feature entirely, with no legacy writer fallback. Existing shared/page divergence is held for recovery review.
+- Keep repository-driven shared-document replacement behind `OCTAVO_REPO_COLLAB_SYNC=experimental`, with active-editor holds and recovery archives. It remains disabled by default and is not a production synchronization guarantee.
+- Repository reconciliation and signed disconnected exchange are distinct workflows; see docs/REPOSITORY-SYNC.md and docs/DISCONNECTED-EXCHANGE.md for supported behavior and limits.
+
 ## v0.27.27
 
 - Include a versioned file-checksum inventory in new space exports and validate it before importing a package.

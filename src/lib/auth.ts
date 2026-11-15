@@ -73,12 +73,17 @@ export async function cookieSecure(): Promise<boolean> {
   return proto.split(",")[0].trim() === "https";
 }
 
-export async function createSession(userId: string) {
+export async function createSession(userId: string, maxTtlSeconds?: number) {
   const id = randomBytes(32).toString("hex");
-  const ttl = sessionTtlMs();
-  getDb()
-    .prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)")
-    .run(id, userId, now() + ttl);
+  if (maxTtlSeconds !== undefined && (!Number.isSafeInteger(maxTtlSeconds) || maxTtlSeconds < 60 || maxTtlSeconds > 86400)) throw new Error("Invalid session maximum lifetime");
+  const ttl = Math.min(sessionTtlMs(), maxTtlSeconds === undefined ? Infinity : maxTtlSeconds * 1000);
+  const db = getDb();
+  // Share the transaction with the active check so deprovisioning cannot race
+  // a new insert into a deactivated account between these statements.
+  db.transaction(() => {
+    if (isDeactivated(userId)) throw new Error("Account is deactivated");
+    db.prepare("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)").run(id, userId, now() + ttl);
+  })();
   const jar = await cookies();
   jar.set(SESSION_COOKIE, id, {
     httpOnly: true,
@@ -138,7 +143,7 @@ export function authenticate(email: string, password: string): AuthResult {
     .get(email.toLowerCase().trim()) as
     | (User & { password_hash: string })
     | undefined;
-  if (!row || !verifyPassword(password, row.password_hash)) {
+  if (!row || isDeactivated(row.id) || !verifyPassword(password, row.password_hash)) {
     recordSigninFailure(email);
     return { ok: false, reason: "bad-credentials" };
   }
@@ -161,6 +166,7 @@ export function upsertOidcUser(input: {
   name: string;
   /** Role for a brand-new SSO account (first user is always admin). */
   role?: "member" | "admin";
+  manageRole?: boolean;
 }): User {
   const db = getDb();
   const email = input.email.toLowerCase().trim();
@@ -170,12 +176,21 @@ export function upsertOidcUser(input: {
       "SELECT id, email, name, role FROM users WHERE oidc_issuer = ? AND oidc_sub = ?"
     )
     .get(input.issuer, input.sub) as User | undefined;
-  if (bySub) return bySub;
+  if (bySub) {
+    if (isDeactivated(bySub.id)) throw new Error("SSO account is deactivated");
+    const ownership = db.prepare("SELECT oidc_role_managed FROM users WHERE id = ?").get(bySub.id) as { oidc_role_managed: number };
+    if (input.manageRole && ownership.oidc_role_managed === 1) {
+      db.prepare("UPDATE users SET role = ? WHERE id = ?").run(input.role ?? 'member', bySub.id);
+      bySub.role = input.role ?? 'member';
+    }
+    return bySub;
+  }
 
   const byEmail = db
     .prepare("SELECT id, email, name, role FROM users WHERE email = ?")
     .get(email) as User | undefined;
   if (byEmail) {
+    if (isDeactivated(byEmail.id)) throw new Error("SSO account is deactivated");
     const linked = db.prepare("SELECT oidc_issuer FROM users WHERE id = ?").get(byEmail.id) as { oidc_issuer: string | null };
     if (linked.oidc_issuer) throw new Error("Email is already linked to a different SSO identity");
     db.prepare("UPDATE users SET oidc_issuer = ?, oidc_sub = ? WHERE id = ?").run(
@@ -187,11 +202,13 @@ export function upsertOidcUser(input: {
   }
 
   const id = newId();
-  const role = userCount() === 0 ? "admin" : (input.role ?? "member");
+  const bootstrap = userCount() === 0;
+  const role = bootstrap ? "admin" : (input.role ?? "member");
   db.prepare(
     `INSERT INTO users (id, email, name, password_hash, role, created_at, oidc_issuer, oidc_sub)
      VALUES (?, ?, ?, 'oidc', ?, ?, ?, ?)`
   ).run(id, email, input.name.trim() || email, role, now(), input.issuer, input.sub);
+  if (input.manageRole && !bootstrap) db.prepare("UPDATE users SET oidc_role_managed = 1 WHERE id = ?").run(id);
   return { id, email, name: input.name.trim() || email, role };
 }
 
@@ -270,7 +287,7 @@ export function setUserRole(
   id: string,
   role: "admin" | "member" | "agent"
 ) {
-  getDb().prepare("UPDATE users SET role = ? WHERE id = ?").run(role, id);
+  getDb().prepare("UPDATE users SET role = ?, oidc_role_managed = 0 WHERE id = ?").run(role, id);
 }
 
 export function deleteUser(id: string) {

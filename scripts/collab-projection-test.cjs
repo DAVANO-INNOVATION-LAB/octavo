@@ -1,0 +1,77 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS server lifecycle test. */
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),Module=require('node:module'),http=require('node:http');
+const Database=require('better-sqlite3'),Y=require('yjs'),decoding=require('lib0/decoding');
+const {createHash}=require('node:crypto');
+const hash=x=>createHash('sha256').update(x).digest('hex');
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const until=async fn=>{for(let i=0;i<100;i++){if(fn())return;await wait(5);}throw new Error('timeout');};
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'octavo-projection-')),db=new Database(path.join(dir,'db'));
+db.exec(`CREATE TABLE pages(id TEXT PRIMARY KEY,content TEXT);
+CREATE TABLE page_edit_versions(page_id TEXT PRIMARY KEY,epoch INTEGER,revision INTEGER);
+CREATE TABLE collab_docs(page_id TEXT PRIMARY KEY,state BLOB,updated_at INTEGER);
+CREATE TABLE collab_room_leases(page_id TEXT,owner_id TEXT,epoch INTEGER,expires_at INTEGER,PRIMARY KEY(page_id,owner_id));
+CREATE TABLE collab_recovery_updates(id TEXT PRIMARY KEY,page_id TEXT,epoch INTEGER,state BLOB,reason TEXT,created_at INTEGER);
+INSERT INTO pages VALUES('p','[]'); INSERT INTO page_edit_versions VALUES('p',0,0);`);
+const file=path.resolve('server/collab.cjs'),mod=new Module(file,module);
+mod.filename=file;mod.paths=Module._nodeModulePaths(path.dirname(file));
+mod._compile(fs.readFileSync(file,'utf8').replace('const PERSIST_DEBOUNCE_MS = 2000;','const PERSIST_DEBOUNCE_MS = 25;')+'\nmodule.exports.test={projectionConfigs,getRoom,persist,requestBarrier,disposeRoom,quarantinedRooms};',file);
+const t=mod.exports.test,requests=[],acks=[];
+const server=http.createServer((req,res)=>{let data='';req.on('data',x=>data+=x);req.on('end',()=>requests.push({body:JSON.parse(data),res,secret:req.headers['x-octavo-collab-secret']}));});
+const ws={OPEN:1,readyState:1,close(){this.readyState=3;},send(bytes){const d=decoding.createDecoder(bytes);if(decoding.readVarUint(d)===2)acks.push(JSON.parse(decoding.readVarString(d)));}};
+let room,checks=0;
+const check=(name,value)=>{assert.ok(value,name);console.log('ok '+(++checks)+': '+name);};
+function commit(request) {
+ const b=request.body;
+ const bytes=Buffer.from(b.state,'base64'),doc=new Y.Doc();Y.applyUpdate(doc,bytes);
+ const content=JSON.stringify({text:doc.getText('text').toString()});doc.destroy();
+ const revision=db.prepare('SELECT revision FROM page_edit_versions').get().revision+1;
+ db.transaction(()=>{
+  db.prepare('INSERT INTO collab_docs VALUES(?,?,?) ON CONFLICT(page_id) DO UPDATE SET state=excluded.state').run('p',bytes,Date.now());
+  db.prepare('UPDATE pages SET content=?').run(content);
+  db.prepare('UPDATE page_edit_versions SET revision=?').run(revision);
+ })();
+ request.res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify({epoch:0,revision,generation:b.generation,stateHash:hash(bytes),bodyHash:hash(content)}));
+}
+(async()=>{try {
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ t.projectionConfigs.set(db,{port:server.address().port,secret:'fixture-secret-not-external'});
+ room=t.getRoom(db,'p',0);room.conns.set(ws,new Set());room.actors.set(ws,'authorized-user');
+ room.doc.transact(()=>room.doc.getText('text').insert(0,'ab'),ws);
+ t.requestBarrier(db,room,ws,1);
+ await until(()=>requests.length===1);
+ check('server-only commit request includes base hashes and authorized actor',requests[0].secret==='fixture-secret-not-external' && requests[0].body.expectedStateHash===null && requests[0].body.expectedBodyHash===hash('[]') && requests[0].body.actorId==='authorized-user');
+ check('no independent Yjs write or acknowledgment before projection commits',!db.prepare('SELECT 1 FROM collab_docs').get() && !acks.length);
+ const vector=Buffer.from(Y.encodeStateVector(room.doc));
+ room.doc.transact(()=>room.doc.getText('text').delete(1,1),ws);
+ check('deletion edit can leave state vector unchanged',vector.equals(Buffer.from(Y.encodeStateVector(room.doc))));
+ t.requestBarrier(db,room,ws,2);
+ commit(requests[0]);await until(()=>acks.length===1);
+ check('older commit acknowledges only its captured barrier',acks[0].requestId===1 && room.dirty);
+ await until(()=>requests.length===2);
+ check('next snapshot uses committed base and newer generation',requests[1].body.expectedStateHash===acks[0].stateHash && requests[1].body.generation>requests[0].body.generation);
+ commit(requests[1]);await until(()=>acks.length===2);
+ check('deletion barrier acknowledged only after its projection commit',acks[1].requestId===2 && !room.dirty && JSON.parse(db.prepare('SELECT content FROM pages').get().content).text==='a');
+ room.doc.transact(()=>room.doc.getText('text').insert(1,'c'),ws);t.requestBarrier(db,room,ws,3);
+ await until(()=>requests.length===3);
+ requests[2].res.writeHead(503).end();
+ await until(()=>requests.length===4);
+ check('transient commit failure retains dirty state without success ack',room.dirty && acks.length===2);
+ commit(requests[3]);await until(()=>acks.length===3);
+ check('retry acknowledges retained barrier after success',acks[2].requestId===3 && !room.dirty);
+ room.doc.transact(()=>room.doc.getText('text').insert(2,'d'),ws);t.requestBarrier(db,room,ws,4);
+ await until(()=>requests.length===5);
+ db.prepare('UPDATE page_edit_versions SET epoch=1').run();
+ requests[4].res.writeHead(409).end();
+ await until(()=>room.disposed && !t.quarantinedRooms.size);
+ check('terminal epoch conflict fences dirty room without ack',acks.length===3 && room.disposed);
+ const recovery=db.prepare('SELECT state FROM collab_recovery_updates WHERE id=?').get(room.recoveryId);
+ const d=new Y.Doc();Y.applyUpdate(d,recovery.state);
+ check('uncommitted projection remains recoverable',d.getText('text').toString()==='acd');d.destroy();
+}finally {
+ if(room&&!room.disposed)t.disposeRoom(room);
+ await until(()=>!t.quarantinedRooms.size);
+ await new Promise(r=>server.close(r));
+ db.close();fs.rmSync(dir,{recursive:true,force:true});
+}console.log(checks+' projection persistence checks passed');
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -19,12 +19,39 @@ import * as decoding from "lib0/decoding";
 const MESSAGE_SYNC = 0;
 const MESSAGE_AWARENESS = 1;
 
+export type PersistenceAck = { requestId: number; revision: number; epoch: number; generation: number; stateHash: string };
+
 export type ConnectionState = "connecting" | "connected" | "offline";
 
 export class CollabProvider {
   readonly doc: Y.Doc;
   readonly awareness: awarenessProtocol.Awareness;
   private ws: WebSocket | null = null;
+  private nextBarrier = 0;
+  private barriers = new Map<number, { sent: boolean; resolve: (ack: PersistenceAck) => void; reject: (error: Error) => void }>();
+
+  /** Ordered after update frames, never a state-vector-only durability claim. */
+  persist(): Promise<PersistenceAck> {
+    if (this.closed) return Promise.reject(new Error("Shared document is closed"));
+    return new Promise((resolve,reject) => {
+      this.barriers.set(++this.nextBarrier,{sent:false,resolve,reject});
+      // BlockNote onChange can run within a Yjs update dispatch. Wait until all
+      // update listeners have emitted their frames before placing the barrier.
+      queueMicrotask(() => this.sendBarriers());
+    });
+  }
+  private sendBarriers() {
+    if (!this.synced || this.closed || this.ws?.readyState !== WebSocket.OPEN) return;
+    for (const [id, barrier] of this.barriers) {
+      if (barrier.sent) continue;
+      const enc=encoding.createEncoder();encoding.writeVarUint(enc,2);encoding.writeVarUint(enc,id);
+      this.send(encoding.toUint8Array(enc));barrier.sent=true;
+    }
+  }
+  private rejectBarriers() {
+    for (const barrier of this.barriers.values()) barrier.reject(new Error("Shared document changed or closed; preserve draft"));
+    this.barriers.clear();
+  }
   private url: string;
   private closed = false;
   private retry = 0;
@@ -143,6 +170,7 @@ export class CollabProvider {
     };
 
     ws.onmessage = (event) => {
+      if (this.ws !== ws) return;
       try {
         const bytes = new Uint8Array(event.data as ArrayBuffer);
         const dec = decoding.createDecoder(bytes);
@@ -167,6 +195,18 @@ export class CollabProvider {
             this.synced = true;
             for (const fn of this.syncedListeners) fn();
             this.syncedListeners.clear();
+            queueMicrotask(() => this.sendBarriers());
+          }
+        } else if (type === 2) {
+          const ack=JSON.parse(decoding.readVarString(dec)) as PersistenceAck;
+          const pending=this.barriers.get(ack.requestId);
+          if (pending?.sent && Number.isSafeInteger(ack.revision) && Number.isSafeInteger(ack.epoch) &&
+              Number.isSafeInteger(ack.generation) && typeof ack.stateHash === "string") {
+            // A later ordered barrier subsumes earlier frames on this same
+            // connection; the server may coalesce requests into its latest ack.
+            for (const [id, barrier] of this.barriers) if (barrier.sent && id <= ack.requestId) {
+              this.barriers.delete(id);barrier.resolve({...ack,requestId:id});
+            }
           }
         } else if (type === MESSAGE_AWARENESS) {
           awarenessProtocol.applyAwarenessUpdate(
@@ -180,8 +220,11 @@ export class CollabProvider {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      if (this.ws !== ws) return;
       this.ws = null;
+      this.synced=false;
+      for (const barrier of this.barriers.values()) barrier.sent=false;
       // Remote cursors belong to a connection that no longer exists.
       awarenessProtocol.removeAwarenessStates(
         this.awareness,
@@ -191,6 +234,13 @@ export class CollabProvider {
         this
       );
       this.setState("offline");
+      if (event.code === 4409) {
+        this.closed = true;
+        this.rejectBarriers();
+        const pageId = new URL(this.url,window.location.href).searchParams.get("page");
+        window.dispatchEvent(new CustomEvent("octavo:collab-stale",{detail:{pageId}}));
+        return;
+      }
       this.scheduleReconnect();
     };
 
@@ -208,6 +258,7 @@ export class CollabProvider {
 
   destroy() {
     this.closed = true;
+    this.rejectBarriers();
     if (this.timer) clearTimeout(this.timer);
     this.disconnectAwareness();
     this.doc.off("update", this.onDocUpdate);

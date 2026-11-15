@@ -3,7 +3,9 @@ import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:
 import { getDb } from "./db";
 
 // AES-256-GCM at-rest encryption for connector credentials, keyed on the
-// per-instance secret so a stolen database file alone does not yield secrets.
+// per-instance secret. The key is stored in the same database: this protects
+// against casual field exposure, NOT theft of the complete database. Use an
+// external secret source for credentials requiring separation from backups.
 
 function key(): Buffer {
   const db = getDb();

@@ -118,6 +118,14 @@ npm install
 npm run dev
 ```
 
+`npm run dev` and `npm start` use safe single-writer editing because plain Next
+does not provide the collaboration WebSocket coordinator. The packaged Docker
+server enables coordinated collaboration by default. Either `OCTAVO_COLLAB=0`
+or `OCTAVO_COLLAB_PERSISTENCE=0` disables collaboration entirely. See
+[repository and collaboration migration notes](docs/REPOSITORY-SYNC.md) before
+upgrading existing data.
+
+
 ## Stack
 
 Next.js (App Router) · React · TypeScript · Tailwind · BlockNote

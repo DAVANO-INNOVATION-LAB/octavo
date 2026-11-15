@@ -179,10 +179,10 @@ export function syncClaimGroups(userId: string, claimed: string[]): number {
   let changed = 0;
   db.transaction(() => {
     const groups = db
-      .prepare("SELECT id, claim_value FROM groups WHERE claim_value != ''")
+      .prepare("SELECT id, claim_value FROM groups")
       .all() as { id: string; claim_value: string }[];
     for (const g of groups) {
-      const shouldBeIn = wanted.has(g.claim_value);
+      const shouldBeIn = Boolean(g.claim_value) && wanted.has(g.claim_value);
       const row = db
         .prepare(
           "SELECT from_claim FROM group_members WHERE group_id = ? AND user_id = ?"

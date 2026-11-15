@@ -1,0 +1,85 @@
+{
+  "name": "site_exchange_legacy_fk_recovery",
+  "type": "table",
+  "definition": "create table site_exchange_legacy_fk_recovery ( checksum text not null , id text primary key , recorded_at integer not null , restored_at integer , row_json text not null , source_table text not null )",
+  "strict": 0,
+  "withoutRowid": 0,
+  "columns": [
+    {
+      "name": "checksum",
+      "type": "TEXT",
+      "notnull": 1,
+      "default": null,
+      "pk": 0,
+      "hidden": 0
+    },
+    {
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "default": null,
+      "pk": 1,
+      "hidden": 0
+    },
+    {
+      "name": "recorded_at",
+      "type": "INTEGER",
+      "notnull": 1,
+      "default": null,
+      "pk": 0,
+      "hidden": 0
+    },
+    {
+      "name": "restored_at",
+      "type": "INTEGER",
+      "notnull": 0,
+      "default": null,
+      "pk": 0,
+      "hidden": 0
+    },
+    {
+      "name": "row_json",
+      "type": "TEXT",
+      "notnull": 1,
+      "default": null,
+      "pk": 0,
+      "hidden": 0
+    },
+    {
+      "name": "source_table",
+      "type": "TEXT",
+      "notnull": 1,
+      "default": null,
+      "pk": 0,
+      "hidden": 0
+    }
+  ],
+  "foreign": [],
+  "indexes": [
+    {
+      "name": null,
+      "unique": 1,
+      "origin": "pk",
+      "partial": 0,
+      "sql": null,
+      "columns": [
+        {
+          "seqno": 0,
+          "name": "id",
+          "desc": 0,
+          "coll": "BINARY",
+          "key": 1
+        },
+        {
+          "seqno": 1,
+          "name": null,
+          "desc": 0,
+          "coll": "BINARY",
+          "key": 0
+        }
+      ]
+    }
+  ],
+  "checks": [],
+  "virtual": null
+}

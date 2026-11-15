@@ -8,6 +8,15 @@ image:
 # front, not with replicas.
 replicaCount: 1
 
+# Optional integration hooks. Reference existing Secrets; never put plaintext
+# credentials in release values. Existing defaults produce no extra resources.
+podAnnotations: {}
+serviceAccountName: ""
+extraEnv: []
+envFrom: []
+extraVolumes: []
+extraVolumeMounts: []
+
 service:
   type: ClusterIP
   port: 3000

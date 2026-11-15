@@ -1,4 +1,5 @@
 import "server-only";
+import { exchangeManagedPage } from "./site-exchange-delete-guard";
 import { hasPolicy, publishProblems } from "./quality-checks";
 import { asVariantKind, type VariantSpace } from "./variants";
 import { getDb } from "./db";
@@ -519,10 +520,14 @@ export function deletePage(id: string) {
   const db = getDb();
   const page = getPage(id);
   if (!page) return;
+  return db.transaction(() => {
   // Collect the subtree (children cascade via FK, but FTS needs manual cleanup).
   const ids: string[] = [];
   const collect = (pid: string) => {
+    if(ids.includes(pid))return;
     ids.push(pid);
+    const scope=db.prepare("SELECT space_id FROM pages WHERE id=?").get(pid) as {space_id:string}|undefined;
+    if(scope&&exchangeManagedPage(pid,scope.space_id))throw new Error("Exchange-bound pages require coordinated full-object archival; direct subtree deletion held");
     const kids = db
       .prepare("SELECT id FROM pages WHERE parent_id = ?")
       .all(pid) as { id: string }[];
@@ -532,6 +537,7 @@ export function deletePage(id: string) {
   const delFts = db.prepare("DELETE FROM pages_fts WHERE page_id = ?");
   for (const pid of ids) delFts.run(pid);
   db.prepare("DELETE FROM pages WHERE id = ?").run(id);
+  }).immediate();
 }
 
 // ---- search ----

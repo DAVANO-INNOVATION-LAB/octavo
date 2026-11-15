@@ -15,7 +15,8 @@ export async function GET() {
 
     const url = oidc.buildAuthorizationUrl(config, {
       redirect_uri: redirectUri(settings),
-      scope: "openid email profile",
+      scope: settings.scopes,
+      ...(settings.sessionTtlSeconds ? { max_age: String(settings.sessionTtlSeconds) } : {}),
       state,
       code_challenge: challenge,
       code_challenge_method: "S256",

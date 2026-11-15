@@ -350,10 +350,16 @@ export async function createPageAction(formData: FormData) {
 export async function deletePageAction(formData: FormData) {
   const user = await requireUser();
   const id = String(formData.get("id") ?? "");
-  const spaceSlug = String(formData.get("space") ?? "");
   const doomed = getPage(id);
+  const spaceSlug = doomed ? getSpace(doomed.space_id)?.slug ?? "" : "";
   if (doomed && !may(user, doomed.space_id, "write")) redirect(`/${spaceSlug}`);
-  if (doomed)
+  if (doomed) {
+    const { exchangeManagedPage, LocalExchangeDeletionHeld } = await import('@/lib/site-exchange-delete-guard');
+    if(exchangeManagedPage(doomed.id,doomed.space_id)){
+      const expected=(name:string)=>{const value=formData.get(name);return typeof value==='string'&&/^(0|[1-9]\d*)$/.test(value)?Number(value):NaN;};
+      try{await (await import('@/lib/site-exchange-local-delete')).deleteLocalExchangePage(id,user,{revision:expected('expectedRevision'),epoch:expected('expectedEpoch'),spaceId:String(formData.get('expectedSpace')??''),tenantId:formData.get('expectedTenant')===''?null:String(formData.get('expectedTenant')??'invalid')});}
+      catch(error){if(error instanceof LocalExchangeDeletionHeld)redirect(`/${spaceSlug}/${doomed.slug}/delete?hold=${error.reason}`);throw error;}
+    }else deletePage(id);
     recordAudit({
       actor: user,
       action: "page.deleted",
@@ -363,7 +369,7 @@ export async function deletePageAction(formData: FormData) {
       spaceId: doomed.space_id,
       detail: { published: doomed.published === 1 },
     });
-  deletePage(id);
+  }
   revalidatePath(`/${spaceSlug}`);
   redirect(`/${spaceSlug}`);
 }
@@ -1597,7 +1603,7 @@ export async function runRepoSyncAction(formData: FormData) {
   if (!space) redirect("/");
   if (!canAdminSpace(user, space.id)) redirect(`/${slug}`);
 
-  const report = await syncWithRepo(space);
+  const report = await syncWithRepo(space, user.id);
   if (report.importedSpace) {
     const imported = getSpaceBySlug(report.importedSpace);
     if (imported) setSpaceMember(imported.id, user.id, "admin");
