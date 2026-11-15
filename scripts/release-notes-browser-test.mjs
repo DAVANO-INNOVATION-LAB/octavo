@@ -13,7 +13,7 @@ if(process.argv[2]==='--seed'){
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'octavo-exchange-browser-')),logs=[],servers=[],dbs=[];let chrome,ws;let checks=0;
 const port=async()=>{const s=net.createServer().listen(0,'127.0.0.1');await once(s,'listening');const p=s.address().port;await new Promise(r=>s.close(r));return p;};
 try{
- fs.cpSync('server','.next/standalone/server',{recursive:true});for(const [from,to] of [['public','.next/standalone/public'],['.next/static','.next/standalone/.next/static']])if(!fs.existsSync(to))fs.symlinkSync(path.resolve(from),to,'dir');
+ fs.cpSync('server','.next/standalone/server',{recursive:true});for(const [from,to] of [['public','.next/standalone/public'],['.next/static','.next/standalone/.next/static']])if(!fs.existsSync(to))fs.cpSync(from,to,{recursive:true});
  const sites=[];
  for(const name of ['a']){
   const dir=path.join(temp,name);fs.mkdirSync(dir,{recursive:true});const env={...process.env,OCTAVO_DATA_DIR:dir,OCTAVO_EXCHANGE_DELTA:'1',OCTAVO_EXCHANGE_STAGING:'1'};
