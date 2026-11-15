@@ -1,6 +1,6 @@
 {
   "name": "octavo",
-  "version": "0.28.0-rc.1",
+  "version": "0.28.0-rc.2",
   "private": true,
   "scripts": {
     "dev": "node scripts/next-single-writer.mjs dev",
@@ -102,7 +102,8 @@
     "test:collab-epochs": "node scripts/collab-epoch-test.cjs",
     "test:collab-projection": "node scripts/collab-startup-test.cjs && node scripts/collab-projection-test.mjs && node scripts/collab-commit-test.mjs && node scripts/collab-projection-test.cjs && node scripts/collab-provider-barrier-test.mjs && node scripts/collab-websocket-integration.mjs",
     "test:cli-single-writer": "node scripts/cli-single-writer-smoke.mjs",
-    "test:release-candidate": "node scripts/secret-source-test.mjs && node scripts/oidc-claims-test.mjs && node scripts/oidc-callback-test.mjs && node scripts/oidc-lifecycle-test.mjs && node scripts/oidc-settings-test.mjs && python3 scripts/helm-secret-hooks-test.py && node scripts/site-exchange-test.mjs && node scripts/site-exchange-delta-test.mjs && node scripts/site-exchange-staging-test.mjs && node scripts/site-exchange-transport-test.mjs && node scripts/site-exchange-app-test.mjs && node scripts/site-exchange-authority-test.mjs && node scripts/site-exchange-links-test.mjs && node scripts/site-exchange-local-delete-test.mjs && node scripts/site-exchange-pagination-test.mjs && python3 scripts/release-prerelease-test.py"
+    "test:release-candidate": "node scripts/secret-source-test.mjs && node scripts/oidc-claims-test.mjs && node scripts/oidc-callback-test.mjs && node scripts/oidc-lifecycle-test.mjs && node scripts/oidc-settings-test.mjs && python3 scripts/helm-secret-hooks-test.py && node scripts/site-exchange-test.mjs && node scripts/site-exchange-delta-test.mjs && node scripts/site-exchange-staging-test.mjs && node scripts/site-exchange-transport-test.mjs && node scripts/site-exchange-app-test.mjs && node scripts/site-exchange-authority-test.mjs && node scripts/site-exchange-links-test.mjs && node scripts/site-exchange-local-delete-test.mjs && node scripts/site-exchange-pagination-test.mjs && python3 scripts/release-prerelease-test.py && npm run test:release-notes",
+    "test:release-notes": "node scripts/release-notes-test.mjs"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",
