@@ -73,6 +73,30 @@ tweet.
   sqlite3 /data/octavo.db ".backup /backups/octavo-$(date +%F).db"
   ```
 
+## Team and publishing workflows
+
+The feature list above covers the everyday writing and reading experience.
+The application also includes these configurable workflows:
+
+| Workflow | Where to start |
+| --- | --- |
+| Real-time collaborative editing | Open a page in the editor; collaboration uses the bundled server and preserves the page's access rules. |
+| Proposed edits and review | Use a page's proposal and changes views. Readers and AI-agent principals can propose; authorized people decide what merges. |
+| Versions and translations | Configure sibling spaces as content variants. Readers can switch between the corresponding page slugs. |
+| Repository synchronization | Open a space's repository view to configure supported Git-host synchronization and inspect conflicts. |
+| Importing existing documentation | Start at Import. The import implementation includes Markdown, DOCX, notebooks, Notion exports and Confluence HTML exports. Check the result before publishing. |
+| Multiple published sites | Admin → Sites presents selected spaces under site-specific navigation and optional hosts, while retaining their existing access checks. |
+| Tenant separation | Admin → Tenants groups spaces within an additional visibility boundary. |
+| SSO and provisioning | Admin → SSO configures OIDC. SCIM user-provisioning endpoints are also included for directory integration. |
+| Answers from your documentation | Admin → Ask configures an operator-provided compatible model endpoint. Retrieval uses the library's permission-scoped search and returns cited passages. |
+| Backups and recovery | Admin → Backups exposes the existing backup/recovery workflows. Replication, scheduled restore drills and lease-fenced failover require operator configuration. |
+| Audit and operational settings | Admin includes audit, notification, connector and policy settings; configure only the integrations your deployment needs. |
+
+These workflows are implemented in the current source; integrations and recovery
+behavior depend on deployment configuration. The repository's focused integration,
+tenant, import, replication, failover and UI suites provide separate validation
+paths; a passing unit suite alone does not establish every connected workflow.
+
 ## Disconnected networks
 
 Octavo runs with no route to the internet — every font, highlighter, and
